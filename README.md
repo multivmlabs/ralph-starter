@@ -261,16 +261,6 @@ ralph-starter run "Create a SaaS dashboard with:
 # ✓ Created PR #1: "Build SaaS dashboard"
 ```
 
-## Why ralph-starter?
-
-| Tool | Focus | ralph-starter advantage |
-|------|-------|------------------------|
-| Ralphy | Multi-engine, PRDs | Simpler UX, guided setup |
-| ralph-tui | Beautiful TUI | Pure JS, instant start |
-| Ralph Orchestrator | Hat system | Zero-config defaults |
-| Proofloop | Verification | npm install && go |
-
-**ralph-starter** is the easiest way to get started with Ralph Wiggum loops.
 
 ## Requirements
 
