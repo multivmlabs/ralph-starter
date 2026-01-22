@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import type { ValidationResult } from './validation.js';
+import type { CostEstimate, TokenEstimate } from './cost-tracker.js';
 
 export interface ProgressEntry {
   timestamp: string;
@@ -10,6 +11,8 @@ export interface ProgressEntry {
   validationResults?: ValidationResult[];
   commitHash?: string;
   duration?: number; // milliseconds
+  cost?: CostEstimate;
+  tokens?: TokenEstimate;
 }
 
 export interface ProgressTracker {
@@ -48,6 +51,17 @@ function formatEntry(entry: ProgressEntry): string {
   // Commit hash
   if (entry.commitHash) {
     lines.push(`**Commit:** \`${entry.commitHash.slice(0, 7)}\``);
+  }
+
+  // Cost info
+  if (entry.cost) {
+    const costStr = entry.cost.totalCost < 0.01
+      ? `${(entry.cost.totalCost * 100).toFixed(2)}¢`
+      : `$${entry.cost.totalCost.toFixed(3)}`;
+    const tokensStr = entry.tokens
+      ? ` (${entry.tokens.totalTokens.toLocaleString()} tokens)`
+      : '';
+    lines.push(`**Cost:** ${costStr}${tokensStr}`);
   }
 
   // Validation results

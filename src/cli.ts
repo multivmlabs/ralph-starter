@@ -59,6 +59,8 @@ program
   .option('--rate-limit <n>', 'Max API calls per hour (default: unlimited)')
   .option('--track-progress', 'Write progress to activity.md (default: true)')
   .option('--no-track-progress', 'Disable progress tracking')
+  .option('--track-cost', 'Track token usage and estimated cost (default: true)')
+  .option('--no-track-cost', 'Disable cost tracking')
   .option('--circuit-breaker-failures <n>', 'Max consecutive failures before stopping (default: 3)')
   .option('--circuit-breaker-errors <n>', 'Max same error occurrences before stopping (default: 5)')
   .action(runCommand);
