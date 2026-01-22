@@ -7,6 +7,7 @@ import { CircuitBreaker, CircuitBreakerConfig } from './circuit-breaker.js';
 import { analyzeResponse, hasExitSignal, countCompletionIndicators } from './semantic-analyzer.js';
 import { createProgressTracker, checkFileBasedCompletion, ProgressEntry } from './progress.js';
 import { RateLimiter, RateLimiterConfig } from './rate-limiter.js';
+import { CostTracker, CostTrackerStats, formatCost, formatTokens } from './cost-tracker.js';
 
 export interface LoopOptions {
   task: string;
@@ -27,6 +28,8 @@ export interface LoopOptions {
   rateLimit?: number; // Calls per hour
   trackProgress?: boolean; // Write to activity.md
   checkFileCompletion?: boolean; // Check for RALPH_COMPLETE file
+  trackCost?: boolean; // Track token usage and cost
+  model?: string; // Model name for cost estimation
 }
 
 export interface LoopResult {
@@ -44,6 +47,7 @@ export interface LoopResult {
       totalFailures: number;
       uniqueErrors: number;
     };
+    costStats?: CostTrackerStats;
   };
 }
 
@@ -173,6 +177,14 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     ? createProgressTracker(options.cwd, options.task)
     : null;
 
+  // Initialize cost tracker
+  const costTracker = options.trackCost
+    ? new CostTracker({
+        model: options.model || 'claude-3-sonnet',
+        maxIterations: maxIterations,
+      })
+    : null;
+
   // Detect validation commands if validation is enabled
   const validationCommands = options.validate ? detectValidationCommands(options.cwd) : [];
 
@@ -195,6 +207,9 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
   }
   if (rateLimiter) {
     console.log(chalk.dim(`Rate limit: ${options.rateLimit}/hour`));
+  }
+  if (costTracker) {
+    console.log(chalk.dim(`Cost tracking: enabled (${options.model || 'claude-3-sonnet'})`));
   }
   console.log();
 
@@ -269,6 +284,13 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
 
     const result = await runAgent(options.agent, agentOptions);
 
+    // Track cost for this iteration
+    if (costTracker) {
+      const iterationCost = costTracker.recordIteration(options.task, result.output);
+      const stats = costTracker.getStats();
+      console.log(chalk.dim(`  💰 Iteration cost: ${formatCost(iterationCost.cost.totalCost)} | Total: ${formatCost(stats.totalCost.totalCost)} (${formatTokens(stats.totalTokens.totalTokens)} tokens)`));
+    }
+
     // Check for completion using enhanced detection
     const status = detectCompletion(result.output, completionOptions);
 
@@ -296,6 +318,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
           avgIterationDuration: (Date.now() - startTime) / i,
           validationFailures,
           circuitBreakerStats: circuitBreaker.getStats(),
+          costStats: costTracker?.getStats(),
         },
       };
     }
@@ -383,6 +406,14 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       progressEntry.validationResults = validationResults.length > 0 ? validationResults : undefined;
       progressEntry.commitHash = committed ? commitMsg : undefined;
       progressEntry.duration = Date.now() - iterationStart;
+      // Add cost info from tracker
+      if (costTracker) {
+        const lastCost = costTracker.getLastIterationCost();
+        if (lastCost) {
+          progressEntry.cost = lastCost.cost;
+          progressEntry.tokens = lastCost.tokens;
+        }
+      }
       await progressTracker.appendEntry(progressEntry);
     }
 
@@ -424,6 +455,13 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
 
   const totalDuration = Date.now() - startTime;
 
+  // Print cost summary if tracking enabled
+  if (costTracker) {
+    console.log();
+    console.log(chalk.cyan('💰 Cost Summary:'));
+    console.log(chalk.dim(costTracker.formatStats()));
+  }
+
   return {
     success: exitReason === 'completed' || exitReason === 'file_signal',
     iterations: finalIteration,
@@ -434,6 +472,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       avgIterationDuration: totalDuration / finalIteration,
       validationFailures,
       circuitBreakerStats: circuitBreaker.getStats(),
+      costStats: costTracker?.getStats(),
     },
   };
 }

@@ -8,6 +8,7 @@ import { runLoop, LoopOptions } from '../loop/executor.js';
 import { isGitRepo, initGitRepo } from '../automation/git.js';
 import { fetchFromSource, detectSource } from '../sources/index.js';
 import { getPreset, getPresetNames, formatPresetsHelp, PresetConfig } from '../presets/index.js';
+import { formatCost, formatTokens } from '../loop/cost-tracker.js';
 
 export interface RunCommandOptions {
   auto?: boolean;
@@ -31,6 +32,7 @@ export interface RunCommandOptions {
   requireExitSignal?: boolean;
   rateLimit?: number;
   trackProgress?: boolean;
+  trackCost?: boolean;
   circuitBreakerFailures?: number;
   circuitBreakerErrors?: number;
 }
@@ -259,6 +261,8 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
     requireExitSignal: options.requireExitSignal,
     rateLimit: options.rateLimit ?? preset?.rateLimit,
     trackProgress: options.trackProgress ?? true, // Default to true
+    trackCost: options.trackCost ?? true, // Default to true
+    model: agent.type === 'claude-code' ? 'claude-3-sonnet' : 'default',
     checkFileCompletion: true, // Always check for file-based completion
     circuitBreaker: preset?.circuitBreaker
       ? {
@@ -289,6 +293,10 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
       console.log(chalk.dim(`Total duration: ${durationSec}s`));
       if (result.stats.validationFailures > 0) {
         console.log(chalk.dim(`Validation failures: ${result.stats.validationFailures}`));
+      }
+      if (result.stats.costStats) {
+        const cost = result.stats.costStats;
+        console.log(chalk.dim(`Total cost: ${formatCost(cost.totalCost.totalCost)} (${formatTokens(cost.totalTokens.totalTokens)} tokens)`));
       }
     }
   } else {

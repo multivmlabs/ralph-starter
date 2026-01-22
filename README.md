@@ -6,6 +6,50 @@
 
 > **Ralph Wiggum made easy.** One command to run autonomous AI coding loops.
 
+## Table of Contents
+
+- [Summary](#summary)
+- [What is Ralph Wiggum?](#what-is-ralph-wiggum)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+  - [For Everyone](#for-everyone-non-developers-welcome)
+  - [Don't Know What to Build?](#dont-know-what-to-build)
+  - [For Developers](#for-developers)
+  - [Working with Existing Projects](#working-with-existing-projects)
+- [Features](#features)
+  - [Interactive Wizard](#interactive-wizard)
+  - [Idea Mode](#idea-mode)
+  - [Input Sources](#input-sources)
+  - [MCP Server](#mcp-server)
+  - [Multi-Agent Support](#multi-agent-support)
+  - [Git Automation](#git-automation)
+  - [Backpressure Validation](#backpressure-validation)
+  - [Workflow Presets](#workflow-presets)
+  - [Circuit Breaker](#circuit-breaker)
+  - [Progress Tracking](#progress-tracking)
+  - [File-Based Completion](#file-based-completion)
+  - [Rate Limiting](#rate-limiting)
+  - [Cost Tracking](#cost-tracking)
+- [Ralph Playbook Workflow](#ralph-playbook-workflow)
+- [Commands](#commands)
+- [Options for `run`](#options-for-run)
+  - [Core Options](#core-options)
+  - [Workflow Presets](#workflow-presets-1)
+  - [Exit Detection](#exit-detection)
+  - [Safety Controls](#safety-controls)
+  - [Source Options](#source-options)
+- [Config Commands](#config-commands)
+- [Source Commands](#source-commands)
+- [Example: Build a SaaS Dashboard](#example-build-a-saas-dashboard)
+- [Testing ralph-starter](#testing-ralph-starter)
+- [API Key Configuration](#api-key-configuration)
+- [Requirements](#requirements)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
 ## Summary
 
 **ralph-starter** is a production-ready CLI tool for running autonomous AI coding loops using the [Ralph Wiggum technique](https://ghuntley.com/ralph/). It makes autonomous coding accessible to both developers and non-developers.
@@ -21,6 +65,7 @@
 | 🔌 **Circuit Breaker** | Auto-stops stuck loops after repeated failures |
 | 📊 **Progress Tracking** | Logs iterations to `activity.md` |
 | ⏱️ **Rate Limiting** | Control API costs with `--rate-limit` |
+| 💰 **Cost Tracking** | Estimates token usage and cost per iteration |
 | 🎯 **Smart Exit Detection** | Semantic analysis + completion promises + file signals |
 | 🔧 **Git Automation** | Auto-commit, push, and PR creation |
 | ✅ **Backpressure Validation** | Run tests/lint/build after each iteration |
@@ -335,6 +380,32 @@ Control API call frequency to manage costs:
 ralph-starter run --rate-limit 50 "build X"
 ```
 
+### Cost Tracking
+
+Track estimated token usage and costs during loops:
+
+```bash
+# Cost tracking is enabled by default
+ralph-starter run "build X"
+
+# Disable cost tracking
+ralph-starter run "build X" --no-track-cost
+```
+
+Cost tracking provides:
+- **Per-iteration cost** displayed during the loop
+- **Running total** of tokens and cost
+- **Cost summary** at the end of the loop
+- **Cost logged** in `activity.md` for each iteration
+- **Projected cost** for remaining iterations (after 3+ iterations)
+
+Supported models for cost estimation:
+- Claude 3 Opus ($15/$75 per 1M tokens)
+- Claude 3.5 Sonnet ($3/$15 per 1M tokens)
+- Claude 3.5 Haiku ($0.25/$1.25 per 1M tokens)
+- GPT-4 ($30/$60 per 1M tokens)
+- GPT-4 Turbo ($10/$30 per 1M tokens)
+
 ## Ralph Playbook Workflow
 
 ralph-starter follows the [Ralph Playbook](https://claytonfarr.github.io/ralph-playbook/) methodology:
@@ -429,6 +500,8 @@ ralph-starter run --require-exit-signal "build Y"
 | `--circuit-breaker-errors <n>` | Max same error occurrences before stopping (default: 5) |
 | `--track-progress` | Write progress to activity.md (default: true) |
 | `--no-track-progress` | Disable progress tracking |
+| `--track-cost` | Track token usage and estimated cost (default: true) |
+| `--no-track-cost` | Disable cost tracking |
 
 ```bash
 # Limit to 50 API calls per hour
