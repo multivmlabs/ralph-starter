@@ -5,24 +5,24 @@ import styles from './styles.module.css';
 
 interface Integration {
   name: string;
-  icon: string;
+  logo: string;
   description: string;
 }
 
 const integrations: Integration[] = [
   {
     name: 'GitHub',
-    icon: '⬡',
+    logo: '/img/github logo.webp',
     description: 'Issues, PRs & repository files',
   },
   {
     name: 'Linear',
-    icon: '◇',
+    logo: '/img/linear.jpeg',
     description: 'Project & issue tracking',
   },
   {
     name: 'Notion',
-    icon: '▣',
+    logo: '/img/notion logo.png',
     description: 'Pages & databases',
   },
 ];
@@ -68,7 +68,11 @@ export default function IntegrationShowcase(): React.ReactElement {
                   className={`${styles.card} ${styles.animateIn}`}
                   style={{ transitionDelay: `${0.2 + index * 0.1}s` }}
                 >
-                  <div className={styles.cardIcon}>{integration.icon}</div>
+                  <img
+                    src={useBaseUrl(integration.logo)}
+                    alt={integration.name}
+                    className={styles.cardLogo}
+                  />
                   <div className={styles.cardInfo}>
                     <h3 className={styles.cardName}>{integration.name}</h3>
                     <p className={styles.cardDescription}>{integration.description}</p>
