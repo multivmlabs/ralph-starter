@@ -382,7 +382,7 @@ Usage:
 
 Options:
   --project  Repository in owner/repo format or GitHub URL
-             (defaults to rubenmarcus/ralph-ideas when using --issue alone)
+             (defaults to configured defaultIssuesRepo when using --issue alone)
   --issue    Specific issue number to fetch
   --label    Filter by label name (for listing issues)
   --status   Issue state: open, closed, all (default: open)
@@ -392,8 +392,12 @@ Authentication:
   Uses 'gh' CLI if available and authenticated
   Otherwise requires: ralph-starter config set github.token <token>
 
+Configuration:
+  Set default issues repository:
+  ralph-starter config set github.defaultIssuesRepo owner/repo
+
 Examples:
-  # Fetch from ralph-ideas (default repo)
+  # Fetch from default repo (uses configured defaultIssuesRepo)
   ralph-starter run --from github --issue 18
 
   # Fetch a single issue from specific repo
