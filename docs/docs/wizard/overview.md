@@ -155,9 +155,6 @@ If the directory contains a language project file (package.json, pyproject.toml,
 - **Create new project in a subfolder** - Keep the existing project separate
 - **Choose a different directory** - Pick a different location
 
-### Compatibility
-
-
 ## Non-Developer Friendly
 
 The wizard uses plain language instead of technical jargon:

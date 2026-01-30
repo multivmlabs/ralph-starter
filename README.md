@@ -208,7 +208,6 @@ The wizard will detect the project type and let you:
 - Add features to the existing project
 - Create a new project in a subfolder
 
-
 ## Features
 
 ### Interactive Wizard
