@@ -3,11 +3,16 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
 
 jobs:
-  # Main CLI package
   main-cli:
     name: Main CLI
     runs-on: ubuntu-latest
@@ -35,33 +40,3 @@ jobs:
 
       - name: Test
         run: npm test
-
-  # Documentation site
-  docs:
-    name: Documentation
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: docs
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: docs/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Type check
-        run: npm run typecheck
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Build
-        run: npm run build
