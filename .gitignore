@@ -20,5 +20,6 @@ docs/.docusaurus/
 
 # Reference projects (not part of ralph-starter)
 projects/
-ralph-tui-main/
-ralphy-main/
+
+refs/
+refs/*

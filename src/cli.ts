@@ -48,7 +48,8 @@ program
 program
   .command('run [task]')
   .description('Run an autonomous AI coding loop')
-  .option('--auto', 'Run in fully automated mode (skip permissions)')
+  .option('--auto', 'Run in fully automated mode (skip permissions)', true)
+  .option('--no-auto', 'Require manual permission approval')
   .option('--commit', 'Auto-commit after each successful task')
   .option('--push', 'Push commits to remote')
   .option('--pr', 'Create a pull request when done')
@@ -98,7 +99,8 @@ program
 program
   .command('plan')
   .description('Analyze specs and create implementation plan (Ralph Playbook planning mode)')
-  .option('--auto', 'Run in automated mode (skip permissions)')
+  .option('--auto', 'Run in automated mode (skip permissions)', true)
+  .option('--no-auto', 'Require manual permission approval')
   .action(planCommand);
 
 // ralph-starter setup - Interactive setup wizard
