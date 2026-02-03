@@ -152,8 +152,39 @@ export class NotionSource extends IntegrationSource {
   }
 
   private async fetchBlocks(token: string, id: string): Promise<NotionBlock[]> {
-    const response = await this.apiRequest(token, 'GET', `/blocks/${id}/children?page_size=100`);
-    return response.results;
+    const allBlocks: NotionBlock[] = [];
+    let cursor: string | undefined;
+    let hasMore = true;
+
+    // Paginate through all blocks
+    while (hasMore) {
+      const url = cursor
+        ? `/blocks/${id}/children?page_size=100&start_cursor=${cursor}`
+        : `/blocks/${id}/children?page_size=100`;
+
+      const response = await this.apiRequest(token, 'GET', url);
+      const blocks = response.results as NotionBlock[];
+
+      // Fetch children for blocks that have them
+      for (const block of blocks) {
+        allBlocks.push(block);
+
+        // Recursively fetch nested blocks
+        if (block.has_children) {
+          const children = await this.fetchBlocks(token, block.id);
+          // Add children with indentation info
+          for (const child of children) {
+            (child as any)._depth = ((block as any)._depth || 0) + 1;
+            allBlocks.push(child);
+          }
+        }
+      }
+
+      hasMore = response.has_more;
+      cursor = response.next_cursor;
+    }
+
+    return allBlocks;
   }
 
   private async fetchDatabase(token: string, id: string): Promise<NotionDatabase> {
@@ -328,10 +359,12 @@ export class NotionSource extends IntegrationSource {
     if (!content) return '';
 
     const text = this.richTextToPlain(content.rich_text);
+    const depth = (block as any)._depth || 0;
+    const indent = '  '.repeat(depth);
 
     switch (block.type) {
       case 'paragraph':
-        return `${text}\n`;
+        return `${indent}${text}\n`;
       case 'heading_1':
         return `## ${text}\n`;
       case 'heading_2':
@@ -339,20 +372,20 @@ export class NotionSource extends IntegrationSource {
       case 'heading_3':
         return `#### ${text}\n`;
       case 'bulleted_list_item':
-        return `- ${text}`;
+        return `${indent}- ${text}`;
       case 'numbered_list_item':
-        return `1. ${text}`;
+        return `${indent}1. ${text}`;
       case 'to_do': {
         const checked = content.checked ? 'x' : ' ';
-        return `- [${checked}] ${text}`;
+        return `${indent}- [${checked}] ${text}`;
       }
       case 'toggle':
-        return `<details>\n<summary>${text}</summary>\n</details>\n`;
+        return `${indent}<details>\n${indent}<summary>${text}</summary>\n${indent}</details>\n`;
       case 'quote':
-        return `> ${text}\n`;
+        return `${indent}> ${text}\n`;
       case 'callout': {
         const emoji = content.icon?.emoji || '💡';
-        return `> ${emoji} ${text}\n`;
+        return `${indent}> ${emoji} ${text}\n`;
       }
       case 'code': {
         const lang = content.language || '';
@@ -362,10 +395,23 @@ export class NotionSource extends IntegrationSource {
         return '---\n';
       case 'image': {
         const url = content.file?.url || content.external?.url || '';
-        return url ? `![Image](${url})\n` : '';
+        return url ? `${indent}![Image](${url})\n` : '';
       }
+      case 'table': {
+        // Tables need special handling - will be converted when processing children
+        return '';
+      }
+      case 'table_row': {
+        const cells = content.cells || [];
+        const cellText = cells.map((cell: any[]) => this.richTextToPlain(cell)).join(' | ');
+        return `| ${cellText} |`;
+      }
+      case 'column_list':
+      case 'column':
+        // Column layouts - just render children inline
+        return '';
       default:
-        return text ? `${text}\n` : '';
+        return text ? `${indent}${text}\n` : '';
     }
   }
 
