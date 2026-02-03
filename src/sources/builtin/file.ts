@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { basename, extname, join, resolve } from 'node:path';
 import { BuiltinSource } from '../base.js';
 import type { SourceOptions, SourceResult } from '../types.js';
@@ -20,10 +20,18 @@ export class FileSource extends BuiltinSource {
   }
 
   async fetch(identifier: string, options?: SourceOptions): Promise<SourceResult> {
-    const path = resolve(process.cwd(), identifier);
+    const cwd = process.cwd();
+    const path = resolve(cwd, identifier);
 
     if (!existsSync(path)) {
       this.error(`File or directory not found: ${identifier}`);
+    }
+
+    // Security: Prevent path traversal attacks
+    const realPath = realpathSync(path);
+    const realCwd = realpathSync(cwd);
+    if (!realPath.startsWith(realCwd)) {
+      this.error(`Path traversal not allowed: ${identifier}`);
     }
 
     const stat = statSync(path);

@@ -57,7 +57,7 @@ export function getAllEnvVarMappings(): Record<string, Record<string, string>> {
  */
 function ensureConfigDir(): void {
   if (!existsSync(CONFIG_DIR)) {
-    mkdirSync(CONFIG_DIR, { recursive: true });
+    mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
   }
 }
 
@@ -84,7 +84,7 @@ export function readSourcesConfig(): SourcesConfig {
  */
 export function writeSourcesConfig(config: SourcesConfig): void {
   ensureConfigDir();
-  writeFileSync(SOURCES_CONFIG_FILE, JSON.stringify(config, null, 2));
+  writeFileSync(SOURCES_CONFIG_FILE, JSON.stringify(config, null, 2), { mode: 0o600 });
 }
 
 /**

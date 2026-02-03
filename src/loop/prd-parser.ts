@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 export interface PrdTask {
@@ -25,9 +25,21 @@ export interface PrdContent {
  * - Description from content before first task list
  */
 export function parsePrdFile(filePath: string): PrdContent | null {
-  const resolvedPath = resolve(filePath);
+  const cwd = process.cwd();
+  const resolvedPath = resolve(cwd, filePath);
 
   if (!existsSync(resolvedPath)) {
+    return null;
+  }
+
+  // Security: Prevent path traversal attacks
+  try {
+    const realPath = realpathSync(resolvedPath);
+    const realCwd = realpathSync(cwd);
+    if (!realPath.startsWith(realCwd)) {
+      return null; // Path traversal attempt
+    }
+  } catch {
     return null;
   }
 
