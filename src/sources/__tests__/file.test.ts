@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FileSource } from '../builtin/file.js';
 
@@ -8,12 +8,14 @@ vi.mock('fs', () => ({
   readFileSync: vi.fn(),
   readdirSync: vi.fn(),
   statSync: vi.fn(),
+  realpathSync: vi.fn(),
 }));
 
 const mockExistsSync = vi.mocked(existsSync);
 const mockReadFileSync = vi.mocked(readFileSync);
 const mockReaddirSync = vi.mocked(readdirSync);
 const mockStatSync = vi.mocked(statSync);
+const mockRealpathSync = vi.mocked(realpathSync);
 
 describe('FileSource', () => {
   let source: FileSource;
@@ -34,6 +36,18 @@ describe('FileSource', () => {
     beforeEach(() => {
       mockExistsSync.mockReturnValue(true);
       mockStatSync.mockReturnValue({ isFile: () => true, isDirectory: () => false } as any);
+      // Mock realpathSync to return paths that pass security check
+      // Both cwd and file path should resolve to same prefix
+      mockRealpathSync.mockImplementation((p) => {
+        const path = String(p);
+        const cwd = process.cwd();
+        // If it's the cwd itself, return it
+        if (path === cwd) {
+          return cwd;
+        }
+        // Return path within cwd
+        return `${cwd}/${path.replace(/^.*\//, '')}`;
+      });
     });
 
     it('should read markdown file as-is', async () => {
@@ -93,6 +107,15 @@ describe('FileSource', () => {
     beforeEach(() => {
       mockExistsSync.mockReturnValue(true);
       mockStatSync.mockReturnValue({ isFile: () => false, isDirectory: () => true } as any);
+      // Mock realpathSync to return paths that pass security check
+      mockRealpathSync.mockImplementation((p) => {
+        const path = String(p);
+        const cwd = process.cwd();
+        if (path === cwd) {
+          return cwd;
+        }
+        return `${cwd}/${path.replace(/^.*\//, '')}`;
+      });
     });
 
     it('should read all markdown files in directory', async () => {
