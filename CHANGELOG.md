@@ -12,6 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--output-dir <path>` flag to specify task directory
 - Project location prompt when fetching from integration sources
 - Support for GitHub issue URLs as project identifiers
+- Auto-release workflow for tag pushes (publishes to npm automatically)
+
+### Fixed
+- **Notion integration**: Full page fetching with automatic pagination (no more 100-block limit)
+- **Notion integration**: Recursive fetching of nested blocks (toggles, columns, etc.)
+- **Notion integration**: Added support for tables, table rows, and column layouts
+
+### Changed
+- Notion docs updated with supported block types and features
 
 ## [0.1.0-beta.1] - 2025-01-27
 
