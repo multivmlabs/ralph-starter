@@ -238,5 +238,5 @@ Open an issue on GitHub: [github.com/rubenmarcus/ralph-starter/issues](https://g
 ## More Questions?
 
 - Check the [full documentation](/docs/intro)
-- Ask on [GitHub Discussions](https://github.com/rubenmarcus/ralph-starter/discussions)
+- Browse [Templates](https://github.com/rubenmarcus/ralph-templates)
 - Open an [issue](https://github.com/rubenmarcus/ralph-starter/issues)
