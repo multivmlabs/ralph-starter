@@ -20,7 +20,7 @@ export default function Home(): ReactNode {
   return (
     <Layout
       title="Home"
-      description="Connect your tools like GitHub, Linear, and Notion. Fetch specs from anywhere and let AI coding agents build production-ready code automatically with autonomous loops.">
+      description="Connect your tools like Figma, GitHub, Linear, and Notion. Fetch specs from anywhere and let AI coding agents build production-ready code automatically with autonomous loops.">
       <HeroSection />
       <main>
         <FeatureSections />
