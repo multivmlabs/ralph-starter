@@ -58,6 +58,11 @@ export default function HeroSection(): React.ReactElement {
               className={styles.integrationLogo}
             />
             <img
+              src={useBaseUrl('/img/figma-logo.svg')}
+              alt="Figma"
+              className={styles.integrationLogo}
+            />
+            <img
               src={useBaseUrl('/img/linear.jpeg')}
               alt="Linear"
               className={styles.integrationLogo}
