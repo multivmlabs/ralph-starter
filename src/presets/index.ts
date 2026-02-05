@@ -231,6 +231,47 @@ export const PRESETS: Record<string, PresetConfig> = {
     promptPrefix:
       'Compare the specification to the current implementation. Identify gaps, missing features, and discrepancies. Create a prioritized TODO list.',
   },
+
+  // Collaborative presets
+  'mob-programming': {
+    name: 'mob-programming',
+    description: 'Simulated mob programming with rotating roles',
+    maxIterations: 40,
+    validate: true,
+    commit: true,
+    promptPrefix:
+      'Simulate mob programming: rotate between Driver (writes code), Navigator (reviews direction), and Mob (provides input). After each significant change, rotate roles and review.',
+  },
+
+  'socratic-learning': {
+    name: 'socratic-learning',
+    description: 'Learn through questioning and exploration',
+    maxIterations: 30,
+    validate: false,
+    commit: false,
+    promptPrefix:
+      'Use the Socratic method: ask probing questions, challenge assumptions, explore edge cases. Document insights and understanding gained.',
+  },
+
+  'confession-loop': {
+    name: 'confession-loop',
+    description: 'Introspective Builder-Confessor-Handler cycle',
+    maxIterations: 35,
+    validate: true,
+    commit: true,
+    promptPrefix:
+      'Follow the confession loop: 1) Builder creates implementation, 2) Confessor admits weaknesses/concerns, 3) Handler addresses confessions. Iterate until confident.',
+  },
+
+  'pdd-to-code-assist': {
+    name: 'pdd-to-code-assist',
+    description: 'Prompt-Driven Development flow',
+    maxIterations: 30,
+    validate: true,
+    commit: true,
+    promptPrefix:
+      'Follow PDD: 1) Write detailed prompts describing desired behavior, 2) Generate code from prompts, 3) Validate against prompts, 4) Refine prompts if needed.',
+  },
 };
 
 /**
@@ -269,6 +310,12 @@ export function getPresetsByCategory(): Record<string, PresetConfig[]> {
       PRESETS['scientific-method'],
       PRESETS.research,
       PRESETS['gap-analysis'],
+    ],
+    Collaborative: [
+      PRESETS['mob-programming'],
+      PRESETS['socratic-learning'],
+      PRESETS['confession-loop'],
+      PRESETS['pdd-to-code-assist'],
     ],
   };
 }

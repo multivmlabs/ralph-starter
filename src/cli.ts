@@ -13,9 +13,11 @@ import { initCommand } from './commands/init.js';
 import { integrationsCommand } from './commands/integrations.js';
 import { planCommand } from './commands/plan.js';
 import { runCommand } from './commands/run.js';
+import { pauseCommand, resumeCommand, sessionStatusCommand } from './commands/session.js';
 import { setupCommand } from './commands/setup.js';
 import { skillCommand } from './commands/skill.js';
 import { sourceCommand } from './commands/source.js';
+import { specCommand } from './commands/spec.js';
 import { templateCommand } from './commands/template.js';
 import { startMcpServer } from './mcp/server.js';
 import { formatPresetsHelp, getPresetNames } from './presets/index.js';
@@ -104,6 +106,32 @@ program
   .option('--auto', 'Run in automated mode (skip permissions)', true)
   .option('--no-auto', 'Require manual permission approval')
   .action(planCommand);
+
+// ralph-starter spec - 5-phase specification generation
+program
+  .command('spec')
+  .description('Generate specifications through 5 phases (research, requirements, design, tasks)')
+  .requiredOption('--idea <description>', 'Feature/idea description to spec out')
+  .option('--auto', 'Run in automated mode (skip permissions)', true)
+  .option('--no-auto', 'Require manual permission approval')
+  .option('--skip-research', 'Skip the research phase')
+  .option('--skip-requirements', 'Skip the requirements phase')
+  .option('--skip-design', 'Skip the design phase')
+  .option('--skip-tasks', 'Skip the tasks phase')
+  .option('--output-dir <path>', 'Output directory for specs (default: ./specs)')
+  .option('--verbose', 'Show detailed agent output')
+  .action(async (options) => {
+    await specCommand({
+      idea: options.idea,
+      auto: options.auto,
+      skipResearch: options.skipResearch,
+      skipRequirements: options.skipRequirements,
+      skipDesign: options.skipDesign,
+      skipTasks: options.skipTasks,
+      outputDir: options.outputDir,
+      verbose: options.verbose,
+    });
+  });
 
 // ralph-starter setup - Interactive setup wizard
 program
@@ -253,6 +281,28 @@ program
     console.log('Use with: ralph-starter run --preset <name> [task]');
     console.log();
   });
+
+// ralph-starter pause - Pause current session
+program
+  .command('pause')
+  .description('Pause the current AI coding loop session')
+  .option('--verbose', 'Show detailed session info')
+  .action(pauseCommand);
+
+// ralph-starter resume - Resume paused session
+program
+  .command('resume')
+  .description('Resume a paused AI coding loop session')
+  .option('--verbose', 'Show detailed session info')
+  .option('--force', 'Force delete expired/failed sessions')
+  .action(resumeCommand);
+
+// ralph-starter status - Show session status
+program
+  .command('status')
+  .description('Show current session status')
+  .option('--verbose', 'Show detailed session info')
+  .action(sessionStatusCommand);
 
 // ralph-starter template - Browse and use project templates
 program

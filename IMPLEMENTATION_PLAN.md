@@ -32,26 +32,22 @@
 - [x] Safety controls documentation
 - [x] Ralph Playbook files for self-development
 
----
-
-## In Progress
-
 ### Phase 5: Session Management
-- [ ] Create `src/loop/session.ts` for pause/resume support
-- [ ] Add `ralph-starter pause` command
-- [ ] Add `ralph-starter resume` command
-- [ ] Store session state in `.ralph-session.json`
+- [x] Create `src/loop/session.ts` for pause/resume support
+- [x] Add `ralph-starter pause` command
+- [x] Add `ralph-starter resume` command
+- [x] Store session state in `.ralph-session.json`
 
 ---
 
 ## Planned
 
 ### Phase 6: 5-Phase Spec Generation
-- [ ] Create `src/commands/spec.ts`
-- [ ] Implement research phase (feasibility analysis)
-- [ ] Implement requirements phase (user stories)
-- [ ] Implement design phase (architecture)
-- [ ] Implement tasks phase (breakdown)
+- [x] Create `src/commands/spec.ts`
+- [x] Implement research phase (feasibility analysis)
+- [x] Implement requirements phase (user stories)
+- [x] Implement design phase (architecture)
+- [x] Implement tasks phase (breakdown)
 
 ### Phase 7: Knowledge Harvest
 - [ ] Create `src/commands/harvest.ts`
@@ -66,7 +62,7 @@
 
 ### Phase 9: Developer Experience
 - [ ] Add `--dry-run` flag to preview without executing
-- [ ] Add `ralph-starter status` command
+- [x] Add `ralph-starter status` command
 - [ ] Add `ralph-starter logs` command for activity.md viewer
 - [ ] Improve error messages with suggestions
 
