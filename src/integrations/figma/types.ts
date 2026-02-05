@@ -270,7 +270,7 @@ export interface FigmaComponentsResponse {
  */
 export interface FigmaIntegrationOptions {
   /** Mode of operation */
-  mode?: 'spec' | 'tokens' | 'components' | 'assets';
+  mode?: 'spec' | 'tokens' | 'components' | 'assets' | 'content';
   /** Output format for tokens */
   tokenFormat?: 'css' | 'scss' | 'json' | 'tailwind';
   /** Framework for component generation */
@@ -289,4 +289,10 @@ export interface FigmaIntegrationOptions {
   status?: string;
   /** Maximum items to fetch */
   limit?: number;
+  /** Target directory for content mode */
+  target?: string;
+  /** Show preview without applying changes (content mode) */
+  preview?: boolean;
+  /** Custom content mapping file path (content mode) */
+  mapping?: string;
 }
