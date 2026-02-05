@@ -19,6 +19,7 @@ const sidebars: SidebarsConfig = {
       collapsed: false,
       items: [
         'sources/overview',
+        'sources/figma',
         'sources/github',
         'sources/linear',
         'sources/notion',

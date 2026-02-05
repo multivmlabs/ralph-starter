@@ -23,6 +23,7 @@ ralph-starter can fetch specifications from various external sources, allowing y
 
 | Source | Description | Auth Required |
 |--------|-------------|---------------|
+| `figma` | Figma designs, tokens, components, assets | Yes (API token) |
 | `github` | GitHub Issues | Optional (gh CLI or token) |
 | `linear` | Linear issues | Yes (API key) |
 | `notion` | Notion pages | Yes (API key) |
@@ -60,6 +61,7 @@ Store credentials for integration sources:
 
 ```bash
 # Set credentials
+ralph-starter config set figma.token <your-token>
 ralph-starter config set linear.apiKey <your-key>
 ralph-starter config set notion.token <your-key>
 ralph-starter config set github.token <your-token>
@@ -110,6 +112,7 @@ ralph-starter source preview github --project owner/repo
 
 ## Next Steps
 
+- [Figma](/docs/sources/figma) - Fetch design specs, tokens, and components
 - [GitHub](/docs/sources/github) - Fetch from GitHub Issues
 - [Linear](/docs/sources/linear) - Fetch from Linear issues
 - [Notion](/docs/sources/notion) - Fetch from Notion pages

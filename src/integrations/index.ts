@@ -8,6 +8,7 @@
 import type { Integration, IntegrationInfo } from './base.js';
 
 // Import all integrations
+import { FigmaIntegration } from './figma/index.js';
 import { GitHubIntegration } from './github/index.js';
 import { LinearIntegration } from './linear/index.js';
 import { NotionIntegration } from './notion/index.js';
@@ -26,6 +27,7 @@ export { BaseIntegration } from './base.js';
  * All registered integrations
  */
 const integrations: Integration[] = [
+  new FigmaIntegration(),
   new GitHubIntegration(),
   new LinearIntegration(),
   new NotionIntegration(),
@@ -92,6 +94,7 @@ export async function fetchFromIntegration(
 }
 
 // Individual exports for direct imports
+export { FigmaIntegration } from './figma/index.js';
 export { GitHubIntegration } from './github/index.js';
 export { LinearIntegration } from './linear/index.js';
 export { NotionIntegration } from './notion/index.js';

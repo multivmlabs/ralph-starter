@@ -12,7 +12,7 @@ const config: Config = {
   },
 
   // Cloudflare Pages URL
-  url: 'https://ralph-starter.pages.dev',
+  url: 'https://ralphstarter.ai',
   baseUrl: '/',
 
   // Project config
@@ -63,7 +63,7 @@ const config: Config = {
         '@type': 'SoftwareApplication',
         name: 'ralph-starter',
         description: 'AI-powered autonomous coding tool. Connect GitHub, Linear, Notion and run AI coding loops from specs to production.',
-        url: 'https://ralph-starter.pages.dev',
+        url: 'https://ralphstarter.ai',
         applicationCategory: 'DeveloperApplication',
         operatingSystem: 'macOS, Linux, Windows',
         offers: {
@@ -93,13 +93,54 @@ const config: Config = {
         '@context': 'https://schema.org',
         '@type': 'WebSite',
         name: 'ralph-starter Documentation',
-        url: 'https://ralph-starter.pages.dev',
+        url: 'https://ralphstarter.ai',
         description: 'Documentation for ralph-starter - AI-powered autonomous coding from specs to production',
         potentialAction: {
           '@type': 'SearchAction',
-          target: 'https://ralph-starter.pages.dev/search?q={search_term_string}',
+          target: 'https://ralphstarter.ai/search?q={search_term_string}',
           'query-input': 'required name=search_term_string',
         },
+      }),
+    },
+    // JSON-LD: TechArticle schema for documentation
+    {
+      tagName: 'script',
+      attributes: {
+        type: 'application/ld+json',
+      },
+      innerHTML: JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'TechArticle',
+        headline: 'ralph-starter Documentation',
+        description: 'Complete documentation for ralph-starter - AI-powered autonomous coding tool. Learn how to connect Figma, GitHub, Linear, and Notion to run AI coding loops from specs to production.',
+        url: 'https://ralphstarter.ai/docs/intro',
+        author: {
+          '@type': 'Person',
+          name: 'rubenmarcus',
+          url: 'https://github.com/rubenmarcus',
+        },
+        publisher: {
+          '@type': 'Organization',
+          name: 'ralph-starter',
+          url: 'https://ralphstarter.ai',
+        },
+        mainEntityOfPage: 'https://ralphstarter.ai/docs/intro',
+        articleSection: 'Documentation',
+        proficiencyLevel: 'Beginner',
+        dependencies: 'Node.js 18+',
+        keywords: ['AI coding', 'autonomous coding', 'claude code', 'MCP server', 'Figma integration', 'GitHub integration', 'Linear integration', 'Notion integration'],
+        about: [
+          {
+            '@type': 'Thing',
+            name: 'AI Code Generation',
+            description: 'Using AI to automatically generate production-ready code',
+          },
+          {
+            '@type': 'Thing',
+            name: 'Developer Tools',
+            description: 'CLI tools for software development automation',
+          },
+        ],
       }),
     },
   ],
@@ -113,6 +154,12 @@ const config: Config = {
         docsDir: 'docs',
         title: 'ralph-starter Documentation',
         description: 'AI-powered autonomous coding tool. Connect GitHub, Linear, Notion and run AI coding loops from specs to production.',
+      },
+    ],
+    [
+      './plugins/raw-markdown.js',
+      {
+        docsDir: 'docs',
       },
     ],
   ],
@@ -154,10 +201,10 @@ const config: Config = {
       { name: 'og:type', content: 'website' },
       { property: 'og:title', content: 'ralph-starter - AI-Powered Autonomous Coding' },
       { property: 'og:description', content: 'Connect your tools like GitHub, Linear, and Notion. Fetch specs from anywhere and let AI coding agents build production-ready code automatically.' },
-      { property: 'og:image', content: 'https://ralph-starter.pages.dev/img/thumbnail.png' },
+      { property: 'og:image', content: 'https://ralphstarter.ai/img/thumbnail.png' },
       { name: 'twitter:title', content: 'ralph-starter - AI-Powered Autonomous Coding' },
       { name: 'twitter:description', content: 'Connect your tools like GitHub, Linear, and Notion. Fetch specs from anywhere and let AI coding agents build production-ready code automatically.' },
-      { name: 'twitter:image', content: 'https://ralph-starter.pages.dev/img/thumbnail.png' },
+      { name: 'twitter:image', content: 'https://ralphstarter.ai/img/thumbnail.png' },
     ],
     navbar: {
       title: '',

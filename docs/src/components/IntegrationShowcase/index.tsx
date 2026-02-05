@@ -11,6 +11,11 @@ interface Integration {
 
 const integrations: Integration[] = [
   {
+    name: 'Figma',
+    logo: '/img/figma-logo.svg',
+    description: 'Design specs, tokens & assets',
+  },
+  {
     name: 'GitHub',
     logo: '/img/github logo.webp',
     description: 'Issues, PRs & repository files',
