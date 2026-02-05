@@ -44,7 +44,7 @@ We take security seriously at ralph-starter. If you discover a security vulnerab
 
 ralph-starter handles sensitive credentials including:
 
-- **API Keys**: Linear, Notion, GitHub, Todoist
+- **API Keys**: Linear, Notion, GitHub, Figma
 - **OAuth Tokens**: Various integrations
 - **LLM API Keys**: Anthropic, OpenAI, OpenRouter
 
