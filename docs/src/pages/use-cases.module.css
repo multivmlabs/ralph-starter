@@ -1,0 +1,347 @@
+/* Use Cases Page Styles */
+.main {
+  background: #08080A;
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+/* Hero Section */
+.hero {
+  padding: 6rem 2rem 4rem;
+  text-align: center;
+  border-bottom: 1px solid #28282E;
+}
+
+.label {
+  display: inline-block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #606068;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  margin-bottom: 1rem;
+}
+
+.title {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 3rem;
+  font-weight: 600;
+  color: #E8E8EA;
+  margin: 0 0 1rem 0;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 1.2rem;
+  color: #808088;
+  margin: 0 auto;
+  max-width: 650px;
+  line-height: 1.6;
+}
+
+/* Use Cases Section */
+.useCasesSection {
+  padding: 4rem 2rem;
+}
+
+.useCasesGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
+}
+
+.useCaseCard {
+  background: #0F0F14;
+  border: 1px solid #28282E;
+  border-radius: 16px;
+  padding: 2rem;
+  transition: all 0.3s ease;
+}
+
+.useCaseCard:hover {
+  border-color: #38383F;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.sourceIcon {
+  width: 32px;
+  height: 32px;
+}
+
+.sourceLabel {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #606068;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background: #121218;
+  border: 1px solid #28282E;
+  border-radius: 4px;
+  padding: 0.3rem 0.6rem;
+}
+
+.useCaseTitle {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #E8E8EA;
+  margin: 0 0 0.75rem 0;
+}
+
+.useCaseDescription {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 0.95rem;
+  color: #808088;
+  line-height: 1.7;
+  margin: 0 0 1.5rem 0;
+}
+
+/* Workflow Section */
+.workflowSection {
+  background: #0A0A0F;
+  border: 1px solid #28282E;
+  border-radius: 10px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.workflowTitle {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #606068;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin: 0 0 1rem 0;
+}
+
+.workflowList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.workflowStep {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.workflowStep:last-child {
+  margin-bottom: 0;
+}
+
+.stepNumber {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: #121218;
+  border: 1px solid #38383F;
+  border-radius: 50%;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #808088;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.stepText {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 0.85rem;
+  color: #C0C0C5;
+  line-height: 1.5;
+}
+
+/* Command Section */
+.commandSection {
+  margin-bottom: 1.5rem;
+}
+
+.command {
+  display: block;
+  background: #08080A;
+  border: 1px solid #28282E;
+  border-radius: 8px;
+  padding: 0.875rem 1rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  color: #C0C0C5;
+  overflow-x: auto;
+}
+
+.docsLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #C0C0C5;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.docsLink:hover {
+  color: #E8E8EA;
+  text-decoration: none;
+}
+
+.arrowIcon {
+  width: 16px;
+  height: 16px;
+}
+
+/* CTA Section */
+.ctaSection {
+  padding: 0 2rem 6rem;
+}
+
+.ctaCard {
+  background: linear-gradient(135deg, #0F0F14 0%, #121218 100%);
+  border: 1px solid #28282E;
+  border-radius: 16px;
+  padding: 3rem;
+  text-align: center;
+}
+
+.ctaTitle {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #E8E8EA;
+  margin: 0 0 0.75rem 0;
+}
+
+.ctaText {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 1.1rem;
+  color: #808088;
+  margin: 0 0 2rem 0;
+}
+
+.ctaActions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.primaryButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: #E8E8EA;
+  color: #08080A;
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.875rem 1.75rem;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.primaryButton:hover {
+  background: #FFFFFF;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(232, 232, 234, 0.2);
+  text-decoration: none;
+  color: #08080A;
+}
+
+.secondaryButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: transparent;
+  border: 1px solid #38383F;
+  color: #C0C0C5;
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  padding: 0.875rem 1.75rem;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.secondaryButton:hover {
+  background: #121218;
+  border-color: #4A4A52;
+  color: #E8E8EA;
+  text-decoration: none;
+}
+
+/* Responsive */
+@media screen and (max-width: 996px) {
+  .hero {
+    padding: 4rem 1.5rem 3rem;
+  }
+
+  .title {
+    font-size: 2.25rem;
+  }
+
+  .useCasesGrid {
+    grid-template-columns: 1fr;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+}
+
+@media screen and (max-width: 600px) {
+  .hero {
+    padding: 3rem 1rem 2rem;
+  }
+
+  .container {
+    padding: 0 1rem;
+  }
+
+  .title {
+    font-size: 1.75rem;
+  }
+
+  .subtitle {
+    font-size: 1rem;
+  }
+
+  .useCasesSection {
+    padding: 3rem 1rem;
+  }
+
+  .useCaseCard {
+    padding: 1.5rem;
+  }
+
+  .ctaSection {
+    padding: 0 1rem 4rem;
+  }
+
+  .ctaCard {
+    padding: 2rem 1.5rem;
+  }
+
+  .ctaActions {
+    flex-direction: column;
+  }
+}

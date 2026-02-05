@@ -7,6 +7,15 @@
 # Default - allow all
 User-agent: *
 Allow: /
+Crawl-delay: 1
+Allow: /img/
+Allow: /assets/
+Allow: /*.js
+Allow: /*.css
+Allow: /*.json
+Allow: /*.txt
+Allow: /*.md
+Allow: /*.xml
 
 # Sitemap
 Sitemap: https://ralphstarter.ai/sitemap.xml
@@ -201,19 +210,3 @@ Allow: /
 # https://ralphstarter.ai/docs/sources/figma.md
 # https://ralphstarter.ai/docs/cli/run.md
 
-# =============================================================================
-# CRAWL OPTIMIZATION
-# =============================================================================
-
-# Request reasonable crawl delay for all bots
-Crawl-delay: 1
-
-# Allow access to all static assets
-Allow: /img/
-Allow: /assets/
-Allow: /*.js
-Allow: /*.css
-Allow: /*.json
-Allow: /*.txt
-Allow: /*.md
-Allow: /*.xml

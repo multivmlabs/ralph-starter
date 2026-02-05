@@ -182,7 +182,7 @@ const config: Config = {
           priority: 0.5,
         },
         gtag: {
-          trackingID: 'G-XXXXXXXXXX', // TODO: Add your Google Analytics ID
+          trackingID: 'G-4HSM6GRG3R',
           anonymizeIP: true,
         },
       } satisfies Preset.Options,
@@ -223,6 +223,21 @@ const config: Config = {
           sidebarId: 'docsSidebar',
           position: 'left',
           label: 'Docs',
+        },
+        {
+          to: '/use-cases',
+          label: 'Use Cases',
+          position: 'left',
+        },
+        {
+          to: '/integrations',
+          label: 'Integrations',
+          position: 'left',
+        },
+        {
+          to: '/templates',
+          label: 'Templates',
+          position: 'left',
         },
         {
           href: 'https://github.com/rubenmarcus/ralph-starter',

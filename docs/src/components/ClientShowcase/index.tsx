@@ -6,50 +6,17 @@ import styles from './styles.module.css';
 interface Client {
   name: string;
   logo: string;
-  tooltip: string;
 }
 
 const clients: Client[] = [
-  {
-    name: 'Openclaw',
-    logo: '/img/openclaw.svg',
-    tooltip: 'cargo install openclaw',
-  },
-  {
-    name: 'Claude Code',
-    logo: '/img/claude-icon.svg',
-    tooltip: 'npm i -g @anthropic-ai/claude-code',
-  },
-  {
-    name: 'OpenCode',
-    logo: '/img/opencode-icon.svg',
-    tooltip: 'npm i -g opencode',
-  },
-  {
-    name: 'Cursor',
-    logo: '/img/cursor-icon.svg',
-    tooltip: 'Download from cursor.com',
-  },
-  {
-    name: 'OpenAI Codex',
-    logo: '/img/openai-icon.svg',
-    tooltip: 'npm i -g @openai/codex',
-  },
-  {
-    name: 'GitHub Copilot',
-    logo: '/img/githubcopilot-color.svg',
-    tooltip: 'gh extension install github/gh-copilot',
-  },
-  {
-    name: 'Gemini CLI',
-    logo: '/img/gemini-color.svg',
-    tooltip: 'npm i -g @google/gemini-cli',
-  },
-  {
-    name: 'Amp',
-    logo: '/img/amp-logo.svg',
-    tooltip: 'npm i -g @anthropic/amp',
-  },
+  { name: 'Openclaw', logo: '/img/openclaw.svg' },
+  { name: 'Claude Code', logo: '/img/claude-icon.svg' },
+  { name: 'OpenCode', logo: '/img/opencode-icon.svg' },
+  { name: 'Cursor', logo: '/img/cursor-icon.svg' },
+  { name: 'OpenAI Codex', logo: '/img/openai-icon.svg' },
+  { name: 'GitHub Copilot', logo: '/img/githubcopilot-color.svg' },
+  { name: 'Gemini CLI', logo: '/img/gemini-color.svg' },
+  { name: 'Amp', logo: '/img/amp-logo.svg' },
 ];
 
 export default function ClientShowcase(): React.ReactElement {
@@ -96,7 +63,6 @@ export default function ClientShowcase(): React.ReactElement {
                   className={styles.clientIcon}
                 />
                 <span className={styles.clientName}>{client.name}</span>
-                <span className={styles.tooltip}>{client.tooltip}</span>
               </div>
             ))}
 

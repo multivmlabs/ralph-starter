@@ -27,7 +27,10 @@
     "release": "npm version patch && git push origin main --tags && npm publish",
     "release:minor": "npm version minor && git push origin main --tags && npm publish",
     "release:major": "npm version major && git push origin main --tags && npm publish",
-    "release:beta": "npm version prerelease --preid=beta && git push origin main --tags && npm publish --tag beta"
+    "release:beta": "npm version prerelease --preid=beta && git push origin main --tags && npm publish --tag beta",
+    "docs:dev": "pnpm --dir docs run start",
+    "docs:build": "pnpm --dir docs run build",
+    "docs:serve": "pnpm --dir docs run serve"
   },
   "keywords": [
     "ralph-wiggum",

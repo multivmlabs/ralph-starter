@@ -27,11 +27,7 @@ Fetch design specifications, design tokens, component code, and assets from Figm
 3. Copy the token
 
 ```bash
-# Configure via CLI
 ralph-starter config set figma.token <your-token>
-
-# Or use environment variable
-export FIGMA_TOKEN=<your-token>
 ```
 
 ## Usage

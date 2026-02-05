@@ -1,0 +1,274 @@
+/* UseCases Section - Quantum Dark Theme */
+.useCases {
+  padding: 5rem 2rem;
+  background: #08080A;
+  position: relative;
+  overflow: hidden;
+  border-top: 1px solid #28282E;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Animation classes */
+.animateIn {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.content.visible .animateIn {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Header */
+.header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.sectionLabel {
+  display: inline-block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #606068;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  margin-bottom: 1rem;
+}
+
+.title {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 2.5rem;
+  font-weight: 600;
+  color: #E8E8EA;
+  margin: 0 0 1rem 0;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 1.1rem;
+  color: #808088;
+  margin: 0;
+  max-width: 500px;
+}
+
+/* Cases Grid */
+.casesGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 900px;
+  margin-bottom: 3rem;
+}
+
+.caseCard {
+  background: #0F0F14;
+  border: 1px solid #28282E;
+  border-radius: 14px;
+  padding: 1.75rem;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.caseCard:hover {
+  border-color: #38383F;
+  transform: translateY(-4px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  text-decoration: none;
+}
+
+.caseHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.caseIcon {
+  width: 28px;
+  height: 28px;
+}
+
+.sourceTag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: #606068;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background: #121218;
+  border: 1px solid #28282E;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+}
+
+.caseTitle {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #E8E8EA;
+  margin: 0 0 0.75rem 0;
+}
+
+.caseDescription {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 0.875rem;
+  color: #808088;
+  line-height: 1.6;
+  margin: 0 0 1rem 0;
+  flex: 1;
+}
+
+.caseLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #606068;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  transition: color 0.2s ease;
+}
+
+.caseCard:hover .caseLink {
+  color: #C0C0C5;
+}
+
+.arrowIcon {
+  width: 12px;
+  height: 12px;
+}
+
+/* Templates Promo */
+.templatesPromo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 900px;
+  background: linear-gradient(135deg, #0F0F14 0%, #121218 100%);
+  border: 1px solid #28282E;
+  border-radius: 14px;
+  padding: 2rem 2.5rem;
+  gap: 2rem;
+}
+
+.promoContent {
+  flex: 1;
+}
+
+.promoTitle {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #E8E8EA;
+  margin: 0 0 0.5rem 0;
+}
+
+.promoText {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 0.9rem;
+  color: #808088;
+  margin: 0;
+}
+
+.templatesButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: transparent;
+  border: 1px solid #38383F;
+  color: #C0C0C5;
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.75rem 1.25rem;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.templatesButton:hover {
+  background: #121218;
+  border-color: #4A4A52;
+  color: #E8E8EA;
+  text-decoration: none;
+}
+
+.githubIcon {
+  width: 18px;
+  height: 18px;
+}
+
+.externalIcon {
+  width: 14px;
+  height: 14px;
+  opacity: 0.6;
+}
+
+/* Responsive */
+@media screen and (max-width: 996px) {
+  .useCases {
+    padding: 4rem 1.5rem;
+  }
+
+  .title {
+    font-size: 2rem;
+  }
+
+  .casesGrid {
+    grid-template-columns: 1fr;
+    max-width: 500px;
+  }
+
+  .templatesPromo {
+    flex-direction: column;
+    text-align: center;
+    padding: 1.75rem;
+  }
+
+  .promoContent {
+    margin-bottom: 0.5rem;
+  }
+}
+
+@media screen and (max-width: 600px) {
+  .useCases {
+    padding: 3rem 1rem;
+  }
+
+  .container {
+    padding: 0 1rem;
+  }
+
+  .title {
+    font-size: 1.75rem;
+  }
+
+  .subtitle {
+    font-size: 1rem;
+  }
+
+  .caseCard {
+    padding: 1.5rem;
+  }
+}

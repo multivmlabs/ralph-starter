@@ -1,0 +1,370 @@
+/* Integrations Page Styles */
+.main {
+  background: #08080A;
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+/* Hero Section */
+.hero {
+  padding: 6rem 2rem 4rem;
+  text-align: center;
+  border-bottom: 1px solid #28282E;
+}
+
+.label {
+  display: inline-block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #606068;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  margin-bottom: 1rem;
+}
+
+.title {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 3rem;
+  font-weight: 600;
+  color: #E8E8EA;
+  margin: 0 0 1rem 0;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 1.2rem;
+  color: #808088;
+  margin: 0 auto;
+  max-width: 600px;
+  line-height: 1.6;
+}
+
+/* Integrations Section */
+.integrationsSection {
+  padding: 4rem 2rem;
+}
+
+.integrationsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
+}
+
+.integrationCard {
+  background: #0F0F14;
+  border: 1px solid #28282E;
+  border-radius: 16px;
+  padding: 2rem;
+  transition: all 0.3s ease;
+}
+
+.integrationCard:hover {
+  border-color: #38383F;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.integrationIcon {
+  width: 40px;
+  height: 40px;
+}
+
+.integrationName {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #E8E8EA;
+  margin: 0;
+}
+
+.integrationDescription {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 0.95rem;
+  color: #808088;
+  line-height: 1.7;
+  margin: 0 0 1.5rem 0;
+}
+
+/* Features Section */
+.featuresSection {
+  margin-bottom: 1.5rem;
+}
+
+.sectionTitle {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #606068;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin: 0 0 0.75rem 0;
+}
+
+.featuresList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.featureItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 0.875rem;
+  color: #C0C0C5;
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
+
+.featureItem:last-child {
+  margin-bottom: 0;
+}
+
+.checkIcon {
+  width: 16px;
+  height: 16px;
+  color: #606068;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Setup Section */
+.setupSection {
+  background: #0A0A0F;
+  border: 1px solid #28282E;
+  border-radius: 10px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.setupList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: setup-counter;
+}
+
+.setupStep {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 0.85rem;
+  color: #C0C0C5;
+  margin-bottom: 0.6rem;
+  line-height: 1.5;
+}
+
+.setupStep:last-child {
+  margin-bottom: 0;
+}
+
+.stepNum {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: #121218;
+  border: 1px solid #38383F;
+  border-radius: 50%;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #808088;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* Card Actions */
+.cardActions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.docsButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #E8E8EA;
+  color: #08080A;
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.65rem 1.25rem;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.docsButton:hover {
+  background: #FFFFFF;
+  transform: translateY(-1px);
+  text-decoration: none;
+  color: #08080A;
+}
+
+.docsButton svg {
+  width: 16px;
+  height: 16px;
+}
+
+.externalLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #606068;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.externalLink:hover {
+  color: #C0C0C5;
+  text-decoration: none;
+}
+
+.externalIcon {
+  width: 12px;
+  height: 12px;
+}
+
+/* More Section */
+.moreSection {
+  padding: 0 2rem 6rem;
+}
+
+.moreCard {
+  background: linear-gradient(135deg, #0F0F14 0%, #121218 100%);
+  border: 1px solid #28282E;
+  border-radius: 16px;
+  padding: 3rem;
+  text-align: center;
+}
+
+.moreTitle {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #E8E8EA;
+  margin: 0 0 0.75rem 0;
+}
+
+.moreText {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 1rem;
+  color: #808088;
+  margin: 0 0 1.5rem 0;
+}
+
+.sourceChips {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+}
+
+.chip {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #808088;
+  background: #0A0A0F;
+  border: 1px solid #28282E;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+}
+
+.moreLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #C0C0C5;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.moreLink:hover {
+  color: #E8E8EA;
+  text-decoration: none;
+}
+
+.moreLink svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Responsive */
+@media screen and (max-width: 996px) {
+  .hero {
+    padding: 4rem 1.5rem 3rem;
+  }
+
+  .title {
+    font-size: 2.25rem;
+  }
+
+  .integrationsGrid {
+    grid-template-columns: 1fr;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+}
+
+@media screen and (max-width: 600px) {
+  .hero {
+    padding: 3rem 1rem 2rem;
+  }
+
+  .container {
+    padding: 0 1rem;
+  }
+
+  .title {
+    font-size: 1.75rem;
+  }
+
+  .subtitle {
+    font-size: 1rem;
+  }
+
+  .integrationsSection {
+    padding: 3rem 1rem;
+  }
+
+  .integrationCard {
+    padding: 1.5rem;
+  }
+
+  .moreSection {
+    padding: 0 1rem 4rem;
+  }
+
+  .moreCard {
+    padding: 2rem 1.5rem;
+  }
+}

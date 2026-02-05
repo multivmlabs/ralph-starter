@@ -60,9 +60,6 @@ OpenAI's coding assistant.
 ```bash
 # Install the OpenAI CLI
 npm install -g openai
-
-# Set your API key
-export OPENAI_API_KEY=your-key-here
 ```
 
 ### OpenCode
@@ -88,10 +85,6 @@ ralph-starter --version
 For direct LLM refinement (faster wizard experience):
 
 ```bash
-# Set Anthropic API key
-export ANTHROPIC_API_KEY=your-key-here
-
-# Or add to config
 ralph-starter config set apiKey your-key-here
 ```
 
