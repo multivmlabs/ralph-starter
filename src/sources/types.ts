@@ -38,6 +38,22 @@ export interface SourceOptions {
   issue?: number;
   /** Default repository for issues (GitHub) */
   defaultIssuesRepo?: string;
+  /** Figma mode: spec, tokens, components, assets, content */
+  figmaMode?: 'spec' | 'tokens' | 'components' | 'assets' | 'content';
+  /** Figma component framework: react, vue, svelte, astro, nextjs, nuxt, html */
+  figmaFramework?: 'react' | 'vue' | 'svelte' | 'astro' | 'nextjs' | 'nuxt' | 'html';
+  /** Figma token format: css, scss, json, tailwind */
+  figmaFormat?: 'css' | 'scss' | 'json' | 'tailwind';
+  /** Figma specific node IDs (comma-separated) */
+  figmaNodes?: string;
+  /** Figma image export scale */
+  figmaScale?: number;
+  /** Figma content mode target directory */
+  figmaTarget?: string;
+  /** Figma content mode preview flag */
+  figmaPreview?: boolean;
+  /** Figma content mode custom mapping file */
+  figmaMapping?: string;
 }
 
 /**
