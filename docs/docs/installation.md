@@ -60,9 +60,6 @@ OpenAI's coding assistant.
 ```bash
 # Install the OpenAI CLI
 npm install -g openai
-
-# Set your API key
-export OPENAI_API_KEY=your-key-here
 ```
 
 ### OpenCode
@@ -83,19 +80,32 @@ opencode setup
 ralph-starter --version
 ```
 
-## Optional: API Key Configuration
+## LLM Provider Configuration
 
-For direct LLM refinement (faster wizard experience):
+ralph-starter uses an LLM for the interactive wizard and spec refinement. Configure your preferred provider:
+
+### Anthropic (Recommended)
 
 ```bash
-# Set Anthropic API key
-export ANTHROPIC_API_KEY=your-key-here
-
-# Or add to config
-ralph-starter config set apiKey your-key-here
+ralph-starter config set providers.anthropic.apiKey sk-ant-xxxx
+ralph-starter config set llm.provider anthropic
 ```
 
-Without an API key, ralph-starter falls back to using your installed coding agent for LLM tasks.
+### OpenAI
+
+```bash
+ralph-starter config set providers.openai.apiKey sk-xxxx
+ralph-starter config set llm.provider openai
+```
+
+### OpenRouter
+
+```bash
+ralph-starter config set providers.openrouter.apiKey sk-or-xxxx
+ralph-starter config set llm.provider openrouter
+```
+
+Without an API key configured, ralph-starter falls back to using your installed coding agent for LLM tasks.
 
 ## Next Steps
 

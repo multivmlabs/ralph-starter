@@ -114,14 +114,14 @@ ralph-starter run \
 Set up once, use everywhere:
 
 ```bash
-# GitHub (uses gh CLI or GITHUB_TOKEN)
+# GitHub (uses gh CLI)
 gh auth login
 
 # Linear
-export LINEAR_API_KEY="lin_api_xxx"
+ralph-starter config set linear.apiKey lin_api_xxx
 
 # Notion
-export NOTION_TOKEN="secret_xxx"
+ralph-starter config set notion.token secret_xxx
 ```
 
 ## What's Next

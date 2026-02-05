@@ -102,14 +102,6 @@ ralph-starter config set notion.token secret_xxxx
 ralph-starter config set github.token ghp_xxxx
 ```
 
-Or set environment variables:
-
-```bash
-export LINEAR_API_KEY=lin_api_xxxx
-export NOTION_API_KEY=secret_xxxx
-export GITHUB_TOKEN=ghp_xxxx
-```
-
 ---
 
 ## Integrations

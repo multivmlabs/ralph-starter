@@ -13,25 +13,13 @@ This guide walks you through testing ralph-starter features and setting up integ
 
 You have two options for storing API keys:
 
-### Option 1: Environment Variables (Recommended)
-
-Set environment variables in your shell profile (`~/.bashrc`, `~/.zshrc`) or a `.env` file:
+Use the config command to set your API keys:
 
 ```bash
-export LINEAR_API_KEY=lin_api_xxxxx
-export NOTION_API_KEY=secret_xxxxx
-export GITHUB_TOKEN=ghp_xxxxx
+ralph-starter config set linear.apiKey lin_api_xxxxx
+ralph-starter config set notion.token secret_xxxxx
+ralph-starter config set github.token ghp_xxxxx
 ```
-
-### Option 2: Config Command
-
-```bash
-ralph-starter config set linear.apiKey your_api_key
-```
-
-:::tip
-Environment variables take precedence over the config file. This is useful for CI/CD or when you want different keys per project.
-:::
 
 ## Quick Start Testing (No API Keys)
 

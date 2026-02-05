@@ -4,6 +4,8 @@ import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
 import HeroSection from '@site/src/components/HeroSection';
 import FeatureSections from '@site/src/components/FeatureSections';
+import QuickStart from '@site/src/components/QuickStart';
+import UseCases from '@site/src/components/UseCases';
 import ClientShowcase from '@site/src/components/ClientShowcase';
 import LLMProviders from '@site/src/components/LLMProviders';
 import IntegrationShowcase from '@site/src/components/IntegrationShowcase';
@@ -26,6 +28,8 @@ export default function Home(): ReactNode {
       <HeroSection />
       <main>
         <FeatureSections />
+        <QuickStart />
+        <UseCases />
         <ClientShowcase />
         <LLMProviders />
         <IntegrationShowcase />

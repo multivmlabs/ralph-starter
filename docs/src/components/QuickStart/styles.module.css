@@ -1,0 +1,265 @@
+/* QuickStart Section - Quantum Dark Theme */
+.quickStart {
+  padding: 5rem 2rem;
+  background: linear-gradient(180deg, #08080A 0%, #0A0A0F 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Animation classes */
+.animateIn {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.content.visible .animateIn {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Header */
+.header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.sectionLabel {
+  display: inline-block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #606068;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  margin-bottom: 1rem;
+}
+
+.title {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 2.5rem;
+  font-weight: 600;
+  color: #E8E8EA;
+  margin: 0 0 1rem 0;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 1.1rem;
+  color: #808088;
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* Steps Grid */
+.stepsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  width: 100%;
+  max-width: 1000px;
+  margin-bottom: 3rem;
+}
+
+.step {
+  background: #0F0F14;
+  border: 1px solid #28282E;
+  border-radius: 14px;
+  padding: 2rem;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.step:hover {
+  border-color: #38383F;
+  transform: translateY(-4px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.stepNumber {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: #121218;
+  border: 1px solid #38383F;
+  border-radius: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #C0C0C5;
+  margin-bottom: 1.25rem;
+}
+
+.stepTitle {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #E8E8EA;
+  margin: 0 0 1rem 0;
+}
+
+.commandBox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #08080A;
+  border: 1px solid #28282E;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.command {
+  flex: 1;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: #C0C0C5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.copyButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 1px solid #28282E;
+  border-radius: 6px;
+  color: #606068;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.copyButton:hover {
+  background: #121218;
+  border-color: #38383F;
+  color: #C0C0C5;
+}
+
+.copyButton svg {
+  width: 14px;
+  height: 14px;
+}
+
+.stepDescription {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 0.875rem;
+  color: #808088;
+  line-height: 1.6;
+  margin: 0 0 1rem 0;
+}
+
+.stepLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #808088;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.stepLink:hover {
+  color: #E8E8EA;
+  text-decoration: none;
+}
+
+.arrowIcon {
+  width: 12px;
+  height: 12px;
+}
+
+/* CTA */
+.cta {
+  text-align: center;
+}
+
+.ctaButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #E8E8EA;
+  color: #08080A;
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.875rem 1.75rem;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.ctaButton:hover {
+  background: #FFFFFF;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(232, 232, 234, 0.2);
+  text-decoration: none;
+  color: #08080A;
+}
+
+.ctaButton svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Responsive */
+@media screen and (max-width: 996px) {
+  .quickStart {
+    padding: 4rem 1.5rem;
+  }
+
+  .title {
+    font-size: 2rem;
+  }
+
+  .stepsGrid {
+    grid-template-columns: 1fr;
+    max-width: 400px;
+  }
+}
+
+@media screen and (max-width: 600px) {
+  .quickStart {
+    padding: 3rem 1rem;
+  }
+
+  .container {
+    padding: 0 1rem;
+  }
+
+  .title {
+    font-size: 1.75rem;
+  }
+
+  .subtitle {
+    font-size: 1rem;
+    white-space: normal;
+  }
+
+  .step {
+    padding: 1.5rem;
+  }
+}

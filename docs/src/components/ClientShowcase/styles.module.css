@@ -81,55 +81,6 @@
   color: #C0C0C5;
 }
 
-/* Tooltip */
-.tooltip {
-  position: absolute;
-  bottom: -2.5rem;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #121218;
-  border: 1px solid #38383F;
-  border-radius: 6px;
-  padding: 0.4rem 0.75rem;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.6rem;
-  color: #C0C0C5;
-  white-space: nowrap;
-  opacity: 0;
-  visibility: hidden;
-  transition: all 0.2s ease;
-  z-index: 10;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-}
-
-.tooltip::before {
-  content: '';
-  position: absolute;
-  top: -5px;
-  left: 50%;
-  transform: translateX(-50%);
-  border-width: 0 5px 5px 5px;
-  border-style: solid;
-  border-color: transparent transparent #38383F transparent;
-}
-
-.tooltip::after {
-  content: '';
-  position: absolute;
-  top: -4px;
-  left: 50%;
-  transform: translateX(-50%);
-  border-width: 0 4px 4px 4px;
-  border-style: solid;
-  border-color: transparent transparent #121218 transparent;
-}
-
-.client:hover .tooltip {
-  opacity: 1;
-  visibility: visible;
-  bottom: -2.75rem;
-}
-
 /* Client icon */
 .clientIcon {
   width: 28px;
