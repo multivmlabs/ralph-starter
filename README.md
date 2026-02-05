@@ -79,21 +79,14 @@ ralph-starter integrations fetch github owner/repo
 
 ## Table of Contents
 
-- [Why ralph-starter?](#why-ralph-starter)
 - [Integrations](#integrations)
 - [Quick Start](#quick-start)
 - [Features](#features)
-- [Ralph Playbook Workflow](#ralph-playbook-workflow)
 - [Commands](#commands)
-- [Options](#options-for-run)
 - [Configuration](#api-key-configuration)
 - [Contributing](#contributing)
 
 ---
-
-## Summary
-
-**ralph-starter** is a production-ready CLI for running autonomous AI coding loops using the [Ralph Wiggum technique](https://ghuntley.com/ralph/). It makes autonomous coding accessible to everyone.
 
 ### Key Features
 
@@ -129,9 +122,7 @@ ralph-starter
 
 ## What is Ralph Wiggum?
 
-Ralph Wiggum is a technique for running AI coding agents in autonomous loops until tasks are completed. Instead of prompting back and forth, you give the AI a task and let it iterate until done.
-
-**ralph-starter** makes this dead simple - for developers and non-developers alike.
+Learn about the Ralph Wiggum technique at [ghuntley.com/ralph](https://ghuntley.com/ralph/).
 
 ## Installation
 
@@ -230,55 +221,6 @@ For users who don't know what to build yet:
 ```bash
 ralph-starter ideas
 ```
-
-### Integrations & Input Sources
-
-ralph-starter's superpower is **pulling specs from anywhere** — then building autonomously.
-
-```bash
-# From GitHub issues
-ralph-starter run --from github --project owner/repo --label "ready"
-
-# From Linear tickets
-ralph-starter run --from linear --project "Mobile App"
-
-# From Notion pages (public pages work without auth!)
-ralph-starter run --from notion --project "https://notion.so/My-Spec-abc123"
-
-# From URLs
-ralph-starter run --from https://example.com/spec.md
-
-# From local files
-ralph-starter run --from ./specs/feature.md
-```
-
-#### Quick Setup
-
-| Integration | Setup Command | Notes |
-|-------------|---------------|-------|
-| **GitHub** | `gh auth login` | Uses GitHub CLI (no API key needed) |
-| **Linear** | `linear auth login` or `ralph-starter config set linear.apiKey <key>` | CLI or API key |
-| **Notion** | None for public pages | Private pages need token |
-| **Figma** | `ralph-starter config set figma.token <key>` | Get token from figma.com/developers |
-
-#### Managing Integrations
-
-```bash
-# List all integrations with status
-ralph-starter integrations list
-
-# Test connectivity
-ralph-starter integrations test github
-ralph-starter integrations test linear
-
-# Get help for specific integration
-ralph-starter integrations help notion
-
-# Preview data before running
-ralph-starter integrations fetch github owner/repo --limit 5
-```
-
-> See the full [Integrations Guide](https://ralphstarter.ai/docs/integrations) for detailed setup instructions.
 
 ### MCP Server
 Use ralph-starter from Claude Desktop or any MCP client:
@@ -596,43 +538,6 @@ ralph-starter config get linear.apiKey
 ralph-starter config delete linear.apiKey
 ```
 
-## Integration Commands
-
-```bash
-# List all integrations with auth status
-ralph-starter integrations list
-
-# Get help for a specific integration
-ralph-starter integrations help github
-ralph-starter integrations help linear
-ralph-starter integrations help notion
-
-# Test connectivity
-ralph-starter integrations test github
-ralph-starter integrations test linear
-
-# Fetch and preview data
-ralph-starter integrations fetch github owner/repo
-ralph-starter integrations fetch linear "Mobile App" --limit 10
-ralph-starter integrations fetch notion "https://notion.so/Page-abc123"
-```
-
-## Source Commands (Legacy)
-
-```bash
-# List available sources
-ralph-starter source list
-
-# Get help for a source
-ralph-starter source help github
-
-# Test source connectivity
-ralph-starter source test linear
-
-# Preview items from source
-ralph-starter source preview github --project owner/repo
-```
-
 ## Example: Build a SaaS Dashboard
 
 ```bash
@@ -743,14 +648,6 @@ Credentials are stored in `~/.ralph-starter/sources.json`.
 | Notion | `NOTION_API_KEY` | `notion.token` |
 | GitHub | `GITHUB_TOKEN` | `github.token` |
 | Figma | `FIGMA_TOKEN` | `figma.token` |
-
-### Managing Config
-
-```bash
-ralph-starter config list           # View all config
-ralph-starter config get linear     # View specific source
-ralph-starter config delete linear.apiKey  # Remove a key
-```
 
 ## Requirements
 
