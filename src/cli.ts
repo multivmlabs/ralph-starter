@@ -9,6 +9,7 @@ import { authCommand } from './commands/auth.js';
 import { autoCommand } from './commands/auto.js';
 import { checkCommand } from './commands/check.js';
 import { configCommand } from './commands/config.js';
+import { harvestCommand } from './commands/harvest.js';
 import { initCommand } from './commands/init.js';
 import { integrationsCommand } from './commands/integrations.js';
 import { planCommand } from './commands/plan.js';
@@ -19,6 +20,7 @@ import { skillCommand } from './commands/skill.js';
 import { sourceCommand } from './commands/source.js';
 import { specCommand } from './commands/spec.js';
 import { templateCommand } from './commands/template.js';
+import { verifyCommand } from './commands/verify.js';
 import { startMcpServer } from './mcp/server.js';
 import { formatPresetsHelp, getPresetNames } from './presets/index.js';
 import { runIdeaMode, runWizard } from './wizard/index.js';
@@ -130,6 +132,30 @@ program
       skipTasks: options.skipTasks,
       outputDir: options.outputDir,
       verbose: options.verbose,
+    });
+  });
+
+// ralph-starter harvest - Knowledge extraction and archiving
+program
+  .command('harvest')
+  .description('Extract learnings from activity.md and update AGENTS.md')
+  .option('--auto', 'Run in automated mode (skip permissions)', true)
+  .option('--no-auto', 'Require manual permission approval')
+  .option('--skip-activity', 'Skip activity.md extraction')
+  .option('--skip-agents', 'Skip AGENTS.md updates')
+  .option('--skip-archive', 'Skip task archiving')
+  .option('--archive-dir <path>', 'Archive directory (default: .ralph/archive)')
+  .option('--verbose', 'Show detailed agent output')
+  .option('--dry-run', 'Preview mode - show actions without making changes')
+  .action(async (options) => {
+    await harvestCommand({
+      auto: options.auto,
+      skipActivity: options.skipActivity,
+      skipAgents: options.skipAgents,
+      skipArchive: options.skipArchive,
+      archiveDir: options.archiveDir,
+      verbose: options.verbose,
+      dryRun: options.dryRun,
     });
   });
 
@@ -303,6 +329,27 @@ program
   .description('Show current session status')
   .option('--verbose', 'Show detailed session info')
   .action(sessionStatusCommand);
+
+// ralph-starter verify - Visual verification using Playwright MCP
+program
+  .command('verify')
+  .description('Run visual verification using Playwright MCP')
+  .option('--url <url>', 'Quick verify a single URL')
+  .option('--base-url <url>', 'Base URL for visual tests (default: http://localhost:3000)')
+  .option('--browser <browser>', 'Browser to use (chromium, firefox, webkit)', 'chromium')
+  .option('--no-headless', 'Run with visible browser window')
+  .option('--timeout <ms>', 'Timeout in milliseconds (default: 30000)')
+  .option('--verbose', 'Show detailed test output')
+  .action(async (options) => {
+    await verifyCommand({
+      url: options.url,
+      baseUrl: options.baseUrl,
+      browser: options.browser as 'chromium' | 'firefox' | 'webkit',
+      headless: options.headless,
+      timeout: options.timeout ? parseInt(options.timeout, 10) : undefined,
+      verbose: options.verbose,
+    });
+  });
 
 // ralph-starter template - Browse and use project templates
 program

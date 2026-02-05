@@ -50,13 +50,13 @@
 - [x] Implement tasks phase (breakdown)
 
 ### Phase 7: Knowledge Harvest
-- [ ] Create `src/commands/harvest.ts`
-- [ ] Extract learnings from `activity.md`
-- [ ] Update AGENTS.md with patterns
-- [ ] Archive completed tasks
+- [x] Create `src/commands/harvest.ts`
+- [x] Extract learnings from `activity.md`
+- [x] Update AGENTS.md with patterns
+- [x] Archive completed tasks
 
 ### Phase 8: Enhanced Integrations
-- [ ] Playwright MCP integration for visual verification
+- [x] Playwright MCP integration for visual verification
 - [ ] LLM-as-judge tests for subjective criteria
 - [ ] Multi-backend support (Gemini CLI, Amp, Copilot CLI)
 

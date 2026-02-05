@@ -41,6 +41,20 @@ const toolSchemas = {
   ralph_validate: z.object({
     path: z.string().describe('Project path'),
   }),
+
+  ralph_visual_verify: z.object({
+    path: z.string().describe('Project path'),
+    baseUrl: z
+      .string()
+      .optional()
+      .describe('Base URL for visual tests (default: http://localhost:3000)'),
+    browser: z
+      .enum(['chromium', 'firefox', 'webkit'])
+      .optional()
+      .describe('Browser to use for testing'),
+    headless: z.boolean().optional().describe('Run in headless mode (default: true)'),
+    timeout: z.number().optional().describe('Timeout in milliseconds (default: 30000)'),
+  }),
 };
 
 /**
@@ -159,6 +173,38 @@ export function getTools(): Tool[] {
         required: ['path'],
       },
     },
+    {
+      name: 'ralph_visual_verify',
+      description:
+        'Run visual verification using Playwright MCP. Takes screenshots and verifies UI elements.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          path: {
+            type: 'string',
+            description: 'Project path',
+          },
+          baseUrl: {
+            type: 'string',
+            description: 'Base URL for visual tests (default: http://localhost:3000)',
+          },
+          browser: {
+            type: 'string',
+            enum: ['chromium', 'firefox', 'webkit'],
+            description: 'Browser to use for testing',
+          },
+          headless: {
+            type: 'boolean',
+            description: 'Run in headless mode (default: true)',
+          },
+          timeout: {
+            type: 'number',
+            description: 'Timeout in milliseconds (default: 30000)',
+          },
+        },
+        required: ['path'],
+      },
+    },
   ];
 }
 
@@ -185,6 +231,9 @@ export async function handleToolCall(
 
       case 'ralph_validate':
         return await handleValidate(args);
+
+      case 'ralph_visual_verify':
+        return await handleVisualVerify(args);
 
       default:
         return {
@@ -339,6 +388,66 @@ async function handleValidate(
       {
         type: 'text',
         text: JSON.stringify({ commands, results }, null, 2),
+      },
+    ],
+  };
+}
+
+async function handleVisualVerify(
+  args: Record<string, unknown> | undefined
+): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
+  const parsed = toolSchemas.ralph_visual_verify.parse(args);
+
+  // Import visual validation functions
+  const { runVisualValidation, isVisualValidationAvailable } = await import(
+    '../loop/visual-validation.js'
+  );
+
+  // Check if Playwright MCP is available
+  const available = await isVisualValidationAvailable();
+  if (!available) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(
+            {
+              success: false,
+              error: 'Playwright MCP not available. Install with: npm install -g @playwright/mcp',
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  }
+
+  // Run visual validation
+  const result = await runVisualValidation(parsed.path, {
+    baseUrl: parsed.baseUrl,
+    browser: parsed.browser,
+    headless: parsed.headless,
+    timeout: parsed.timeout,
+  });
+
+  return {
+    content: [
+      {
+        type: 'text',
+        text: JSON.stringify(
+          {
+            success: result.success,
+            testCount: result.testCount,
+            passed: result.passed,
+            failed: result.failed,
+            duration: result.duration,
+            output: result.output,
+            results: result.results,
+          },
+          null,
+          2
+        ),
       },
     ],
   };

@@ -5,19 +5,44 @@ export const name = 'ralph-starter';
 // Automation
 export { createPullRequest, gitCommit, gitPush, isGitRepo } from './automation/git.js';
 export { configCommand } from './commands/config.js';
+export { harvestCommand } from './commands/harvest.js';
 export { initCommand } from './commands/init.js';
 export { planCommand } from './commands/plan.js';
 // Commands
 export { runCommand } from './commands/run.js';
 export { skillCommand } from './commands/skill.js';
 export { sourceCommand } from './commands/source.js';
+export { verifyCommand } from './commands/verify.js';
 // Config
 export { getApiKey, readConfig, writeConfig } from './config/manager.js';
+export type {
+  PlaywrightOptions,
+  VisualAction,
+  VisualAssertion,
+  VisualTestCase,
+  VisualTestResult,
+} from './integrations/playwright/index.js';
+// Playwright integration
+export {
+  detectVisualTests,
+  formatVisualFeedback,
+  formatVisualResults,
+  PlaywrightClient,
+  runVisualTests,
+} from './integrations/playwright/index.js';
 export type { Agent, AgentType } from './loop/agents.js';
 export { detectAvailableAgents, detectBestAgent } from './loop/agents.js';
 // Loop
 export { runLoop } from './loop/executor.js';
 export { detectValidationCommands, runAllValidations, runValidation } from './loop/validation.js';
+export type { VisualValidationResult } from './loop/visual-validation.js';
+// Visual validation
+export {
+  hasVisualTests,
+  isVisualValidationAvailable,
+  runVisualValidation,
+  verifyUrl,
+} from './loop/visual-validation.js';
 export type { InitCoreOptions, InitCoreResult } from './mcp/core/init.js';
 export { initCore } from './mcp/core/init.js';
 export type { PlanCoreOptions, PlanCoreResult } from './mcp/core/plan.js';
