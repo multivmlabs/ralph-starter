@@ -63,7 +63,7 @@ knowledge_base:
   issues:
     scope: auto
 
-# Tone and style
+# Tone and style instructions
 tone_instructions: |
   Be constructive and helpful. Focus on:
   - Security vulnerabilities (especially OWASP top 10)
@@ -72,8 +72,6 @@ tone_instructions: |
   - Code maintainability
   - Test coverage suggestions
 
-# Custom review instructions
-review_instructions: |
   This is a CLI tool (ralph-starter) built with TypeScript.
   Key areas to focus on:
   - Security: credential handling, path traversal, injection attacks
@@ -81,21 +79,3 @@ review_instructions: |
   - TypeScript: strict typing, no any types
   - Performance: async operations, memory usage
   - Testing: unit test coverage for new code
-
-# Tools configuration
-tools:
-  # Enable all static analysis tools
-  eslint:
-    enabled: true
-  # Biome for additional linting
-  biome:
-    enabled: true
-  # GitHub Actions validation
-  github_actions:
-    enabled: true
-  # Markdown linting
-  markdownlint:
-    enabled: true
-  # Shell script checking
-  shellcheck:
-    enabled: true
