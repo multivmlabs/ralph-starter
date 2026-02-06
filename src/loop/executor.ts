@@ -38,13 +38,18 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Strip markdown formatting from task names
+ * Strip markdown and list formatting from task names
  */
 function cleanTaskName(name: string): string {
   return name
     .replace(/\*\*/g, '') // Remove bold **
     .replace(/\*/g, '') // Remove italic *
     .replace(/`/g, '') // Remove code backticks
+    .replace(/<[^>]+>/g, '') // Remove HTML tags
+    .replace(/^\d+\.\s+/, '') // Remove numbered list prefix (1. )
+    .replace(/^[-*]\s+/, '') // Remove bullet list prefix (- or * )
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Convert [text](url) to text
+    .replace(/\s+/g, ' ') // Collapse whitespace
     .trim();
 }
 
