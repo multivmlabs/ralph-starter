@@ -8,6 +8,8 @@ on:
   schedule:
     # Run weekly on Mondays at 9am UTC
     - cron: '0 9 * * 1'
+  # Manual trigger to run scans on demand
+  workflow_dispatch:
 
 permissions:
   contents: read
