@@ -22,8 +22,7 @@
   <a href="#integrations">Integrations</a> •
   <a href="#quick-start">Quick Start</a> •
   <a href="#features">Features</a> •
-  <a href="https://ralphstarter.ai">Docs</a> •
-  <a href="ROADMAP.md">Roadmap</a>
+  <a href="https://ralphstarter.ai">Docs</a>
 </p>
 
 ---
@@ -58,7 +57,7 @@ ralph-starter integrates with your favorite tools out of the box:
 | **GitHub** | `gh` CLI (recommended) or API token | Issues, PRs, files |
 | **Linear** | `linear` CLI or API key | Issues by team/project |
 | **Notion** | None (public) or API token (private) | Pages, databases |
-| **Figma** | API token | Design specs, tokens & assets |
+| **Figma** | API token | Design specs, tokens, assets & content extraction |
 | **URLs** | None | Any public markdown/HTML |
 | **Files** | None | Local markdown, PDF |
 
@@ -74,7 +73,7 @@ ralph-starter integrations test linear
 ralph-starter integrations fetch github owner/repo
 ```
 
-> **Want more integrations?** Check the [Roadmap](ROADMAP.md) for upcoming integrations like Jira, GitLab, and more. PRs welcome!
+> **Want more integrations?** PRs welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
 
 ---
 

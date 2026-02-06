@@ -216,11 +216,14 @@ export interface RunCommandOptions {
   circuitBreakerFailures?: number;
   circuitBreakerErrors?: number;
   // Figma options
-  figmaMode?: 'spec' | 'tokens' | 'components' | 'assets';
+  figmaMode?: 'spec' | 'tokens' | 'components' | 'assets' | 'content';
   figmaFramework?: 'react' | 'vue' | 'svelte' | 'astro' | 'nextjs' | 'nuxt' | 'html';
   figmaFormat?: 'css' | 'scss' | 'json' | 'tailwind';
   figmaNodes?: string;
   figmaScale?: number;
+  figmaTarget?: string;
+  figmaPreview?: boolean;
+  figmaMapping?: string;
 }
 
 export async function runCommand(

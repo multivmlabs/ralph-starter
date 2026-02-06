@@ -17,6 +17,12 @@ import {
   type IntegrationResult,
 } from '../base.js';
 import { figmaNodeToComponent, getFileExtension } from './parsers/component-code.js';
+import {
+  type ExtractedContent,
+  extractContent,
+  formatContentAsJson,
+  formatContentAsMarkdown,
+} from './parsers/content-extractor.js';
 import { nodesToSpec } from './parsers/design-spec.js';
 import { extractTokensFromFile, formatTokens } from './parsers/design-tokens.js';
 import type {
@@ -62,6 +68,8 @@ export class FigmaIntegration extends BaseIntegration {
         return this.fetchAndGenerateComponents(fileKey, nodeIds, options);
       case 'assets':
         return this.fetchAssets(fileKey, nodeIds, options);
+      case 'content':
+        return this.fetchContentExtraction(fileKey, nodeIds, options);
       default:
         return this.fetchDesignSpec(fileKey, nodeIds);
     }
@@ -326,6 +334,58 @@ ${formatted}
   }
 
   /**
+   * Extract text content and information architecture from Figma
+   */
+  private async fetchContentExtraction(
+    fileKey: string,
+    nodeIds: string[],
+    options?: FigmaIntegrationOptions
+  ): Promise<IntegrationResult> {
+    const token = await this.getApiKey('token');
+
+    let nodes: FigmaNode[];
+    let fileName: string;
+
+    if (nodeIds.length > 0) {
+      // Fetch specific nodes
+      const response = await this.apiRequest<FigmaNodesResponse>(
+        token,
+        `/files/${fileKey}/nodes?ids=${formatNodeIds(nodeIds)}`
+      );
+      fileName = response.name;
+      nodes = Object.values(response.nodes).map((n) => n.document);
+    } else {
+      // Fetch entire file
+      const file = await this.apiRequest<FigmaFile>(token, `/files/${fileKey}`);
+      fileName = file.name;
+      nodes = file.document.children || [];
+    }
+
+    // Extract content from nodes
+    const extracted = extractContent(nodes, fileName);
+
+    // Format output as markdown with JSON structure
+    const content = formatContentAsMarkdown(extracted);
+
+    return {
+      content,
+      source: `figma:${fileKey}:content`,
+      title: `${fileName} - Content Extraction`,
+      metadata: {
+        type: 'figma',
+        mode: 'content',
+        fileKey,
+        target: options?.target,
+        preview: options?.preview,
+        mapping: options?.mapping,
+        stats: extracted.stats,
+        navigation: extracted.navigation,
+        extractedContent: extracted,
+      },
+    };
+  }
+
+  /**
    * Find component nodes in a document
    */
   private findComponents(node: FigmaNode, results: FigmaNode[] = []): FigmaNode[] {
@@ -399,7 +459,7 @@ ${formatted}
 
   getHelp(): string {
     return `
-figma: Fetch design specs, tokens, components, and assets from Figma
+figma: Fetch design specs, tokens, components, assets, and content from Figma
 
 Usage:
   ralph-starter run --from figma --project "<file-url-or-key>" [options]
@@ -407,11 +467,14 @@ Usage:
 
 Options:
   --project       Figma file URL or key
-  --figma-mode    Mode: spec (default), tokens, components, assets
+  --figma-mode    Mode: spec (default), tokens, components, assets, content
   --figma-format  Token format: css, scss, json, tailwind
   --figma-framework  Component framework: react, vue, svelte, astro, nextjs, nuxt, html
   --figma-nodes   Specific node IDs (comma-separated)
   --figma-scale   Image export scale (default: 1)
+  --figma-target  Target directory for content mode
+  --figma-preview Show changes without applying (content mode)
+  --figma-mapping Custom content mapping file (content mode)
 
 Authentication:
   1. Go to Figma > Settings > Account > Personal Access Tokens
@@ -434,6 +497,15 @@ Examples:
   # Export all icons as SVG
   ralph-starter integrations fetch figma "ABC123" --figma-mode assets
 
+  # Extract content and information architecture
+  ralph-starter run --from figma:<file-url> --figma-mode content
+
+  # Extract content for specific directory
+  ralph-starter run --from figma:<file-url> --figma-mode content --figma-target "src/pages"
+
+  # Preview content extraction without applying
+  ralph-starter run --from figma:<file-url> --figma-mode content --figma-preview
+
   # Fetch specific frames by node ID
   ralph-starter integrations fetch figma "ABC123" --figma-nodes "1:23,1:45"
 
@@ -442,11 +514,13 @@ Modes:
   tokens      Extract colors, typography, shadows as CSS/SCSS/JSON/Tailwind
   components  Generate component code (React, Vue, Svelte, Astro, Next.js, Nuxt, HTML)
   assets      Export icons and images with download scripts
+  content     Extract text content and IA for applying to existing templates
 
 Notes:
   - Figma file URLs can include node selections: ?node-id=X:Y
   - Asset export URLs expire after 30 days
   - Variables API requires Figma Enterprise plan
+  - Content mode extracts text with semantic roles (heading, body, button, etc.)
 `.trim();
   }
 }

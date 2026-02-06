@@ -13,6 +13,7 @@ import { FileSource } from './builtin/file.js';
 import { PdfSource } from './builtin/pdf.js';
 import { UrlSource } from './builtin/url.js';
 // Integration sources
+import { FigmaSource } from './integrations/figma.js';
 import { GitHubSource } from './integrations/github.js';
 import { LinearSource } from './integrations/linear.js';
 import { NotionSource } from './integrations/notion.js';
@@ -39,6 +40,7 @@ function initializeSources(): void {
 
   // Register integration sources
   const integrations = [
+    new FigmaSource(),
     new GitHubSource(),
     new TodoistSource(),
     new LinearSource(),

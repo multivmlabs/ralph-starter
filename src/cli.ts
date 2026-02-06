@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { authCommand } from './commands/auth.js';
+import { autoCommand } from './commands/auto.js';
 import { checkCommand } from './commands/check.js';
 import { configCommand } from './commands/config.js';
 import { initCommand } from './commands/init.js';
@@ -81,7 +82,7 @@ program
   .option('--circuit-breaker-failures <n>', 'Max consecutive failures before stopping (default: 3)')
   .option('--circuit-breaker-errors <n>', 'Max same error occurrences before stopping (default: 5)')
   // Figma integration options
-  .option('--figma-mode <mode>', 'Figma mode: spec, tokens, components, assets')
+  .option('--figma-mode <mode>', 'Figma mode: spec, tokens, components, assets, content')
   .option(
     '--figma-framework <framework>',
     'Component framework: react, vue, svelte, astro, nextjs, nuxt, html'
@@ -89,6 +90,9 @@ program
   .option('--figma-format <format>', 'Token format: css, scss, json, tailwind')
   .option('--figma-nodes <ids>', 'Specific Figma node IDs (comma-separated)')
   .option('--figma-scale <n>', 'Image export scale (default: 1)')
+  .option('--figma-target <path>', 'Target directory for content mode')
+  .option('--figma-preview', 'Show content changes without applying (content mode)')
+  .option('--figma-mapping <file>', 'Custom content mapping file (content mode)')
   .action(runCommand);
 
 // ralph-starter init - Initialize Ralph in a project
@@ -215,6 +219,34 @@ program
   .description('Start as an MCP (Model Context Protocol) server for Claude Desktop/Code')
   .action(async () => {
     await startMcpServer();
+  });
+
+// ralph-starter auto - Autonomous batch task processing
+program
+  .command('auto')
+  .description('Run in autonomous mode, processing multiple tasks from GitHub/Linear')
+  .requiredOption('--source <source>', 'Source to fetch tasks from (github, linear)')
+  .option('--project <name>', 'Project identifier (owner/repo for GitHub)')
+  .option('--label <name>', 'Filter tasks by label (e.g., "auto-ready")')
+  .option('--limit <n>', 'Maximum tasks to process (default: 10)', '10')
+  .option('--dry-run', 'Preview mode - show tasks without executing')
+  .option('--skip-pr', 'Skip PR creation (commit only)')
+  .option('--agent <name>', 'Specify agent to use')
+  .option('--validate', 'Run validation after each task', true)
+  .option('--no-validate', 'Skip validation')
+  .option('--max-iterations <n>', 'Max iterations per task (default: 15)')
+  .action(async (options) => {
+    await autoCommand({
+      source: options.source,
+      project: options.project,
+      label: options.label,
+      limit: parseInt(options.limit, 10),
+      dryRun: options.dryRun,
+      skipPr: options.skipPr,
+      agent: options.agent,
+      validate: options.validate,
+      maxIterations: options.maxIterations ? parseInt(options.maxIterations, 10) : undefined,
+    });
   });
 
 // ralph-starter presets - List available workflow presets
