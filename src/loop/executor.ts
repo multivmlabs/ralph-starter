@@ -38,6 +38,21 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
+ * Get terminal width with a sensible fallback
+ */
+function getTerminalWidth(): number {
+  return process.stdout.columns || 80;
+}
+
+/**
+ * Truncate text to fit within available width
+ */
+function truncateToFit(text: string, maxWidth: number): string {
+  if (text.length <= maxWidth) return text;
+  return `${text.slice(0, maxWidth - 3)}...`;
+}
+
+/**
  * Strip markdown and list formatting from task names
  */
 function cleanTaskName(name: string): string {
@@ -516,12 +531,10 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     const newlyCompleted = completedTasks - previousCompletedTasks;
     if (newlyCompleted > 0 && i > 1) {
       // Get names of newly completed tasks (strip markdown)
+      const maxNameWidth = Math.max(30, getTerminalWidth() - 30);
       const completedNames = taskInfo.tasks
         .filter((t) => t.completed && t.index >= previousCompletedTasks && t.index < completedTasks)
-        .map((t) => {
-          const clean = cleanTaskName(t.name);
-          return clean.length > 50 ? `${clean.slice(0, 47)}...` : clean;
-        });
+        .map((t) => truncateToFit(cleanTaskName(t.name), maxNameWidth));
 
       if (completedNames.length > 0) {
         console.log(
@@ -532,16 +545,20 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     previousCompletedTasks = completedTasks;
 
     // Show loop header with task info
-    console.log(chalk.cyan(`\n═══════════════════════════════════════════════════════════════`));
+    const termWidth = getTerminalWidth();
+    const headerWidth = Math.min(63, termWidth - 2);
+    const headerLine = '═'.repeat(headerWidth);
+    console.log(chalk.cyan(`\n${headerLine}`));
     if (currentTask && totalTasks > 0) {
       const taskNum = completedTasks + 1;
-      const cleanName = cleanTaskName(currentTask.name);
-      const taskName = cleanName.length > 60 ? `${cleanName.slice(0, 57)}...` : cleanName;
-      console.log(chalk.cyan.bold(`  Task ${taskNum}/${totalTasks} │ ${taskName}`));
+      const prefix = `  Task ${taskNum}/${totalTasks} │ `;
+      const maxTaskWidth = Math.max(20, headerWidth - prefix.length - 2);
+      const taskName = truncateToFit(cleanTaskName(currentTask.name), maxTaskWidth);
+      console.log(chalk.cyan.bold(`${prefix}${taskName}`));
     } else {
       console.log(chalk.cyan.bold(`  Loop ${i}/${maxIterations} │ Running ${options.agent.name}`));
     }
-    console.log(chalk.cyan(`═══════════════════════════════════════════════════════════════\n`));
+    console.log(chalk.cyan(`${headerLine}\n`));
 
     // Create progress renderer for this iteration
     const iterProgress = new ProgressRenderer();
