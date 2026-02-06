@@ -264,7 +264,10 @@ program
 program
   .command('template [action] [args...]')
   .description('Browse and use project templates from ralph-templates')
-  .option('--category <name>', 'Filter by category (web-dev, blockchain, devops, mobile, tools)')
+  .option(
+    '--category <name>',
+    'Filter by category (web-dev, blockchain, devops, mobile, tools, seo)'
+  )
   .option('--refresh', 'Force refresh the cache')
   .option('--auto', 'Skip confirmation prompts')
   .option('--output-dir <path>', 'Directory to create the project in')
