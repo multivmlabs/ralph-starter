@@ -1,0 +1,130 @@
+name: Bundle Analysis
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  analyze:
+    name: Analyze Bundle Size
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v6
+
+      - name: Checkout base
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.base_ref }}
+          path: base
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install and build PR
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install and build base
+        run: |
+          cd base
+          npm ci
+          npm run build
+
+      - name: Compare bundle sizes
+        id: compare
+        run: |
+          # Get PR bundle size
+          PR_SIZE=$(du -sb dist | cut -f1)
+          PR_SIZE_KB=$(echo "scale=2; $PR_SIZE / 1024" | bc)
+
+          # Get base bundle size
+          BASE_SIZE=$(du -sb base/dist | cut -f1)
+          BASE_SIZE_KB=$(echo "scale=2; $BASE_SIZE / 1024" | bc)
+
+          # Calculate difference
+          DIFF=$((PR_SIZE - BASE_SIZE))
+          DIFF_KB=$(echo "scale=2; $DIFF / 1024" | bc)
+          DIFF_PERCENT=$(echo "scale=2; ($DIFF / $BASE_SIZE) * 100" | bc 2>/dev/null || echo "0")
+
+          echo "pr_size=$PR_SIZE_KB" >> $GITHUB_OUTPUT
+          echo "base_size=$BASE_SIZE_KB" >> $GITHUB_OUTPUT
+          echo "diff=$DIFF_KB" >> $GITHUB_OUTPUT
+          echo "diff_percent=$DIFF_PERCENT" >> $GITHUB_OUTPUT
+
+          # Determine status emoji
+          if [ "$DIFF" -gt 51200 ]; then
+            echo "status=:warning:" >> $GITHUB_OUTPUT
+          elif [ "$DIFF" -lt 0 ]; then
+            echo "status=:white_check_mark:" >> $GITHUB_OUTPUT
+          else
+            echo "status=:heavy_check_mark:" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment on PR
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const prSize = '${{ steps.compare.outputs.pr_size }}';
+            const baseSize = '${{ steps.compare.outputs.base_size }}';
+            const diff = '${{ steps.compare.outputs.diff }}';
+            const diffPercent = '${{ steps.compare.outputs.diff_percent }}';
+            const status = '${{ steps.compare.outputs.status }}';
+
+            const body = `## ${status} Bundle Size Analysis
+
+            | Metric | Value |
+            |--------|-------|
+            | **Base** | ${baseSize} KB |
+            | **PR** | ${prSize} KB |
+            | **Diff** | ${diff} KB (${diffPercent}%) |
+
+            <details>
+            <summary>Bundle breakdown</summary>
+
+            \`\`\`
+            $(du -sh dist/*)
+            \`\`\`
+
+            </details>`;
+
+            // Find existing comment
+            const comments = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.data.find(c =>
+              c.user.type === 'Bot' && c.body.includes('Bundle Size Analysis')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: botComment.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: context.issue.number,
+                body
+              });
+            }
