@@ -1,0 +1,25 @@
+# Dependency Review Configuration
+# https://github.com/actions/dependency-review-action#configuration-options
+
+# Fail on high/critical vulnerabilities
+fail-on-severity: high
+
+# Deny copyleft licenses that could cause licensing issues
+deny-licenses:
+  - GPL-3.0
+  - GPL-3.0-only
+  - GPL-3.0-or-later
+  - AGPL-3.0
+  - AGPL-3.0-only
+  - AGPL-3.0-or-later
+
+# Allow common permissive licenses
+allow-licenses:
+  - MIT
+  - Apache-2.0
+  - BSD-2-Clause
+  - BSD-3-Clause
+  - ISC
+  - 0BSD
+  - Unlicense
+  - CC0-1.0

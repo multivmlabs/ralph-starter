@@ -52,7 +52,8 @@ jobs:
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high
-          deny-licenses: GPL-3.0, AGPL-3.0
+          # License check using new config file approach
+          config-file: './.github/dependency-review-config.yml'
 
   # Secret scanning with Gitleaks
   gitleaks:
