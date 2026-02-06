@@ -51,8 +51,6 @@ jobs:
       - name: Dependency Review
         uses: actions/dependency-review-action@v4
         with:
-          fail-on-severity: high
-          # License check using new config file approach
           config-file: './.github/dependency-review-config.yml'
 
   # Secret scanning with Gitleaks
