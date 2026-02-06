@@ -8,6 +8,7 @@ import {
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
+import { getPackageVersion } from '../utils/version.js';
 import { getPrompts, handleGetPrompt } from './prompts.js';
 import { getResources, handleResourceRead } from './resources.js';
 import { getTools, handleToolCall } from './tools.js';
@@ -19,7 +20,7 @@ export function createMcpServer(): Server {
   const server = new Server(
     {
       name: 'ralph-starter',
-      version: '0.1.0',
+      version: getPackageVersion(),
     },
     {
       capabilities: {

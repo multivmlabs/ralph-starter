@@ -55,6 +55,7 @@ Templates are organized into categories:
 - `devops` - DevOps tools and automation
 - `mobile` - Mobile app projects
 - `tools` - CLI tools and utilities
+- `seo` - SEO and Answer Engine Optimization toolkits
 
 ## Examples
 

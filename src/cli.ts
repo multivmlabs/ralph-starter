@@ -1,8 +1,5 @@
 #!/usr/bin/env node
 
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { authCommand } from './commands/auth.js';
@@ -19,13 +16,10 @@ import { sourceCommand } from './commands/source.js';
 import { templateCommand } from './commands/template.js';
 import { startMcpServer } from './mcp/server.js';
 import { formatPresetsHelp, getPresetNames } from './presets/index.js';
+import { getPackageVersion } from './utils/version.js';
 import { runIdeaMode, runWizard } from './wizard/index.js';
 
-// Read version from package.json dynamically
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const packageJson = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
-const VERSION = packageJson.version;
+const VERSION = getPackageVersion();
 
 const program = new Command();
 
@@ -264,7 +258,10 @@ program
 program
   .command('template [action] [args...]')
   .description('Browse and use project templates from ralph-templates')
-  .option('--category <name>', 'Filter by category (web-dev, blockchain, devops, mobile, tools)')
+  .option(
+    '--category <name>',
+    'Filter by category (web-dev, blockchain, devops, mobile, tools, seo)'
+  )
   .option('--refresh', 'Force refresh the cache')
   .option('--auto', 'Skip confirmation prompts')
   .option('--output-dir <path>', 'Directory to create the project in')

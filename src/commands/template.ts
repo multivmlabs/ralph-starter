@@ -374,7 +374,7 @@ ${chalk.bold('Commands:')}
   browse                        Interactive template browser
 
 ${chalk.bold('Options:')}
-  --category <name>             Filter by category (web-dev, blockchain, devops, mobile, tools)
+  --category <name>             Filter by category (web-dev, blockchain, devops, mobile, tools, seo)
   --refresh                     Force refresh the cache
   --auto                        Skip confirmation prompts
   --output-dir <path>           Directory to create the project in
