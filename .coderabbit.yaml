@@ -63,19 +63,5 @@ knowledge_base:
   issues:
     scope: auto
 
-# Tone and style instructions
-tone_instructions: |
-  Be constructive and helpful. Focus on:
-  - Security vulnerabilities (especially OWASP top 10)
-  - Performance improvements
-  - TypeScript best practices
-  - Code maintainability
-  - Test coverage suggestions
-
-  This is a CLI tool (ralph-starter) built with TypeScript.
-  Key areas to focus on:
-  - Security: credential handling, path traversal, injection attacks
-  - CLI UX: helpful error messages, proper exit codes
-  - TypeScript: strict typing, no any types
-  - Performance: async operations, memory usage
-  - Testing: unit test coverage for new code
+# Tone and style instructions (max 250 chars)
+tone_instructions: "Be constructive. Focus on security (OWASP), TypeScript best practices, performance, and test coverage. This is a CLI tool - check for credential handling, path traversal, proper exit codes."
