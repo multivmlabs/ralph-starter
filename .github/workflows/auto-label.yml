@@ -1,0 +1,150 @@
+name: Auto Label & Assign
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  auto-assign-and-label:
+    name: Auto Assign & Smart Label
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v47
+        with:
+          files_yaml: |
+            src:
+              - 'src/**'
+            docs:
+              - 'docs/**'
+              - '**/*.md'
+              - '!CHANGELOG.md'
+            ci:
+              - '.github/workflows/**'
+              - '.github/actions/**'
+            security:
+              - '.github/workflows/security.yml'
+              - '.coderabbit.yaml'
+              - 'SECURITY.md'
+              - '.gitleaks.toml'
+            config:
+              - 'package.json'
+              - 'tsconfig.json'
+              - '.eslintrc*'
+              - '.prettierrc*'
+            tests:
+              - '**/*.test.ts'
+              - '**/*.spec.ts'
+              - 'vitest.config.*'
+              - 'jest.config.*'
+
+      - name: Auto assign and label
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+            const prNumber = pr.number;
+            const prAuthor = pr.user.login;
+            const prTitle = pr.title.toLowerCase();
+
+            // Auto-assign if author is rubenmarcus
+            if (prAuthor === 'rubenmarcus') {
+              await github.rest.issues.addAssignees({
+                owner, repo,
+                issue_number: prNumber,
+                assignees: ['rubenmarcus']
+              });
+              console.log('Auto-assigned rubenmarcus');
+            }
+
+            // Collect labels to add
+            const labelsToAdd = new Set();
+
+            // Labels based on changed files
+            const srcChanged = '${{ steps.changed-files.outputs.src_any_changed }}' === 'true';
+            const docsChanged = '${{ steps.changed-files.outputs.docs_any_changed }}' === 'true';
+            const ciChanged = '${{ steps.changed-files.outputs.ci_any_changed }}' === 'true';
+            const securityChanged = '${{ steps.changed-files.outputs.security_any_changed }}' === 'true';
+            const configChanged = '${{ steps.changed-files.outputs.config_any_changed }}' === 'true';
+            const testsChanged = '${{ steps.changed-files.outputs.tests_any_changed }}' === 'true';
+
+            if (srcChanged) labelsToAdd.add('core');
+            if (docsChanged) labelsToAdd.add('documentation');
+            if (ciChanged) labelsToAdd.add('ci/cd');
+            if (securityChanged) labelsToAdd.add('security');
+            if (configChanged) labelsToAdd.add('config');
+            if (testsChanged) labelsToAdd.add('tests');
+
+            // Labels based on PR title (conventional commits)
+            if (prTitle.startsWith('feat')) labelsToAdd.add('enhancement');
+            if (prTitle.startsWith('fix')) labelsToAdd.add('bug');
+            if (prTitle.startsWith('docs')) labelsToAdd.add('documentation');
+            if (prTitle.startsWith('chore')) labelsToAdd.add('chore');
+            if (prTitle.startsWith('refactor')) labelsToAdd.add('refactor');
+            if (prTitle.startsWith('perf')) labelsToAdd.add('performance');
+            if (prTitle.startsWith('test')) labelsToAdd.add('tests');
+            if (prTitle.startsWith('ci')) labelsToAdd.add('ci/cd');
+
+            // Special keywords in title
+            if (prTitle.includes('security') || prTitle.includes('vulnerability')) labelsToAdd.add('security');
+            if (prTitle.includes('breaking')) labelsToAdd.add('breaking-change');
+            if (prTitle.includes('devops') || prTitle.includes('automation')) labelsToAdd.add('devops');
+            if (prTitle.includes('dependabot') || prTitle.includes('deps')) labelsToAdd.add('dependencies');
+
+            // Only add candidate-release if src files changed (actual code changes)
+            if (srcChanged && !prTitle.startsWith('chore') && !prTitle.startsWith('docs')) {
+              labelsToAdd.add('candidate-release');
+            }
+
+            // Convert to array and filter out empty
+            const labels = Array.from(labelsToAdd).filter(Boolean);
+
+            if (labels.length > 0) {
+              // Ensure labels exist
+              for (const label of labels) {
+                try {
+                  await github.rest.issues.getLabel({ owner, repo, name: label });
+                } catch (e) {
+                  // Create label if it doesn't exist
+                  const colors = {
+                    'core': '0052CC',
+                    'documentation': '0075CA',
+                    'ci/cd': '7057FF',
+                    'security': 'B60205',
+                    'config': 'FBCA04',
+                    'tests': '1D76DB',
+                    'enhancement': 'A2EEEF',
+                    'bug': 'D73A4A',
+                    'chore': 'FEF2C0',
+                    'refactor': 'D4C5F9',
+                    'performance': '0E8A16',
+                    'breaking-change': 'B60205',
+                    'devops': '5319E7',
+                    'dependencies': '0366D6',
+                    'candidate-release': 'EDEDED'
+                  };
+                  await github.rest.issues.createLabel({
+                    owner, repo,
+                    name: label,
+                    color: colors[label] || 'EDEDED'
+                  });
+                }
+              }
+
+              // Add labels to PR
+              await github.rest.issues.addLabels({
+                owner, repo,
+                issue_number: prNumber,
+                labels
+              });
+              console.log(`Added labels: ${labels.join(', ')}`);
+            }
