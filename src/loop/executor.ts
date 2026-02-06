@@ -15,6 +15,7 @@ import {
 import { ProgressRenderer } from '../ui/progress-renderer.js';
 import { type Agent, type AgentRunOptions, runAgent } from './agents.js';
 import { CircuitBreaker, type CircuitBreakerConfig } from './circuit-breaker.js';
+import { buildIterationContext, compressValidationFeedback } from './context-builder.js';
 import { CostTracker, type CostTrackerStats, formatCost } from './cost-tracker.js';
 import { estimateLoop, formatEstimateDetailed } from './estimator.js';
 import { checkFileBasedCompletion, createProgressTracker, type ProgressEntry } from './progress.js';
@@ -135,6 +136,7 @@ export interface LoopOptions {
   checkFileCompletion?: boolean; // Check for RALPH_COMPLETE file
   trackCost?: boolean; // Track token usage and cost
   model?: string; // Model name for cost estimation
+  contextBudget?: number; // Max input tokens per iteration (0 = unlimited)
 }
 
 export interface LoopResult {
@@ -542,36 +544,23 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     const iterProgress = new ProgressRenderer();
     iterProgress.start('Working...');
 
-    // Build iteration-specific task with current task context
-    let iterationTask: string;
-    if (currentTask && totalTasks > 0) {
-      const taskNum = completedTasks + 1;
-      // Get subtasks for current task
-      const subtasksList = currentTask.subtasks?.map((st) => `- [ ] ${st.name}`).join('\n') || '';
+    // Build iteration-specific task with smart context windowing
+    const builtContext = buildIterationContext({
+      fullTask: options.task,
+      taskWithSkills,
+      currentTask,
+      taskInfo,
+      iteration: i,
+      maxIterations,
+      validationFeedback: undefined, // Validation feedback handled separately below
+      maxInputTokens: options.contextBudget || 0,
+    });
+    const iterationTask = builtContext.prompt;
 
-      if (i === 1) {
-        // First iteration: include full context
-        iterationTask = `${taskWithSkills}
-
-## Current Task (${taskNum}/${totalTasks}): ${currentTask.name}
-
-Subtasks:
-${subtasksList}
-
-Complete these subtasks, then mark them done in IMPLEMENTATION_PLAN.md by changing [ ] to [x].`;
-      } else {
-        // Subsequent iterations: focused task only (context already established)
-        iterationTask = `Continue working on the project. Check IMPLEMENTATION_PLAN.md for progress.
-
-## Current Task (${taskNum}/${totalTasks}): ${currentTask.name}
-
-Subtasks:
-${subtasksList}
-
-Complete these subtasks, then mark them done in IMPLEMENTATION_PLAN.md by changing [ ] to [x].`;
-      }
-    } else {
-      iterationTask = taskWithSkills;
+    // Debug: log context builder output
+    if (process.env.RALPH_DEBUG) {
+      console.error(`[DEBUG] Context: ${builtContext.debugInfo}`);
+      console.error(`[DEBUG] Trimmed: ${builtContext.wasTrimmed}`);
     }
 
     // Debug: log the prompt being sent
@@ -774,8 +763,9 @@ Complete these subtasks, then mark them done in IMPLEMENTATION_PLAN.md by changi
           await progressTracker.appendEntry(progressEntry);
         }
 
-        // Continue loop with validation feedback
-        taskWithSkills = `${taskWithSkills}\n\n${feedback}`;
+        // Continue loop with compressed validation feedback
+        const compressedFeedback = compressValidationFeedback(feedback);
+        taskWithSkills = `${taskWithSkills}\n\n${compressedFeedback}`;
         continue; // Go to next iteration to fix issues
       } else {
         // Validation passed - record success
