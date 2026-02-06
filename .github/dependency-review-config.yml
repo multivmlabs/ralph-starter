@@ -1,0 +1,15 @@
+# Dependency Review Configuration
+# https://github.com/actions/dependency-review-action#configuration-options
+
+# Fail on high/critical vulnerabilities
+fail-on-severity: high
+
+# Deny copyleft licenses that could cause licensing issues
+# (can't use both allow and deny, so we deny problematic ones)
+deny-licenses:
+  - GPL-3.0
+  - GPL-3.0-only
+  - GPL-3.0-or-later
+  - AGPL-3.0
+  - AGPL-3.0-only
+  - AGPL-3.0-or-later

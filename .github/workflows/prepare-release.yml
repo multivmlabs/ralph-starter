@@ -11,49 +11,8 @@ permissions:
   pull-requests: write
 
 jobs:
-  # Auto-add candidate-release label when src/ files change
-  auto-label:
-    name: Auto Label Release Candidate
-    if: |
-      github.event.action != 'labeled' &&
-      github.event.action != 'closed' &&
-      !startsWith(github.event.pull_request.head.ref, 'release/')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Check for package changes
-        id: changes
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            package:
-              - 'src/**'
-              - 'package.json'
-              - '!**/*.md'
-              - '!docs/**'
-
-      - name: Add candidate-release label
-        if: steps.changes.outputs.package == 'true'
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const { owner, repo } = context.repo;
-            const issue_number = context.payload.pull_request.number;
-
-            // Check if label already exists
-            const labels = await github.rest.issues.listLabelsOnIssue({
-              owner, repo, issue_number
-            });
-
-            if (!labels.data.find(l => l.name === 'candidate-release')) {
-              await github.rest.issues.addLabels({
-                owner, repo, issue_number,
-                labels: ['candidate-release']
-              });
-              console.log('Added candidate-release label');
-            }
+  # NOTE: Auto-labeling (including candidate-release) is handled by auto-label.yml
+  # This workflow only handles creating release PRs when candidate-release PRs are merged
 
   # Create release PR when a PR with candidate-release label is merged
   create-release-pr:
@@ -177,27 +136,12 @@ jobs:
           # Clean up PR title (remove conventional commit prefix)
           CLEAN_TITLE=$(echo "$SOURCE_TITLE" | sed 's/^[a-z]*(\?[a-z]*)\?:\s*//')
 
-          # Create new changelog entry using node to avoid YAML parsing issues
-          node -e "
-            const fs = require('fs');
-            const version = '${NEW_VERSION}';
-            const date = '${TODAY}';
-            const changeType = '${CHANGE_TYPE}';
-            const title = process.argv[1];
-            const pr = '${SOURCE_PR}';
-
-            const entry = \`## [\${version}] - \${date}\n\n### \${changeType}\n- \${title} (#\${pr})\n\n\`;
-
-            let changelog = fs.readFileSync('CHANGELOG.md', 'utf8');
-            const lines = changelog.split('\n');
-
-            // Insert after line 6 (after header block)
-            const header = lines.slice(0, 6).join('\n');
-            const rest = lines.slice(6).join('\n');
-
-            changelog = header + '\n\n' + entry + rest;
-            fs.writeFileSync('CHANGELOG.md', changelog);
-          " "${CLEAN_TITLE}"
+          # Update changelog using external script
+          NEW_VERSION="$NEW_VERSION" \
+          TODAY="$TODAY" \
+          CHANGE_TYPE="$CHANGE_TYPE" \
+          SOURCE_PR="$SOURCE_PR" \
+          node .github/scripts/update-changelog.js "$CLEAN_TITLE"
 
           # Commit changes
           git add package.json package-lock.json CHANGELOG.md
