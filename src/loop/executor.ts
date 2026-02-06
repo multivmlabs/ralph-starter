@@ -738,23 +738,23 @@ Complete these subtasks, then mark them done in IMPLEMENTATION_PLAN.md by changi
         const feedback = formatValidationFeedback(validationResults);
         spinner.fail(chalk.red(`Loop ${i}: Validation failed`));
 
-        // Show which validations failed (UX 4: specific validation errors)
+        // Show compact validation summary
+        const failedSummaries: string[] = [];
         for (const vr of validationResults) {
           if (!vr.success) {
-            console.log(chalk.red(`  ✗ ${vr.command}`));
-            if (vr.error) {
-              const errorLines = vr.error.split('\n').slice(0, 5);
-              for (const line of errorLines) {
-                console.log(chalk.dim(`    ${line}`));
-              }
-            } else if (vr.output) {
-              const outputLines = vr.output.split('\n').slice(0, 5);
-              for (const line of outputLines) {
-                console.log(chalk.dim(`    ${line}`));
-              }
-            }
+            const errorText = vr.error || vr.output || '';
+            const failCount = (errorText.match(/fail/gi) || []).length;
+            const errorCount = (errorText.match(/error/gi) || []).length;
+            const hint =
+              failCount > 0
+                ? `${failCount} failures`
+                : errorCount > 0
+                  ? `${errorCount} errors`
+                  : 'failed';
+            failedSummaries.push(`${vr.command} (${hint})`);
           }
         }
+        console.log(chalk.red(`  ✗ ${failedSummaries.join(' │ ')}`));
 
         // Record failure in circuit breaker
         const errorMsg = validationResults
@@ -870,6 +870,20 @@ Complete these subtasks, then mark them done in IMPLEMENTATION_PLAN.md by changi
       exitReason = 'completed';
       break;
     }
+
+    // Status separator between iterations
+    const elapsed = Date.now() - startTime;
+    const elapsedMin = Math.floor(elapsed / 60000);
+    const elapsedSec = Math.floor((elapsed % 60000) / 1000);
+    const costLabel = costTracker
+      ? ` │ ${formatCost(costTracker.getStats().totalCost.totalCost)}`
+      : '';
+    const taskLabel = completedTasks > 0 ? ` │ Tasks: ${completedTasks}/${totalTasks}` : '';
+    console.log(
+      drawSeparator(
+        `Iter ${i}/${maxIterations}${taskLabel}${costLabel} │ ${elapsedMin}m ${elapsedSec}s`
+      )
+    );
 
     // Small delay between iterations
     await new Promise((resolve) => setTimeout(resolve, 1000));
