@@ -53,6 +53,29 @@ function truncateToFit(text: string, maxWidth: number): string {
 }
 
 /**
+ * Get a compact icon for the task source integration
+ */
+function getSourceIcon(source?: string): string {
+  switch (source?.toLowerCase()) {
+    case 'github':
+      return '';
+    case 'linear':
+      return '◫';
+    case 'figma':
+      return '◆';
+    case 'notion':
+      return '▤';
+    case 'file':
+    case 'pdf':
+      return '▫';
+    case 'url':
+      return '◎';
+    default:
+      return '▸';
+  }
+}
+
+/**
  * Strip markdown and list formatting from task names
  */
 function cleanTaskName(name: string): string {
@@ -145,6 +168,7 @@ export interface LoopOptions {
   prIssueRef?: IssueRef; // Issue to link in PR body
   prType?: SemanticPrType; // Type for semantic PR title
   validate?: boolean; // Run tests/lint/build as backpressure
+  sourceType?: string; // Source integration type (github, linear, figma, notion, file)
   // New options
   completionPromise?: string; // Custom completion promise string
   requireExitSignal?: boolean; // Require explicit EXIT_SIGNAL: true
@@ -549,14 +573,19 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     const headerWidth = Math.min(63, termWidth - 2);
     const headerLine = '═'.repeat(headerWidth);
     console.log(chalk.cyan(`\n${headerLine}`));
+    const sourceIcon = getSourceIcon(options.sourceType);
     if (currentTask && totalTasks > 0) {
       const taskNum = completedTasks + 1;
-      const prefix = `  Task ${taskNum}/${totalTasks} │ `;
+      const prefix = `  ${sourceIcon} Task ${taskNum}/${totalTasks} │ `;
       const maxTaskWidth = Math.max(20, headerWidth - prefix.length - 2);
       const taskName = truncateToFit(cleanTaskName(currentTask.name), maxTaskWidth);
       console.log(chalk.cyan.bold(`${prefix}${taskName}`));
     } else {
-      console.log(chalk.cyan.bold(`  Loop ${i}/${maxIterations} │ Running ${options.agent.name}`));
+      console.log(
+        chalk.cyan.bold(
+          `  ${sourceIcon} Loop ${i}/${maxIterations} │ Running ${options.agent.name}`
+        )
+      );
     }
     console.log(chalk.cyan(`${headerLine}\n`));
 
