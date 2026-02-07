@@ -116,6 +116,10 @@ try {
   main();
   process.exitCode = 0;
 } catch (error) {
-  console.error('Validation failed:', error);
+  if (error instanceof Error) {
+    console.error('Validation failed:\n', error.stack || error.message);
+  } else {
+    console.error('Validation failed:', error);
+  }
   process.exit(1);
 }
