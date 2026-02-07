@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [0.1.1-beta.16] - 2026-02-07
+
+### Added
+- add seo category to template filters (#142)
+- enforce pnpm, vitest v4, esbuild v0.27, security fixes (#136)
+
+### Fixed
+- update codeql-action SHA and harden workflow patterns (#147)
+- fix release workflow for pnpm and update scorecard action (#144)
+- rename changelog script to .cjs for ESM compatibility (#143)
+- pin GitHub Actions to SHA hashes and add LICENSE (#141)
+
 ## [0.1.1-beta.15] - 2026-02-06
 
 ### Added
