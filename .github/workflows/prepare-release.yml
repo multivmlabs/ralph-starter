@@ -29,10 +29,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@c5ba7f7862a0f64c1b1a05fbac13e0b8e86ba08c # v4
+
       - name: Setup Node.js
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
         with:
           node-version: '20'
+          cache: 'pnpm'
 
       - name: Determine version bump
         id: bump
@@ -150,7 +154,7 @@ jobs:
           node .github/scripts/update-changelog.cjs "$CLEAN_TITLE"
 
           # Commit changes
-          git add package.json package-lock.json CHANGELOG.md
+          git add package.json pnpm-lock.yaml CHANGELOG.md
           git commit -m "chore(release): bump version to ${NEW_VERSION}"
 
           # Push branch
