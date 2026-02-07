@@ -147,7 +147,7 @@ jobs:
           TODAY="$TODAY" \
           CHANGE_TYPE="$CHANGE_TYPE" \
           SOURCE_PR="$SOURCE_PR" \
-          node .github/scripts/update-changelog.js "$CLEAN_TITLE"
+          node .github/scripts/update-changelog.cjs "$CLEAN_TITLE"
 
           # Commit changes
           git add package.json package-lock.json CHANGELOG.md
