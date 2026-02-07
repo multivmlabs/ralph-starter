@@ -5,6 +5,7 @@ const rootDir = path.resolve(__dirname, '..');
 const buildDir = path.join(rootDir, 'build');
 const staticDir = path.join(rootDir, 'static');
 const siteUrl = 'https://ralphstarter.ai';
+const expectedOrigin = new URL(siteUrl).origin;
 
 const requiredBuildFiles = [
   'sitemap.xml',
@@ -41,7 +42,15 @@ function main() {
     throw new Error('Sitemap is missing /docs/intro.');
   }
 
-  if (!locMatches.every((url) => url.startsWith(siteUrl))) {
+  const hasInvalidSitemapOrigin = locMatches.some((url) => {
+    try {
+      return new URL(url).origin !== expectedOrigin;
+    } catch {
+      return true;
+    }
+  });
+
+  if (hasInvalidSitemapOrigin) {
     throw new Error('Sitemap contains URLs outside https://ralphstarter.ai.');
   }
 

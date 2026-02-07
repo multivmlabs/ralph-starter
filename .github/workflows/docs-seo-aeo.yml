@@ -71,14 +71,14 @@ jobs:
           SITEMAP_URL="https://ralphstarter.ai/sitemap.xml"
 
           echo "Pinging Bing sitemap endpoint..."
-          curl -fsS "https://www.bing.com/ping?sitemap=${SITEMAP_URL}" >/dev/null && echo "Bing ping sent." || echo "Bing ping failed (non-fatal)."
+          curl --connect-timeout 5 --max-time 15 -fsS "https://www.bing.com/ping?sitemap=${SITEMAP_URL}" >/dev/null && echo "Bing ping sent." || echo "Bing ping failed (non-fatal)."
 
           echo "Pinging Google sitemap endpoint (best effort)..."
-          curl -fsS "https://www.google.com/ping?sitemap=${SITEMAP_URL}" >/dev/null && echo "Google ping sent." || echo "Google ping not accepted (non-fatal)."
+          curl --connect-timeout 5 --max-time 15 -fsS "https://www.google.com/ping?sitemap=${SITEMAP_URL}" >/dev/null && echo "Google ping sent." || echo "Google ping not accepted (non-fatal)."
 
           if [ -n "${INDEXNOW_KEY}" ]; then
             echo "Submitting IndexNow URL update..."
-            curl -fsS "https://api.indexnow.org/indexnow?url=https://ralphstarter.ai/docs/intro&key=${INDEXNOW_KEY}" >/dev/null && echo "IndexNow submitted." || echo "IndexNow submission failed (non-fatal)."
+            curl --connect-timeout 5 --max-time 15 -fsS "https://api.indexnow.org/indexnow?url=https://ralphstarter.ai/docs/intro&key=${INDEXNOW_KEY}" >/dev/null && echo "IndexNow submitted." || echo "IndexNow submission failed (non-fatal)."
           else
             echo "INDEXNOW_KEY not configured; skipping IndexNow submission."
           fi

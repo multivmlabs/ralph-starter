@@ -3,9 +3,6 @@ import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 const siteUrl = 'https://ralphstarter.ai';
-const algoliaAppId = process.env.ALGOLIA_APP_ID;
-const algoliaApiKey = process.env.ALGOLIA_SEARCH_API_KEY;
-const hasAlgoliaConfig = Boolean(algoliaAppId && algoliaApiKey);
 
 const config: Config = {
   title: 'ralph-starter - AI-Powered Autonomous Coding from Specs to Production',
@@ -362,16 +359,6 @@ const config: Config = {
       darkTheme: prismThemes.dracula,
       additionalLanguages: ['bash', 'json', 'typescript'],
     },
-    ...(hasAlgoliaConfig
-      ? {
-          algolia: {
-            appId: algoliaAppId as string,
-            apiKey: algoliaApiKey as string,
-            indexName: 'ralph-starter',
-            contextualSearch: true,
-          },
-        }
-      : {}),
   } satisfies Preset.ThemeConfig,
 };
 
