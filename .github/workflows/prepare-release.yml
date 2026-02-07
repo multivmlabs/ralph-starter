@@ -128,9 +128,10 @@ jobs:
       - name: Calculate new version
         if: steps.collect.outputs.skip != 'true'
         id: version
+        env:
+          CURRENT: ${{ steps.bump.outputs.current }}
+          BUMP: ${{ steps.bump.outputs.bump }}
         run: |
-          CURRENT="${{ steps.bump.outputs.current }}"
-          BUMP="${{ steps.bump.outputs.bump }}"
 
           # Parse version (handle prerelease)
           if [[ "$CURRENT" == *"-"* ]]; then
@@ -295,12 +296,15 @@ jobs:
       - name: Comment on source PR
         if: steps.collect.outputs.skip != 'true'
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.new }}
+          EXISTING_FOUND: ${{ steps.check.outputs.found }}
         with:
           script: |
             const { owner, repo } = context.repo;
             const issue_number = context.payload.pull_request.number;
-            const newVersion = '${{ steps.version.outputs.new }}';
-            const existingFound = '${{ steps.check.outputs.found }}';
+            const newVersion = process.env.NEW_VERSION;
+            const existingFound = process.env.EXISTING_FOUND;
 
             const body = existingFound === 'true'
               ? `Your changes have been added to the existing release PR for **v${newVersion}**.`
