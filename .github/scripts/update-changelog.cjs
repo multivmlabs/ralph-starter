@@ -28,7 +28,16 @@ if (!version || !date) {
 let changes;
 
 if (process.env.CHANGES_JSON) {
-  changes = JSON.parse(process.env.CHANGES_JSON);
+  try {
+    changes = JSON.parse(process.env.CHANGES_JSON);
+  } catch (err) {
+    const snippet = process.env.CHANGES_JSON.length > 200
+      ? process.env.CHANGES_JSON.substring(0, 200) + '...'
+      : process.env.CHANGES_JSON;
+    console.error(`Failed to parse CHANGES_JSON: ${err.message}`);
+    console.error(`Value (truncated): ${snippet}`);
+    process.exit(1);
+  }
 } else {
   // Legacy fallback: single entry from env vars + argv
   const changeType = process.env.CHANGE_TYPE;
@@ -42,7 +51,8 @@ if (process.env.CHANGES_JSON) {
 }
 
 // Group changes by type in deterministic order
-const typeOrder = ['Added', 'Fixed', 'Changed'];
+// Known types are listed first; any unknown types are appended alphabetically
+const typeOrder = ['Added', 'Fixed', 'Changed', 'Documentation'];
 const grouped = {};
 for (const change of changes) {
   const t = change.type;
@@ -50,10 +60,23 @@ for (const change of changes) {
   grouped[t].push(change);
 }
 
-// Build the entry
+// Build the entry — known types first, then any remaining in sorted order
 let entry = `## [${version}] - ${date}\n\n`;
+
 for (const type of typeOrder) {
   if (!grouped[type]) continue;
+  entry += `### ${type}\n`;
+  for (const c of grouped[type]) {
+    entry += `- ${c.title} (#${c.pr})\n`;
+  }
+  entry += '\n';
+}
+
+const remainingTypes = Object.keys(grouped)
+  .filter(t => !typeOrder.includes(t))
+  .sort();
+for (const type of remainingTypes) {
+  console.warn(`Warning: unknown change type "${type}" — including in changelog`);
   entry += `### ${type}\n`;
   for (const c of grouped[type]) {
     entry += `- ${c.title} (#${c.pr})\n`;

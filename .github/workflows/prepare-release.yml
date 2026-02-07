@@ -85,13 +85,16 @@ jobs:
       - name: Determine version bump and build changes
         if: steps.collect.outputs.skip != 'true'
         id: bump
+        env:
+          PRS_B64: ${{ steps.collect.outputs.prs }}
         run: |
-          PR_JSON=$(echo '${{ steps.collect.outputs.prs }}' | base64 -d)
+          PR_JSON=$(echo "$PRS_B64" | base64 -d)
 
           # Determine the highest bump type across all PRs
+          # Only match Conventional Commits breaking syntax: feat!: or feat(scope)!:
           BUMP="patch"
           while IFS= read -r TITLE; do
-            if [[ "$TITLE" == *"BREAKING"* ]] || [[ "$TITLE" == *"!"* ]]; then
+            if [[ "$TITLE" == *"BREAKING"* ]] || [[ "$TITLE" =~ ^[a-z]+(\([a-z-]*\))?!: ]]; then
               BUMP="major"
               break
             elif [[ "$TITLE" == feat* ]] || [[ "$TITLE" == *"feat("* ]]; then
@@ -111,7 +114,7 @@ jobs:
             type: (
               if (.title | test("^feat"; "i")) then "Added"
               elif (.title | test("^fix"; "i")) then "Fixed"
-              elif (.title | test("^docs"; "i")) then "Changed"
+              elif (.title | test("^docs"; "i")) then "Documentation"
               else "Changed"
               end
             ),
@@ -233,6 +236,9 @@ jobs:
 
           # Update package.json version
           npm version "$NEW_VERSION" --no-git-tag-version
+
+          # Sync pnpm-lock.yaml with the updated package.json version
+          pnpm install --lockfile-only
 
           # Update CHANGELOG.md with all changes
           NEW_VERSION="$NEW_VERSION" \
