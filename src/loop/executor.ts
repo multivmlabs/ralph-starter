@@ -12,7 +12,7 @@ import {
   type IssueRef,
   type SemanticPrType,
 } from '../automation/git.js';
-import { drawBox, getTerminalWidth } from '../ui/box.js';
+import { drawBox, drawSeparator, getTerminalWidth } from '../ui/box.js';
 import { ProgressRenderer } from '../ui/progress-renderer.js';
 import { type Agent, type AgentRunOptions, runAgent } from './agents.js';
 import { CircuitBreaker, type CircuitBreakerConfig } from './circuit-breaker.js';

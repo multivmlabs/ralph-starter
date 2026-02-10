@@ -11,7 +11,6 @@ import {
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { getPackageVersion } from '../utils/version.js';
 import { getPrompts, handleGetPrompt } from './prompts.js';
 import { getResources, handleResourceRead } from './resources.js';
 import { getTools, handleToolCall } from './tools.js';
