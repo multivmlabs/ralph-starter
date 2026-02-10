@@ -576,6 +576,7 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
     prIssueRef: sourceIssueRef,
     prLabels: options.auto ? ['AUTO'] : undefined,
     validate: options.validate ?? preset?.validate,
+    sourceType: options.from?.toLowerCase(),
     // New options
     completionPromise: options.completionPromise ?? preset?.completionPromise,
     requireExitSignal: options.requireExitSignal,

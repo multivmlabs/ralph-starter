@@ -38,13 +38,56 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Strip markdown formatting from task names
+ * Get terminal width with a sensible fallback
+ */
+function getTerminalWidth(): number {
+  return process.stdout.columns || 80;
+}
+
+/**
+ * Truncate text to fit within available width
+ */
+function truncateToFit(text: string, maxWidth: number): string {
+  if (text.length <= maxWidth) return text;
+  return `${text.slice(0, maxWidth - 3)}...`;
+}
+
+/**
+ * Get a compact icon for the task source integration
+ */
+function getSourceIcon(source?: string): string {
+  switch (source?.toLowerCase()) {
+    case 'github':
+      return '';
+    case 'linear':
+      return '◫';
+    case 'figma':
+      return '◆';
+    case 'notion':
+      return '▤';
+    case 'file':
+    case 'pdf':
+      return '▫';
+    case 'url':
+      return '◎';
+    default:
+      return '▸';
+  }
+}
+
+/**
+ * Strip markdown and list formatting from task names
  */
 function cleanTaskName(name: string): string {
   return name
     .replace(/\*\*/g, '') // Remove bold **
     .replace(/\*/g, '') // Remove italic *
     .replace(/`/g, '') // Remove code backticks
+    .replace(/<[^>]+>/g, '') // Remove HTML tags
+    .replace(/^\d+\.\s+/, '') // Remove numbered list prefix (1. )
+    .replace(/^[-*]\s+/, '') // Remove bullet list prefix (- or * )
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Convert [text](url) to text
+    .replace(/\s+/g, ' ') // Collapse whitespace
     .trim();
 }
 
@@ -125,6 +168,7 @@ export interface LoopOptions {
   prIssueRef?: IssueRef; // Issue to link in PR body
   prType?: SemanticPrType; // Type for semantic PR title
   validate?: boolean; // Run tests/lint/build as backpressure
+  sourceType?: string; // Source integration type (github, linear, figma, notion, file)
   // New options
   completionPromise?: string; // Custom completion promise string
   requireExitSignal?: boolean; // Require explicit EXIT_SIGNAL: true
@@ -511,12 +555,10 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     const newlyCompleted = completedTasks - previousCompletedTasks;
     if (newlyCompleted > 0 && i > 1) {
       // Get names of newly completed tasks (strip markdown)
+      const maxNameWidth = Math.max(30, getTerminalWidth() - 30);
       const completedNames = taskInfo.tasks
         .filter((t) => t.completed && t.index >= previousCompletedTasks && t.index < completedTasks)
-        .map((t) => {
-          const clean = cleanTaskName(t.name);
-          return clean.length > 25 ? `${clean.slice(0, 22)}...` : clean;
-        });
+        .map((t) => truncateToFit(cleanTaskName(t.name), maxNameWidth));
 
       if (completedNames.length > 0) {
         console.log(
@@ -527,16 +569,25 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     previousCompletedTasks = completedTasks;
 
     // Show loop header with task info
-    console.log(chalk.cyan(`\n═══════════════════════════════════════════════════════════════`));
+    const termWidth = getTerminalWidth();
+    const headerWidth = Math.min(63, termWidth - 2);
+    const headerLine = '═'.repeat(headerWidth);
+    console.log(chalk.cyan(`\n${headerLine}`));
+    const sourceIcon = getSourceIcon(options.sourceType);
     if (currentTask && totalTasks > 0) {
       const taskNum = completedTasks + 1;
-      const cleanName = cleanTaskName(currentTask.name);
-      const taskName = cleanName.length > 40 ? `${cleanName.slice(0, 37)}...` : cleanName;
-      console.log(chalk.cyan.bold(`  Task ${taskNum}/${totalTasks} │ ${taskName}`));
+      const prefix = `  ${sourceIcon} Task ${taskNum}/${totalTasks} │ `;
+      const maxTaskWidth = Math.max(20, headerWidth - prefix.length - 2);
+      const taskName = truncateToFit(cleanTaskName(currentTask.name), maxTaskWidth);
+      console.log(chalk.cyan.bold(`${prefix}${taskName}`));
     } else {
-      console.log(chalk.cyan.bold(`  Loop ${i}/${maxIterations} │ Running ${options.agent.name}`));
+      console.log(
+        chalk.cyan.bold(
+          `  ${sourceIcon} Loop ${i}/${maxIterations} │ Running ${options.agent.name}`
+        )
+      );
     }
-    console.log(chalk.cyan(`═══════════════════════════════════════════════════════════════\n`));
+    console.log(chalk.cyan(`${headerLine}\n`));
 
     // Create progress renderer for this iteration
     const iterProgress = new ProgressRenderer();
