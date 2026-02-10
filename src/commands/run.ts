@@ -215,6 +215,7 @@ export interface RunCommandOptions {
   trackCost?: boolean;
   circuitBreakerFailures?: number;
   circuitBreakerErrors?: number;
+  contextBudget?: number;
   // Figma options
   figmaMode?: 'spec' | 'tokens' | 'components' | 'assets' | 'content';
   figmaFramework?: 'react' | 'vue' | 'svelte' | 'astro' | 'nextjs' | 'nuxt' | 'html';
@@ -585,6 +586,7 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
     trackCost: options.trackCost ?? true, // Default to true
     model: agent.type === 'claude-code' ? 'claude-3-sonnet' : 'default',
     checkFileCompletion: true, // Always check for file-based completion
+    contextBudget: options.contextBudget ? Number(options.contextBudget) : undefined,
     circuitBreaker: preset?.circuitBreaker
       ? {
           maxConsecutiveFailures:
