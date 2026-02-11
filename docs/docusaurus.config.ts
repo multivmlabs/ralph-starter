@@ -18,7 +18,7 @@ const config: Config = {
   baseUrl: '/',
 
   // Project config
-  organizationName: 'rubenmarcus',
+  organizationName: 'multivmlabs',
   projectName: 'ralph-starter',
   trailingSlash: false,
 
