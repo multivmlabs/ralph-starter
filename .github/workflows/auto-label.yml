@@ -33,7 +33,6 @@ jobs:
             security:
               - '.github/workflows/security.yml'
               - 'SECURITY.md'
-              - '.gitleaks.toml'
             config:
               - 'package.json'
               - 'tsconfig.json'
