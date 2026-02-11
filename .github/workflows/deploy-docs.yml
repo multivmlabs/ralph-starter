@@ -54,7 +54,7 @@ jobs:
       # Preview deploy (pull requests)
       - name: Deploy Preview
         if: github.event_name == 'pull_request'
-        uses: cloudflare/wrangler-action@da0e0235f371a81e3396a2baee477e1df5065e67 # v3
+        uses: cloudflare/wrangler-action@v3
         id: deploy-preview
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -64,7 +64,7 @@ jobs:
       # Comment preview URL on the PR
       - name: Comment Preview URL
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@v8
         with:
           script: |
             const branch = context.payload.pull_request.head.ref
