@@ -5,11 +5,15 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
+  pull_request:
+    paths:
+      - 'docs/**'
   workflow_dispatch:
 
 permissions:
   contents: read
   deployments: write
+  pull-requests: write
 
 jobs:
   deploy:
@@ -37,9 +41,62 @@ jobs:
         working-directory: docs
         run: pnpm build
 
-      - name: Deploy to Cloudflare Pages
+      # Production deploy (push to main)
+      - name: Deploy to Production
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: cloudflare/wrangler-action@da0e0235f371a81e3396a2baee477e1df5065e67 # v3
+        id: deploy-production
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy docs/build --project-name=ralph-starter-docs
+          command: pages deploy docs/build --project-name=ralph-starter-docs --branch=main
+
+      # Preview deploy (pull requests)
+      - name: Deploy Preview
+        if: github.event_name == 'pull_request'
+        uses: cloudflare/wrangler-action@da0e0235f371a81e3396a2baee477e1df5065e67 # v3
+        id: deploy-preview
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy docs/build --project-name=ralph-starter-docs --branch=${{ github.head_ref }}
+
+      # Comment preview URL on the PR
+      - name: Comment Preview URL
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const branch = context.payload.pull_request.head.ref
+              .replace(/[^a-zA-Z0-9-]/g, '-')
+              .substring(0, 28);
+            const previewUrl = `https://${branch}.ralph-starter-docs.pages.dev`;
+
+            // Check for existing bot comment to avoid duplicates
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('Docs Preview')
+            );
+
+            const body = `### 🔗 Docs Preview\n\n**Preview URL:** ${previewUrl}\n\nThis preview was deployed from the latest commit on this PR.`;
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
