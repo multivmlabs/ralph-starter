@@ -374,7 +374,7 @@ export async function askForComplexity(suggestedComplexity?: Complexity): Promis
 /**
  * Confirm the refined plan
  */
-export async function confirmPlan(): Promise<'proceed' | 'modify' | 'restart'> {
+export async function confirmPlan(): Promise<'proceed' | 'modify' | 'restart' | 'prompt'> {
   const { confirmed } = await inquirer.prompt([
     {
       type: 'confirm',
@@ -394,6 +394,7 @@ export async function confirmPlan(): Promise<'proceed' | 'modify' | 'restart'> {
       name: 'action',
       message: 'What would you like to do?',
       choices: [
+        { name: 'Describe changes in plain language', value: 'prompt' },
         { name: 'I want to change something', value: 'modify' },
         { name: 'Start over with a different idea', value: 'restart' },
       ],
@@ -401,6 +402,24 @@ export async function confirmPlan(): Promise<'proceed' | 'modify' | 'restart'> {
   ]);
 
   return action;
+}
+
+/**
+ * Ask for a plain-language change request
+ */
+export async function askSpecChangePrompt(): Promise<string> {
+  const { change } = await inquirer.prompt([
+    {
+      type: 'input',
+      name: 'change',
+      message: 'What should be changed?',
+      suffix: '\n  (e.g., "use Next.js only, no separate backend", "switch to Tailwind")\n  >',
+      validate: (input: string) =>
+        input.trim().length > 0 ? true : 'Please describe the change you want',
+    },
+  ]);
+
+  return change.trim();
 }
 
 /**

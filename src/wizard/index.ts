@@ -26,6 +26,7 @@ import {
   askImproveAction,
   askImprovementPrompt,
   askRalphPlaybookAction,
+  askSpecChangePrompt,
   askWhatToModify,
   askWorkingDirectory,
   confirmPlan,
@@ -392,6 +393,34 @@ Provide a prioritized list of suggestions with explanations.`;
       } else if (action === 'restart') {
         refining = false;
         // Will loop back to get new idea
+      } else if (action === 'prompt') {
+        const changeRequest = await askSpecChangePrompt();
+        const updatedIdea = `${answers.rawIdea}\n\nChange request: ${changeRequest}`;
+
+        spinner.start('Updating specs...');
+        try {
+          refinedIdea = await refineIdea(updatedIdea, spinner, agent);
+        } catch (_error) {
+          spinner.fail('Could not update specs');
+          refinedIdea = {
+            projectName: answers.projectName || 'my-project',
+            projectDescription: answers.projectDescription || updatedIdea,
+            projectType: answers.projectType || 'web',
+            suggestedStack: answers.techStack,
+            coreFeatures: refinedIdea.coreFeatures,
+            suggestedFeatures: refinedIdea.suggestedFeatures,
+            estimatedComplexity: answers.complexity,
+          };
+        }
+
+        answers.rawIdea = updatedIdea;
+        answers.projectName = refinedIdea.projectName;
+        answers.projectDescription = refinedIdea.projectDescription;
+        answers.projectType = refinedIdea.projectType;
+        answers.techStack = normalizeTechStack(refinedIdea.suggestedStack);
+        answers.suggestedFeatures = refinedIdea.suggestedFeatures;
+        answers.selectedFeatures = [];
+        answers.complexity = refinedIdea.estimatedComplexity;
       } else if (action === 'modify') {
         const modifyWhat = await askWhatToModify();
 
