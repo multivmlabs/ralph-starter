@@ -11,7 +11,7 @@ export interface SkillCandidate {
   score: number;
 }
 
-const MAX_SKILLS_TO_INSTALL = 2;
+const MAX_SKILLS_TO_INSTALL = 5;
 const SKILLS_API_URL = 'https://skills.sh/api/search';
 const SKILLS_CLI = 'skills';
 
@@ -39,13 +39,20 @@ function buildSkillQueries(task: string): string[] {
   const queries = new Set<string>();
   const text = task.toLowerCase();
 
+  // Framework-specific skills
   if (text.includes('astro')) queries.add('astro');
-  if (text.includes('react')) queries.add('react');
+  if (text.includes('react') || text.includes('jsx')) {
+    queries.add('react best practices');
+    queries.add('react composition patterns');
+  }
   if (text.includes('next')) queries.add('nextjs');
+  if (text.includes('vue')) queries.add('vue');
+  if (text.includes('svelte')) queries.add('svelte');
   if (text.includes('tailwind')) queries.add('tailwind');
   if (text.includes('seo')) queries.add('seo');
   if (text.includes('accessibility') || text.includes('a11y')) queries.add('accessibility');
 
+  // Landing/marketing pages get SEO + design skills automatically
   if (
     text.includes('landing') ||
     text.includes('website') ||
@@ -54,7 +61,7 @@ function buildSkillQueries(task: string): string[] {
     text.includes('marketing')
   ) {
     queries.add('frontend design');
-    queries.add('web design');
+    queries.add('seo');
   }
 
   if (text.includes('design') || text.includes('ui') || text.includes('ux')) {
@@ -134,14 +141,17 @@ function scoreCandidate(candidate: SkillCandidate, task: string): number {
 
   boost('frontend', 3);
   boost('design', 3);
+  boost('best-practices', 2);
+  boost('composition', 2);
+  boost('guidelines', 2);
   boost('ui', 2);
   boost('ux', 2);
   boost('landing', 2);
   boost('astro', taskLower.includes('astro') ? 3 : 1);
-  boost('react', taskLower.includes('react') ? 2 : 0);
-  boost('next', taskLower.includes('next') ? 2 : 0);
-  boost('tailwind', taskLower.includes('tailwind') ? 2 : 0);
-  boost('seo', taskLower.includes('seo') ? 2 : 0);
+  boost('react', taskLower.includes('react') ? 3 : 0);
+  boost('next', taskLower.includes('next') ? 3 : 0);
+  boost('tailwind', taskLower.includes('tailwind') ? 3 : 0);
+  boost('seo', taskLower.includes('seo') ? 3 : 2); // SEO is always useful for web projects
 
   // Boost based on install count (popularity as quality signal)
   if (candidate.installs > 10000) score += 5;
@@ -231,20 +241,21 @@ export async function autoInstallSkillsFromTask(task: string, cwd: string): Prom
   // Explicit disable is the only way to turn this off
   if (process.env.RALPH_DISABLE_SKILL_AUTO_INSTALL === '1') return [];
 
-  // Check if relevant skills are already installed — skip API if so
+  // Detect what's already installed
   const installedSkills = detectClaudeSkills(cwd);
   const relevantInstalled = installedSkills.filter((s) => isSkillRelevantToTask(s, task));
 
+  // Show installed skills to the user
   if (relevantInstalled.length > 0) {
     const names = relevantInstalled.map((s) => s.name);
     console.log(chalk.cyan(`Using installed skills: ${names.join(', ')}`));
-    return names;
   }
 
+  // Always search for complementary skills (even if some are installed)
   const queries = buildSkillQueries(task);
-  if (queries.length === 0) return [];
+  if (queries.length === 0) return relevantInstalled.map((s) => s.name);
 
-  const spinner = ora('Searching skills.sh for relevant skills...').start();
+  const spinner = ora('Checking for complementary skills...').start();
   const allCandidates = new Map<string, SkillCandidate>();
 
   for (const query of queries) {
@@ -267,8 +278,8 @@ export async function autoInstallSkillsFromTask(task: string, cwd: string): Prom
   }
 
   if (allCandidates.size === 0) {
-    spinner.warn('No skills found from skills.sh');
-    return [];
+    spinner.stop();
+    return relevantInstalled.map((s) => s.name);
   }
 
   const ranked = rankCandidates(Array.from(allCandidates.values()), task);
@@ -281,14 +292,14 @@ export async function autoInstallSkillsFromTask(task: string, cwd: string): Prom
     .slice(0, MAX_SKILLS_TO_INSTALL);
 
   if (toInstall.length === 0) {
-    spinner.succeed('Relevant skills already installed');
-    return [];
+    spinner.succeed('All relevant skills already installed');
+    return relevantInstalled.map((s) => s.name);
   }
 
   spinner.stop();
-  console.log(chalk.cyan('Installing recommended skills from skills.sh...'));
+  console.log(chalk.cyan('Installing complementary skills from skills.sh...'));
 
-  const installed: string[] = [];
+  const installed: string[] = relevantInstalled.map((s) => s.name);
   for (const candidate of toInstall) {
     console.log(chalk.dim(`  • ${candidate.fullName}`));
     const ok = await installSkill(candidate, true);
@@ -297,10 +308,9 @@ export async function autoInstallSkillsFromTask(task: string, cwd: string): Prom
     }
   }
 
-  if (installed.length > 0) {
-    console.log(chalk.green(`Installed skills: ${installed.join(', ')}`));
-  } else {
-    console.log(chalk.yellow('No skills were installed.'));
+  const newlyInstalled = installed.slice(relevantInstalled.length);
+  if (newlyInstalled.length > 0) {
+    console.log(chalk.green(`Installed: ${newlyInstalled.join(', ')}`));
   }
 
   return installed;
