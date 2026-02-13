@@ -202,12 +202,15 @@ export function detectBuildCommands(cwd: string): ValidationCommand[] {
       try {
         const pkg = JSON.parse(readFileSync(packagePath, 'utf-8'));
         const scripts = pkg.scripts || {};
+        const pm = detectPackageManager(cwd);
 
         if (scripts.build) {
-          commands.push({ name: 'build', command: 'npm', args: ['run', 'build'] });
+          const cmd = getRunCommand(pm, 'build');
+          commands.push({ name: 'build', ...cmd });
         }
         if (scripts.typecheck) {
-          commands.push({ name: 'typecheck', command: 'npm', args: ['run', 'typecheck'] });
+          const cmd = getRunCommand(pm, 'typecheck');
+          commands.push({ name: 'typecheck', ...cmd });
         }
       } catch {
         // Invalid package.json
