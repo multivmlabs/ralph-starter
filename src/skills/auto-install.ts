@@ -11,7 +11,7 @@ export interface SkillCandidate {
   score: number;
 }
 
-const MAX_SKILLS_TO_INSTALL = 5;
+const MAX_SKILLS_TO_INSTALL = 3;
 
 /**
  * Normalize a skill identifier for comparison.

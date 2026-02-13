@@ -269,7 +269,9 @@ This is a visual/design task. After making your CSS and styling changes, you MUS
   }
 
   // Install relevant skills so the agent has design/quality context
-  await autoInstallSkillsFromTask(fixTask, cwd);
+  // Use the user's custom task (not the full generated prompt) to avoid keyword-spam
+  // that triggers excessive skill searches from the design prompt boilerplate
+  await autoInstallSkillsFromTask(customTask || (options.design ? 'design fix' : 'fix'), cwd);
 
   const defaultIter = options.design ? 7 : isDesignTask ? 5 : 3;
   const maxIter = options.maxIterations ? Number.parseInt(options.maxIterations, 10) : defaultIter;
