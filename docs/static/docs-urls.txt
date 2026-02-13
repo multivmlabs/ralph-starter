@@ -7,6 +7,7 @@ https://ralphstarter.ai/docs/cli/auth.md
 https://ralphstarter.ai/docs/cli/auto.md
 https://ralphstarter.ai/docs/cli/check.md
 https://ralphstarter.ai/docs/cli/config.md
+https://ralphstarter.ai/docs/cli/fix.md
 https://ralphstarter.ai/docs/cli/init.md
 https://ralphstarter.ai/docs/cli/integrations.md
 https://ralphstarter.ai/docs/cli/plan.md

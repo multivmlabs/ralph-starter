@@ -1,7 +1,7 @@
 {
   "name": "ralph-starter Documentation",
   "baseUrl": "https://ralphstarter.ai",
-  "generatedAt": "2026-02-09T23:59:04.120Z",
+  "generatedAt": "2026-02-13T21:19:43.300Z",
   "navigation": [
     {
       "type": "category",
@@ -158,6 +158,14 @@
           "url": "https://ralphstarter.ai/docs/cli/config",
           "markdownUrl": "https://ralphstarter.ai/docs/cli/config.md",
           "description": "Manage source configuration and credentials"
+        },
+        {
+          "type": "doc",
+          "label": "fix",
+          "path": "/docs/cli/fix",
+          "url": "https://ralphstarter.ai/docs/cli/fix",
+          "markdownUrl": "https://ralphstarter.ai/docs/cli/fix.md",
+          "description": "Fix build errors, lint issues, or design problems"
         },
         {
           "type": "doc",
@@ -417,6 +425,12 @@
       "title": "config",
       "path": "/docs/cli/config",
       "url": "https://ralphstarter.ai/docs/cli/config",
+      "category": "Cli"
+    },
+    {
+      "title": "fix",
+      "path": "/docs/cli/fix",
+      "url": "https://ralphstarter.ai/docs/cli/fix",
       "category": "Cli"
     },
     {
