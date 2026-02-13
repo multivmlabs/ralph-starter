@@ -312,10 +312,14 @@ function shouldAutoApplySkill(skill: ClaudeSkill, task: string): boolean {
   return false;
 }
 
-export function formatSkillsForPrompt(skills: ClaudeSkill[], task?: string): string {
+export function formatSkillsForPrompt(
+  skills: ClaudeSkill[],
+  task?: string,
+  maxSkills?: number
+): string {
   if (skills.length === 0) return '';
 
-  const MAX_SKILLS_IN_PROMPT = 5;
+  const MAX_SKILLS_IN_PROMPT = maxSkills || 5;
 
   // When we have a task, only include relevant skills to avoid prompt bloat
   let selected: ClaudeSkill[];
