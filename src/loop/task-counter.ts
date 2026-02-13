@@ -1,8 +1,24 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
+/** Maximum iterations for estimated calculations */
+export const MAX_ESTIMATED_ITERATIONS = 25;
+
 /** Mtime-based cache for parsePlanTasks to avoid redundant file reads within the same iteration */
 let _planCache: { path: string; mtimeMs: number; result: TaskCount } | null = null;
+
+/** Deep-clone a TaskCount to prevent cache mutation by consumers */
+function cloneTaskCount(tc: TaskCount): TaskCount {
+  return {
+    total: tc.total,
+    completed: tc.completed,
+    pending: tc.pending,
+    tasks: tc.tasks.map((t) => ({
+      ...t,
+      subtasks: t.subtasks?.map((st) => ({ ...st })),
+    })),
+  };
+}
 
 export interface PlanTask {
   name: string;
@@ -36,7 +52,7 @@ export function parsePlanTasks(cwd: string): TaskCount {
   try {
     preMtime = statSync(planPath).mtimeMs;
     if (_planCache && _planCache.path === planPath && _planCache.mtimeMs === preMtime) {
-      return _planCache.result;
+      return cloneTaskCount(_planCache.result);
     }
   } catch {
     // stat failed — fall through to full parse
@@ -256,7 +272,7 @@ export function calculateOptimalIterations(
 
   // Apply bounds
   iterations = Math.max(3, iterations); // Minimum 3
-  iterations = Math.min(25, iterations); // Maximum 25
+  iterations = Math.min(MAX_ESTIMATED_ITERATIONS, iterations);
 
   return {
     iterations,

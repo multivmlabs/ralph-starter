@@ -289,46 +289,58 @@ function detectCompletionWithReason(
 ): { status: 'done' | 'blocked' | 'continue'; reason: string } {
   const { completionPromise, requireExitSignal = false, minCompletionIndicators = 1 } = options;
 
-  // 1. Check explicit completion promise first (highest priority)
+  // --- Cheap checks first (string includes / simple regex) ---
+
+  // 1. Explicit completion promise (highest priority)
   if (completionPromise && output.includes(completionPromise)) {
     return { status: 'done', reason: `Found completion promise: "${completionPromise}"` };
   }
 
-  // 2. Check for <promise>COMPLETE</promise> tag
+  // 2. <promise>COMPLETE</promise> tag
   if (/<promise>COMPLETE<\/promise>/i.test(output)) {
     return { status: 'done', reason: 'Found <promise>COMPLETE</promise> marker' };
   }
 
-  // 3. Use semantic analyzer for more nuanced detection (single call)
-  const analysis = analyzeResponse(output);
-
-  // Check for blocked status
-  if (analysis.stuckScore >= 0.7 && analysis.confidence !== 'low') {
-    return { status: 'blocked', reason: 'Semantic analysis detected stuck state' };
+  // 3. Explicit EXIT_SIGNAL (cheap regex)
+  const hasExplicitSignal = hasExitSignal(output);
+  if (hasExplicitSignal && !requireExitSignal) {
+    return { status: 'done', reason: 'Found EXIT_SIGNAL: true' };
   }
 
-  // Check blocked markers (legacy support)
+  // 4. Legacy completion markers (cheap string search)
   const upperOutput = output.toUpperCase();
+  if (!requireExitSignal) {
+    for (const marker of COMPLETION_MARKERS) {
+      if (upperOutput.includes(marker.toUpperCase())) {
+        return { status: 'done', reason: `Found completion marker: "${marker}"` };
+      }
+    }
+  }
+
+  // 5. Blocked markers (cheap string search)
   for (const marker of BLOCKED_MARKERS) {
     if (upperOutput.includes(marker.toUpperCase())) {
       return { status: 'blocked', reason: `Found blocked marker: "${marker}"` };
     }
   }
 
-  // Check for explicit EXIT_SIGNAL (single call)
-  const hasExplicitSignal = hasExitSignal(output);
+  // --- Expensive check last (semantic analysis with many regex patterns) ---
 
-  // If exit signal is required, check for it
-  if (requireExitSignal) {
-    if (hasExplicitSignal && analysis.indicators.completion.length >= minCompletionIndicators) {
-      return { status: 'done', reason: 'Found EXIT_SIGNAL: true' };
-    }
-    if (!hasExplicitSignal) {
-      return { status: 'continue', reason: '' };
-    }
+  const analysis = analyzeResponse(output);
+
+  if (analysis.stuckScore >= 0.7 && analysis.confidence !== 'low') {
+    return { status: 'blocked', reason: 'Semantic analysis detected stuck state' };
   }
 
-  // Check completion indicators
+  // When exit signal is required, validate it with semantic indicators
+  if (requireExitSignal) {
+    if (hasExplicitSignal && analysis.indicators.completion.length >= minCompletionIndicators) {
+      return { status: 'done', reason: 'Found EXIT_SIGNAL: true with completion indicators' };
+    }
+    return { status: 'continue', reason: '' };
+  }
+
+  // Semantic completion detection (only reached when no explicit markers matched)
   if (
     analysis.completionScore >= 0.7 &&
     analysis.indicators.completion.length >= minCompletionIndicators
@@ -338,18 +350,6 @@ function detectCompletionWithReason(
       status: 'done',
       reason: `Semantic analysis (${Math.round(analysis.completionScore * 100)}% confident): ${indicators.join(', ')}`,
     };
-  }
-
-  // Explicit exit signals always count
-  if (hasExplicitSignal) {
-    return { status: 'done', reason: 'Found EXIT_SIGNAL: true' };
-  }
-
-  // Legacy marker support
-  for (const marker of COMPLETION_MARKERS) {
-    if (upperOutput.includes(marker.toUpperCase())) {
-      return { status: 'done', reason: `Found completion marker: "${marker}"` };
-    }
   }
 
   return { status: 'continue', reason: '' };
@@ -729,6 +729,19 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     // Track cost for this iteration (silent - summary shown at end)
     if (costTracker) {
       costTracker.recordIteration(options.task, result.output);
+
+      // Post-iteration cost ceiling check — prevent starting another expensive iteration
+      const overBudget = costTracker.isOverBudget();
+      if (overBudget) {
+        console.log(
+          chalk.red(
+            `\n  Cost ceiling reached after iteration ${i}: ${formatCost(overBudget.currentCost)} >= ${formatCost(overBudget.maxCost)} budget`
+          )
+        );
+        finalIteration = i;
+        exitReason = 'cost_ceiling';
+        break;
+      }
     }
 
     // Check for completion using enhanced detection (single-pass: status + reason)
@@ -746,7 +759,13 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     const hasChanges = fsChanged || gitChanged;
     previousSnapshot = currentSnapshot;
 
-    if (!hasChanges) {
+    // Task-aware stall detection: check both file changes AND task progress
+    // Re-parse tasks after agent runs to catch newly completed tasks
+    const postIterationTaskInfo = parsePlanTasks(options.cwd);
+    const tasksProgressedThisIteration = postIterationTaskInfo.completed > previousCompletedTasks;
+    const hasProductiveProgress = hasChanges || tasksProgressedThisIteration;
+
+    if (!hasProductiveProgress) {
       consecutiveIdleIterations++;
     } else {
       consecutiveIdleIterations = 0;
@@ -764,11 +783,11 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       await waitForFilesystemQuiescence(options.cwd, 2000);
     }
 
-    // Stall detection: stop if no file changes for 2+ consecutive iterations
+    // Stall detection: stop if no productive progress for 3+ consecutive iterations
     if (consecutiveIdleIterations >= 3 && i > 3) {
       console.log(
         chalk.yellow(
-          `  No file changes for ${consecutiveIdleIterations} consecutive iterations - stopping`
+          `  No progress for ${consecutiveIdleIterations} consecutive iterations - stopping`
         )
       );
       finalIteration = i;

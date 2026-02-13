@@ -63,9 +63,29 @@ export function compressValidationFeedback(feedback: string, maxChars: number = 
   const lines = stripped.split('\n');
   const compressed: string[] = ['## Validation Failed\n'];
   let currentLength = compressed[0].length;
+  let sectionCount = 0;
+  let totalSections = 0;
+
+  // Count total ### sections for the omission summary
+  for (const line of lines) {
+    if (line.startsWith('### ')) totalSections++;
+  }
 
   for (const line of lines) {
-    // Always include headers (### command name)
+    // Track section headers (### command name)
+    if (line.startsWith('### ')) {
+      // If we already have one complete section and are over budget, stop
+      if (sectionCount >= 1 && currentLength + line.length + 1 > maxChars - 100) {
+        const remaining = totalSections - sectionCount;
+        if (remaining > 0) {
+          compressed.push(`\n[${remaining} more failing section(s) omitted]`);
+        }
+        break;
+      }
+      sectionCount++;
+    }
+
+    // Always include ## and ### headers
     if (line.startsWith('### ') || line.startsWith('## ')) {
       compressed.push(line);
       currentLength += line.length + 1;
@@ -142,6 +162,7 @@ export function buildIterationContext(opts: ContextBuildOptions): BuiltContext {
   const completedTasks = taskInfo.completed;
   const debugParts: string[] = [];
   let prompt: string;
+  let wasTrimmed = false;
 
   // Loop-aware preamble — gives the agent behavioral context per Ralph Playbook patterns
   const preamble = `You are a coding agent in an autonomous development loop (iteration ${iteration}/${opts.maxIterations}).
@@ -219,6 +240,7 @@ ${planContext}`;
       debugParts.push('included: compressed validation feedback');
     }
 
+    wasTrimmed = true;
     debugParts.push(`mode=trimmed (iteration ${iteration})`);
     debugParts.push(`excluded: full spec, skills`);
   } else {
@@ -237,19 +259,29 @@ ${planContext}`;
       debugParts.push('included: minimal validation feedback (500 chars)');
     }
 
+    wasTrimmed = true;
     debugParts.push(`mode=minimal (iteration ${iteration})`);
     debugParts.push('excluded: spec, skills, plan history');
   }
 
   // Apply token budget if set
-  let wasTrimmed = iteration > 1 && currentTask !== null && totalTasks > 0;
   const estimatedTokens = estimateTokens(prompt);
 
   if (maxInputTokens > 0 && estimatedTokens > maxInputTokens) {
-    // Aggressively trim: truncate the prompt to fit budget
+    // Semantic trimming: cut at paragraph/line boundaries instead of mid-instruction
     const targetChars = maxInputTokens * 3.5; // rough chars-per-token
     if (prompt.length > targetChars) {
-      prompt = `${prompt.slice(0, targetChars)}\n\n[Context truncated to fit ${maxInputTokens} token budget]`;
+      // Find the last paragraph break before the budget
+      let cutPoint = prompt.lastIndexOf('\n\n', targetChars);
+      if (cutPoint < targetChars * 0.5) {
+        // No paragraph break in the second half — fall back to last line break
+        cutPoint = prompt.lastIndexOf('\n', targetChars);
+      }
+      if (cutPoint < targetChars * 0.5) {
+        // No suitable break found — hard cut (rare edge case)
+        cutPoint = targetChars;
+      }
+      prompt = `${prompt.slice(0, cutPoint)}\n\n[Context truncated to fit ${maxInputTokens} token budget]`;
       wasTrimmed = true;
       debugParts.push(`truncated: ${estimatedTokens} -> ~${maxInputTokens} tokens`);
     }
