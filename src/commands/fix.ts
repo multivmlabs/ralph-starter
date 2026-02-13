@@ -229,21 +229,30 @@ IMPORTANT: Your VERY FIRST action must be to start the dev server and take scree
 2. Take full-page screenshots at 3 viewports: desktop (1440px), tablet (768px), mobile (375px)
 3. Analyze each screenshot carefully against the spec below
 
-## Phase 2: Issue Identification
-List ALL design issues you find:
-- Layout/spacing problems (misalignment, excess whitespace, overflow)
-- Typography issues (wrong fonts, sizes, weights, line-heights)
-- Color mismatches (wrong palette, poor contrast, inconsistent usage)
-- Responsive breakage (elements overlapping, content clipping, bad stacking)
-- Component styling (borders, shadows, padding, margins)
+## Phase 2: Issue Identification (be SPECIFIC, not generic)
+Look at the screenshots and identify CONCRETE issues you can actually see. Do NOT list generic improvements — only list problems visible in the screenshots.
+
+Check in this priority order:
+1. **Page structure** — Is content centered? Are sections contained in a max-width wrapper? Is anything stuck to the left/right edge when it shouldn't be? Are there huge empty gaps between sections?
+2. **Layout & positioning** — Are grid/flex layouts rendering correctly? Are columns balanced? Is the hero section properly structured? Are elements overlapping or misaligned?
+3. **Responsive issues** — Does the layout break at any viewport? Do elements overflow or get clipped?
+4. **Spacing** — Is vertical rhythm consistent between sections? Are there abnormally large or small gaps?
+5. **Typography & colors** — Are fonts loading? Is text readable against backgrounds? Are colors consistent?
+
+IMPORTANT: Focus on what looks BROKEN, not what could be "improved." A centered layout with wrong padding is lower priority than content pinned to the left edge.
 
 ## Phase 3: Fix Plan
-Create a DESIGN_FIX_PLAN.md with prioritized issues and specific CSS/component fixes for each.
+Create a DESIGN_FIX_PLAN.md. For each issue:
+- Describe EXACTLY what's wrong (e.g., "Hero content is not centered — text hugs the left edge with no container")
+- Specify the exact file and CSS property to change
+- Keep fixes minimal — fix the actual problem, don't redesign the entire component
+
+Prioritize: page structure > layout positioning > responsive > spacing > cosmetic.
 
 ## Phase 4: Execute & Verify
-1. Fix issues one by one, starting with layout/structure, then typography, then colors
-2. After each major fix, re-screenshot to verify improvement
-3. Final verification: screenshot all 3 viewports and confirm all issues are resolved
+1. Fix structural issues FIRST (containers, centering, grid layout), then work down to cosmetic
+2. After fixing each structural issue, re-screenshot to verify the layout improved
+3. Final verification: screenshot all 3 viewports and confirm the page looks properly structured
 
 ## Phase 5: Cleanup
 CRITICAL: Stop the dev server (kill the process) when done — do NOT leave it running.
