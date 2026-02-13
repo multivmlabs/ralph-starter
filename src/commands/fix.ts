@@ -273,7 +273,7 @@ This is a visual/design task. After making your CSS and styling changes, you MUS
   // that triggers excessive skill searches from the design prompt boilerplate
   await autoInstallSkillsFromTask(customTask || (options.design ? 'design fix' : 'fix'), cwd);
 
-  const defaultIter = options.design ? 7 : isDesignTask ? 5 : 3;
+  const defaultIter = options.design ? 5 : isDesignTask ? 4 : 3;
   const maxIter = options.maxIterations ? Number.parseInt(options.maxIterations, 10) : defaultIter;
 
   const result = await runLoop({
