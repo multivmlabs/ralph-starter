@@ -451,6 +451,7 @@ This creates:
 |---------|-------------|
 | `ralph-starter` | Launch interactive wizard |
 | `ralph-starter run [task]` | Run an autonomous coding loop |
+| `ralph-starter fix [task]` | Fix build errors, lint issues, or design problems |
 | `ralph-starter auto` | Batch-process issues from GitHub/Linear |
 | `ralph-starter integrations <action>` | Manage integrations (list, help, test, fetch) |
 | `ralph-starter plan` | Create implementation plan from specs |
@@ -560,6 +561,31 @@ ralph-starter run --circuit-breaker-failures 2 "build Y"
 | `--issue <n>` | Specific issue number (GitHub) |
 | `--output-dir <path>` | Directory to run task in (skips prompt) |
 | `--prd <file>` | Read tasks from markdown |
+
+## Options for `fix`
+
+| Flag | Description |
+|------|-------------|
+| `--scan` | Force full project scan (build + lint + typecheck + tests) |
+| `--agent <name>` | Specify agent to use (default: auto-detect) |
+| `--commit` | Auto-commit the fix |
+| `--max-iterations <n>` | Max fix iterations (default: 3) |
+| `--output-dir <path>` | Project directory (default: cwd) |
+
+```bash
+# Fix build/lint errors automatically
+ralph-starter fix
+
+# Fix a specific design/visual issue
+ralph-starter fix "fix the paddings and make the colors brighter"
+
+# Full scan with auto-commit
+ralph-starter fix --scan --commit
+```
+
+For design-related tasks (CSS, colors, spacing, etc.), the fix command automatically:
+- Detects and applies installed design skills
+- Instructs the agent to visually verify changes via browser screenshots
 
 ## Config Commands
 
