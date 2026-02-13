@@ -97,6 +97,77 @@ export function detectValidationCommands(cwd: string): ValidationCommand[] {
 }
 
 /**
+ * Detect lint-only commands for lightweight intermediate-iteration checks.
+ * Much faster than build (5-15s vs 30-60s), good for catching syntax errors mid-loop.
+ * Returns empty array if no lint command is available — caller should skip validation.
+ */
+export function detectLintCommands(cwd: string): ValidationCommand[] {
+  const commands: ValidationCommand[] = [];
+
+  // Check AGENTS.md for lint command
+  const agentsPath = join(cwd, 'AGENTS.md');
+  if (existsSync(agentsPath)) {
+    const content = readFileSync(agentsPath, 'utf-8');
+    const lintMatch = content.match(/[-*]\s*\*?\*?lint\*?\*?[:\s]+`([^`]+)`/i);
+    if (lintMatch) {
+      const parts = lintMatch[1].trim().split(/\s+/);
+      commands.push({ name: 'lint', command: parts[0], args: parts.slice(1) });
+    }
+  }
+
+  // Fallback to package.json
+  if (commands.length === 0) {
+    const packagePath = join(cwd, 'package.json');
+    if (existsSync(packagePath)) {
+      try {
+        const pkg = JSON.parse(readFileSync(packagePath, 'utf-8'));
+        const scripts = pkg.scripts || {};
+        const pm = detectPackageManager(cwd);
+
+        if (scripts.lint) {
+          const cmd = getRunCommand(pm, 'lint');
+          commands.push({ name: 'lint', ...cmd });
+        }
+      } catch {
+        // Invalid package.json
+      }
+    }
+  }
+
+  return commands;
+}
+
+/**
+ * Run a lint validation command with a short timeout (lint is fast).
+ */
+export async function runLintValidation(
+  cwd: string,
+  command: ValidationCommand
+): Promise<ValidationResult> {
+  try {
+    const result = await execa(command.command, command.args, {
+      cwd,
+      timeout: 60000, // 1 minute timeout (lint is fast)
+      reject: false,
+    });
+
+    return {
+      success: result.exitCode === 0,
+      command: `${command.command} ${command.args.join(' ')}`,
+      output: result.stdout,
+      ...(result.exitCode !== 0 && { error: result.stderr || result.stdout }),
+    };
+  } catch (error) {
+    return {
+      success: false,
+      command: `${command.command} ${command.args.join(' ')}`,
+      output: '',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
  * Detect build-only commands for always-on build validation.
  * Unlike detectValidationCommands(), this:
  * 1. Only returns build/typecheck commands (not test/lint)

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 /** Maximum iterations for estimated calculations */
@@ -42,11 +42,6 @@ export interface TaskCount {
 export function parsePlanTasks(cwd: string): TaskCount {
   const planPath = join(cwd, 'IMPLEMENTATION_PLAN.md');
 
-  if (!existsSync(planPath)) {
-    _planCache = null;
-    return { total: 0, completed: 0, pending: 0, tasks: [] };
-  }
-
   // Return cached result if file hasn't changed (avoids redundant reads within same iteration)
   let preMtime = 0;
   try {
@@ -55,7 +50,7 @@ export function parsePlanTasks(cwd: string): TaskCount {
       return cloneTaskCount(_planCache.result);
     }
   } catch {
-    // stat failed — fall through to full parse
+    // stat failed (file may not exist) — fall through to read attempt
   }
 
   try {

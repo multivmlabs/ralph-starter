@@ -35,10 +35,12 @@ import { detectStepFromOutput } from './step-detector.js';
 import { getCurrentTask, MAX_ESTIMATED_ITERATIONS, parsePlanTasks } from './task-counter.js';
 import {
   detectBuildCommands,
+  detectLintCommands,
   detectValidationCommands,
   formatValidationFeedback,
   runAllValidations,
   runBuildValidation,
+  runLintValidation,
   type ValidationResult,
 } from './validation.js';
 
@@ -233,6 +235,7 @@ export interface LoopOptions {
   validationWarmup?: number; // Skip validation until N tasks completed (for greenfield builds)
   maxCost?: number; // Maximum cost in USD before stopping (0 = unlimited)
   agentTimeout?: number; // Agent timeout in milliseconds (default: 300000 = 5 min)
+  initialValidationFeedback?: string; // Pre-populate with errors (used by `fix` command)
 }
 
 export interface LoopResult {
@@ -439,6 +442,8 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
   // Always-on build validation (not gated by --validate flag)
   // Re-detected inside the loop for greenfield projects where package.json appears mid-loop
   let buildCommands = detectBuildCommands(options.cwd);
+  // Lightweight lint for intermediate iterations (build only runs on final iteration)
+  let lintCommands = detectLintCommands(options.cwd);
 
   // Detect Claude Code skills
   const detectedSkills = detectClaudeSkills(options.cwd);
@@ -449,7 +454,8 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
   }
 
   // Track validation feedback separately — don't mutate taskWithSkills
-  let lastValidationFeedback = '';
+  // initialValidationFeedback lets the `fix` command pre-populate errors for iteration 1
+  let lastValidationFeedback = options.initialValidationFeedback || '';
 
   // Completion detection options
   const completionOptions: CompletionOptions = {
@@ -509,6 +515,11 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
   let previousCompletedTasks = initialTaskCount.completed;
   let previousTotalTasks = initialTaskCount.total;
 
+  // Track whether we've already extended the loop for build-fix retries
+  // When the build fails on the "final" iteration, we grant 2 extra iterations to fix it (once)
+  let buildFixExtended = false;
+  const BUILD_FIX_EXTRA_ITERATIONS = 2;
+
   // Filesystem snapshot for git-independent change detection
   let previousSnapshot = await getFilesystemSnapshot(options.cwd);
 
@@ -556,7 +567,8 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     }
 
     // Check for file-based completion signals
-    if (options.checkFileCompletion) {
+    // Skip if validation just failed — the agent needs a chance to fix build errors first
+    if (options.checkFileCompletion && !lastValidationFeedback) {
       const fileCompletion = await checkFileBasedCompletion(options.cwd);
       if (fileCompletion.completed) {
         spinner.succeed(chalk.green(`File-based completion: ${fileCompletion.reason}`));
@@ -917,8 +929,8 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       };
     }
 
-    // --- Always-on build validation ---
-    // Re-detect build commands if none found yet (greenfield: package.json may appear mid-loop)
+    // --- Tiered validation: lint on intermediate iterations, build on final ---
+    // Re-detect commands if none found yet (greenfield: package.json may appear mid-loop)
     if (buildCommands.length === 0) {
       buildCommands = detectBuildCommands(options.cwd);
       if (buildCommands.length > 0 && process.env.RALPH_DEBUG) {
@@ -927,72 +939,111 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
         );
       }
     }
+    if (lintCommands.length === 0) {
+      lintCommands = detectLintCommands(options.cwd);
+    }
 
-    // Run build validation if commands available and not already covered by full validation
     const buildCoveredByFullValidation =
       options.validate &&
       validationCommands.some((vc) => vc.name === 'build' || vc.name === 'typecheck');
 
-    if (buildCommands.length > 0 && !buildCoveredByFullValidation && i > 1) {
-      spinner.start(chalk.yellow(`Loop ${i}: Running build check...`));
+    // Determine if this is a "final" iteration where the full build should run:
+    // - Last allowed iteration, OR all plan tasks are complete
+    const preValidationTaskInfo = parsePlanTasks(options.cwd);
+    const isFinalIteration = i === maxIterations || preValidationTaskInfo.pending === 0;
 
-      const buildResults: ValidationResult[] = [];
-      for (const cmd of buildCommands) {
-        buildResults.push(await runBuildValidation(options.cwd, cmd));
-      }
-      const allBuildsPassed = buildResults.every((r) => r.success);
+    if (!buildCoveredByFullValidation && i > 1) {
+      const checkResults: ValidationResult[] = [];
+      let checkLabel = '';
 
-      if (!allBuildsPassed) {
-        validationFailures++;
-        const feedback = formatValidationFeedback(buildResults);
-        spinner.fail(chalk.red(`Loop ${i}: Build check failed`));
-
-        const failedSummaries: string[] = [];
-        for (const vr of buildResults) {
-          if (!vr.success) {
-            const errorText = vr.error || vr.output || '';
-            const errorCount = (errorText.match(/error/gi) || []).length;
-            const hint = errorCount > 0 ? `${errorCount} errors` : 'failed';
-            failedSummaries.push(`${vr.command} (${hint})`);
-          }
+      if (isFinalIteration && buildCommands.length > 0) {
+        // Final iteration: run full build validation (catches compile errors)
+        checkLabel = 'build';
+        spinner.start(chalk.yellow(`Loop ${i}: Running build check...`));
+        for (const cmd of buildCommands) {
+          checkResults.push(await runBuildValidation(options.cwd, cmd));
         }
-        console.log(chalk.red(`  ✗ ${failedSummaries.join(' │ ')}`));
+      } else if (!isFinalIteration && lintCommands.length > 0) {
+        // Intermediate iteration: run lightweight lint check (fast feedback)
+        checkLabel = 'lint';
+        spinner.start(chalk.yellow(`Loop ${i}: Running lint check...`));
+        for (const cmd of lintCommands) {
+          checkResults.push(await runLintValidation(options.cwd, cmd));
+        }
+      }
 
-        const errorMsg = buildResults
-          .filter((r) => !r.success)
-          .map((r) => r.error?.slice(0, 200) || r.output?.slice(0, 200) || r.command)
-          .join('\n');
-        const tripped = circuitBreaker.recordFailure(errorMsg);
+      if (checkResults.length > 0) {
+        const allPassed = checkResults.every((r) => r.success);
 
-        if (tripped) {
-          const reason = circuitBreaker.getTripReason();
-          console.log(chalk.red(`Circuit breaker tripped: ${reason}`));
+        if (!allPassed) {
+          validationFailures++;
+          const feedback = formatValidationFeedback(checkResults);
+          spinner.fail(
+            chalk.red(`Loop ${i}: ${checkLabel === 'build' ? 'Build' : 'Lint'} check failed`)
+          );
+
+          const failedSummaries: string[] = [];
+          for (const vr of checkResults) {
+            if (!vr.success) {
+              const errorText = vr.error || vr.output || '';
+              const errorCount = (errorText.match(/error/gi) || []).length;
+              const hint = errorCount > 0 ? `${errorCount} errors` : 'failed';
+              failedSummaries.push(`${vr.command} (${hint})`);
+            }
+          }
+          console.log(chalk.red(`  ✗ ${failedSummaries.join(' │ ')}`));
+
+          const errorMsg = checkResults
+            .filter((r) => !r.success)
+            .map((r) => r.error?.slice(0, 200) || r.output?.slice(0, 200) || r.command)
+            .join('\n');
+          const tripped = circuitBreaker.recordFailure(errorMsg);
+
+          if (tripped) {
+            const reason = circuitBreaker.getTripReason();
+            console.log(chalk.red(`Circuit breaker tripped: ${reason}`));
+            if (progressTracker && progressEntry) {
+              progressEntry.status = 'failed';
+              progressEntry.summary = `Circuit breaker tripped (${checkLabel}): ${reason}`;
+              progressEntry.validationResults = checkResults;
+              progressEntry.duration = Date.now() - iterationStart;
+              await progressTracker.appendEntry(progressEntry);
+            }
+            finalIteration = i;
+            exitReason = 'circuit_breaker';
+            break;
+          }
+
           if (progressTracker && progressEntry) {
-            progressEntry.status = 'failed';
-            progressEntry.summary = `Circuit breaker tripped (build): ${reason}`;
-            progressEntry.validationResults = buildResults;
+            progressEntry.status = 'validation_failed';
+            progressEntry.summary = `${checkLabel === 'build' ? 'Build' : 'Lint'} check failed`;
+            progressEntry.validationResults = checkResults;
             progressEntry.duration = Date.now() - iterationStart;
             await progressTracker.appendEntry(progressEntry);
           }
-          finalIteration = i;
-          exitReason = 'circuit_breaker';
-          break;
-        }
 
-        if (progressTracker && progressEntry) {
-          progressEntry.status = 'validation_failed';
-          progressEntry.summary = 'Build check failed';
-          progressEntry.validationResults = buildResults;
-          progressEntry.duration = Date.now() - iterationStart;
-          await progressTracker.appendEntry(progressEntry);
-        }
+          // If build failed on the final iteration, extend the loop to let the agent fix it
+          if (checkLabel === 'build' && isFinalIteration && !buildFixExtended) {
+            const newMax = maxIterations + BUILD_FIX_EXTRA_ITERATIONS;
+            console.log(
+              chalk.yellow(
+                `  Extending loop by ${BUILD_FIX_EXTRA_ITERATIONS} iterations to fix build errors (${maxIterations} → ${newMax})`
+              )
+            );
+            maxIterations = newMax;
+            finalIteration = maxIterations;
+            buildFixExtended = true;
+          }
 
-        // Pass build feedback to context builder for next iteration
-        // (don't mutate taskWithSkills — that defeats context trimming)
-        lastValidationFeedback = feedback;
-        continue; // Go to next iteration to fix build issues
+          lastValidationFeedback = feedback;
+          continue;
+        }
+        spinner.succeed(
+          chalk.green(`Loop ${i}: ${checkLabel === 'build' ? 'Build' : 'Lint'} check passed`)
+        );
+        circuitBreaker.recordSuccess();
+        lastValidationFeedback = '';
       }
-      spinner.succeed(chalk.green(`Loop ${i}: Build check passed`));
     }
 
     // Run full validation (backpressure) if enabled and there are changes

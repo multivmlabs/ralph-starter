@@ -9,6 +9,51 @@ export interface ClaudeSkill {
   source: 'global' | 'project' | 'agents' | 'skills.sh';
 }
 
+/** Keywords that indicate the task involves web/UI/design work */
+export const WEB_TASK_KEYWORDS = [
+  // Page/app types
+  'web',
+  'website',
+  'landing',
+  'frontend',
+  'page',
+  'dashboard',
+  'app',
+  'component',
+  'shop',
+  'store',
+  // UI/UX terms
+  'ui',
+  'ux',
+  // CSS/visual properties (detect styling tasks)
+  'css',
+  'style',
+  'styling',
+  'layout',
+  'padding',
+  'margin',
+  'spacing',
+  'color',
+  'colour',
+  'background',
+  'theme',
+  'dark mode',
+  'font',
+  'typography',
+  'border',
+  'shadow',
+  'radius',
+  'responsive',
+  'breakpoint',
+  'animation',
+  'transition',
+  'grid',
+  'flex',
+  'flexbox',
+  'align',
+  'position',
+];
+
 /**
  * Parse YAML frontmatter from markdown content
  * Returns name and description if found
@@ -251,19 +296,7 @@ function shouldAutoApplySkill(skill: ClaudeSkill, task: string): boolean {
   const text = `${name} ${desc}`;
   const taskLower = task.toLowerCase();
 
-  const taskIsWeb =
-    taskLower.includes('web') ||
-    taskLower.includes('website') ||
-    taskLower.includes('landing') ||
-    taskLower.includes('frontend') ||
-    taskLower.includes('ui') ||
-    taskLower.includes('ux') ||
-    taskLower.includes('page') ||
-    taskLower.includes('dashboard') ||
-    taskLower.includes('app') ||
-    taskLower.includes('component') ||
-    taskLower.includes('shop') ||
-    taskLower.includes('store');
+  const taskIsWeb = WEB_TASK_KEYWORDS.some((kw) => taskLower.includes(kw));
 
   const isDesignSkill =
     text.includes('design') ||

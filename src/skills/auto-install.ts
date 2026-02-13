@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import ora from 'ora';
 import { POPULAR_SKILLS } from '../commands/skill.js';
-import { type ClaudeSkill, detectClaudeSkills } from '../loop/skills.js';
+import { type ClaudeSkill, detectClaudeSkills, WEB_TASK_KEYWORDS } from '../loop/skills.js';
 
 export interface SkillCandidate {
   fullName: string; // owner/repo@skill
@@ -12,6 +12,15 @@ export interface SkillCandidate {
 }
 
 const MAX_SKILLS_TO_INSTALL = 5;
+
+/**
+ * Normalize a skill identifier for comparison.
+ * Handles mismatches between YAML frontmatter names (may use spaces/caps)
+ * and skills.sh API skillIds (always hyphenated lowercase).
+ */
+function normalizeSkillId(name: string): string {
+  return name.toLowerCase().replace(/[\s_]+/g, '-');
+}
 const SKILLS_API_URL = 'https://skills.sh/api/search';
 const SKILLS_CLI = 'skills';
 
@@ -68,6 +77,33 @@ function buildSkillQueries(task: string): string[] {
     queries.add('ui design');
   }
 
+  // CSS/styling tasks get design skills
+  const cssKeywords = [
+    'css',
+    'style',
+    'styling',
+    'padding',
+    'margin',
+    'spacing',
+    'color',
+    'colour',
+    'background',
+    'theme',
+    'font',
+    'typography',
+    'border',
+    'shadow',
+    'layout',
+    'responsive',
+    'animation',
+    'grid',
+    'flex',
+  ];
+  if (cssKeywords.some((kw) => text.includes(kw))) {
+    queries.add('frontend design');
+    queries.add('ui design');
+  }
+
   if (queries.size === 0) {
     queries.add('web design');
   }
@@ -85,19 +121,7 @@ function isSkillRelevantToTask(skill: ClaudeSkill, task: string): boolean {
   const text = `${name} ${desc}`;
   const taskLower = task.toLowerCase();
 
-  const taskIsWeb =
-    taskLower.includes('web') ||
-    taskLower.includes('website') ||
-    taskLower.includes('landing') ||
-    taskLower.includes('frontend') ||
-    taskLower.includes('ui') ||
-    taskLower.includes('ux') ||
-    taskLower.includes('page') ||
-    taskLower.includes('dashboard') ||
-    taskLower.includes('app') ||
-    taskLower.includes('component') ||
-    taskLower.includes('shop') ||
-    taskLower.includes('store');
+  const taskIsWeb = WEB_TASK_KEYWORDS.some((kw) => taskLower.includes(kw));
 
   const isDesignSkill =
     text.includes('design') ||
@@ -287,7 +311,7 @@ export async function autoInstallSkillsFromTask(task: string, cwd: string): Prom
     .filter((candidate) => !isCandidateIrrelevant(candidate, task))
     .filter(
       (candidate) =>
-        !installedSkills.some((s) => s.name.toLowerCase() === candidate.skill.toLowerCase())
+        !installedSkills.some((s) => normalizeSkillId(s.name) === normalizeSkillId(candidate.skill))
     )
     .slice(0, MAX_SKILLS_TO_INSTALL);
 
