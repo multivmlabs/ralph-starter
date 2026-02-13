@@ -181,18 +181,50 @@ describe('CircuitBreaker', () => {
   });
 
   describe('error normalization', () => {
-    it('should treat similar errors with different numbers as the same', () => {
+    it('should treat errors with different file:line:col locations as the same', () => {
       const customBreaker = new CircuitBreaker({
         maxConsecutiveFailures: 100,
         maxSameErrorCount: 3,
       });
 
-      // These should hash to similar values due to number normalization
-      customBreaker.recordFailure('Error at line 42');
+      // Same error at different file locations should hash identically
+      customBreaker.recordFailure('Error in src/index.ts:42:5');
       customBreaker.recordSuccess();
-      customBreaker.recordFailure('Error at line 99');
+      customBreaker.recordFailure('Error in src/index.ts:99:12');
       customBreaker.recordSuccess();
-      expect(customBreaker.recordFailure('Error at line 123')).toBe(true);
+      expect(customBreaker.recordFailure('Error in src/index.ts:123:3')).toBe(true);
+    });
+
+    it('should treat semantically different errors as distinct', () => {
+      const customBreaker = new CircuitBreaker({
+        maxConsecutiveFailures: 100,
+        maxSameErrorCount: 3,
+      });
+
+      // Different error messages should NOT hash identically
+      customBreaker.recordFailure('port 8000 already in use');
+      customBreaker.recordSuccess();
+      customBreaker.recordFailure('file not found: config.json');
+      customBreaker.recordSuccess();
+      // Third unique error — should NOT trip (only 1 of each)
+      expect(customBreaker.recordFailure('permission denied: /etc/shadow')).toBe(false);
+    });
+
+    it('should normalize stack traces', () => {
+      const customBreaker = new CircuitBreaker({
+        maxConsecutiveFailures: 100,
+        maxSameErrorCount: 3,
+      });
+
+      customBreaker.recordFailure('TypeError: cannot read property at Object.run (/src/a.ts:10:5)');
+      customBreaker.recordSuccess();
+      customBreaker.recordFailure('TypeError: cannot read property at Object.run (/src/b.ts:20:3)');
+      customBreaker.recordSuccess();
+      expect(
+        customBreaker.recordFailure(
+          'TypeError: cannot read property at Object.run (/src/c.ts:30:1)'
+        )
+      ).toBe(true);
     });
   });
 });

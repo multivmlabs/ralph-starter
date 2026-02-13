@@ -235,49 +235,52 @@ interface CompletionOptions {
   minCompletionIndicators?: number;
 }
 
-function detectCompletion(
+/**
+ * Detect completion status AND reason in a single pass.
+ * Avoids running analyzeResponse() twice by combining detectCompletion + getCompletionReason.
+ */
+function detectCompletionWithReason(
   output: string,
   options: CompletionOptions = {}
-): 'done' | 'blocked' | 'continue' {
+): { status: 'done' | 'blocked' | 'continue'; reason: string } {
   const { completionPromise, requireExitSignal = false, minCompletionIndicators = 1 } = options;
 
   // 1. Check explicit completion promise first (highest priority)
   if (completionPromise && output.includes(completionPromise)) {
-    return 'done';
+    return { status: 'done', reason: `Found completion promise: "${completionPromise}"` };
   }
 
   // 2. Check for <promise>COMPLETE</promise> tag
   if (/<promise>COMPLETE<\/promise>/i.test(output)) {
-    return 'done';
+    return { status: 'done', reason: 'Found <promise>COMPLETE</promise> marker' };
   }
 
-  // 3. Use semantic analyzer for more nuanced detection
+  // 3. Use semantic analyzer for more nuanced detection (single call)
   const analysis = analyzeResponse(output);
 
   // Check for blocked status
   if (analysis.stuckScore >= 0.7 && analysis.confidence !== 'low') {
-    return 'blocked';
+    return { status: 'blocked', reason: 'Semantic analysis detected stuck state' };
   }
 
   // Check blocked markers (legacy support)
   const upperOutput = output.toUpperCase();
   for (const marker of BLOCKED_MARKERS) {
     if (upperOutput.includes(marker.toUpperCase())) {
-      return 'blocked';
+      return { status: 'blocked', reason: `Found blocked marker: "${marker}"` };
     }
   }
 
-  // Check for explicit EXIT_SIGNAL
+  // Check for explicit EXIT_SIGNAL (single call)
   const hasExplicitSignal = hasExitSignal(output);
 
   // If exit signal is required, check for it
   if (requireExitSignal) {
     if (hasExplicitSignal && analysis.indicators.completion.length >= minCompletionIndicators) {
-      return 'done';
+      return { status: 'done', reason: 'Found EXIT_SIGNAL: true' };
     }
-    // Continue if no explicit signal
     if (!hasExplicitSignal) {
-      return 'continue';
+      return { status: 'continue', reason: '' };
     }
   }
 
@@ -286,61 +289,26 @@ function detectCompletion(
     analysis.completionScore >= 0.7 &&
     analysis.indicators.completion.length >= minCompletionIndicators
   ) {
-    return 'done';
+    const indicators = analysis.indicators.completion.slice(0, 3);
+    return {
+      status: 'done',
+      reason: `Semantic analysis (${Math.round(analysis.completionScore * 100)}% confident): ${indicators.join(', ')}`,
+    };
   }
 
   // Explicit exit signals always count
   if (hasExplicitSignal) {
-    return 'done';
+    return { status: 'done', reason: 'Found EXIT_SIGNAL: true' };
   }
 
   // Legacy marker support
   for (const marker of COMPLETION_MARKERS) {
     if (upperOutput.includes(marker.toUpperCase())) {
-      return 'done';
+      return { status: 'done', reason: `Found completion marker: "${marker}"` };
     }
   }
 
-  return 'continue';
-}
-
-/**
- * Get human-readable reason for completion (UX 3)
- */
-function getCompletionReason(output: string, options: CompletionOptions): string {
-  const { completionPromise } = options;
-
-  // Check explicit completion promise first
-  if (completionPromise && output.includes(completionPromise)) {
-    return `Found completion promise: "${completionPromise}"`;
-  }
-
-  // Check for <promise>COMPLETE</promise> tag
-  if (/<promise>COMPLETE<\/promise>/i.test(output)) {
-    return 'Found <promise>COMPLETE</promise> marker';
-  }
-
-  // Check for explicit EXIT_SIGNAL
-  if (hasExitSignal(output)) {
-    return 'Found EXIT_SIGNAL: true';
-  }
-
-  // Check completion markers
-  const upperOutput = output.toUpperCase();
-  for (const marker of COMPLETION_MARKERS) {
-    if (upperOutput.includes(marker.toUpperCase())) {
-      return `Found completion marker: "${marker}"`;
-    }
-  }
-
-  // Use semantic analysis
-  const analysis = analyzeResponse(output);
-  if (analysis.completionScore >= 0.7) {
-    const indicators = analysis.indicators.completion.slice(0, 3);
-    return `Semantic analysis (${Math.round(analysis.completionScore * 100)}% confident): ${indicators.join(', ')}`;
-  }
-
-  return 'Task marked as complete by agent';
+  return { status: 'continue', reason: '' };
 }
 
 function summarizeChanges(output: string): string {
@@ -685,8 +653,9 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       costTracker.recordIteration(options.task, result.output);
     }
 
-    // Check for completion using enhanced detection
-    let status = detectCompletion(result.output, completionOptions);
+    // Check for completion using enhanced detection (single-pass: status + reason)
+    const completionResult = detectCompletionWithReason(result.output, completionOptions);
+    let status = completionResult.status;
 
     // Verify completion - check if files were actually changed
     if (status === 'done' && i === 1) {
@@ -798,7 +767,6 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     }
 
     // Run validation (backpressure) if enabled and there are changes
-    let _validationPassed = true;
     let validationResults: ValidationResult[] = [];
 
     if (validationCommands.length > 0 && (await hasUncommittedChanges(options.cwd))) {
@@ -808,7 +776,6 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       const allPassed = validationResults.every((r) => r.success);
 
       if (!allPassed) {
-        _validationPassed = false;
         validationFailures++;
         const feedback = formatValidationFeedback(validationResults);
         spinner.fail(chalk.red(`Loop ${i}: Validation failed`));
@@ -905,7 +872,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
 
     // Update progress entry
     if (progressTracker && progressEntry) {
-      progressEntry.status = status === 'done' ? 'completed' : 'completed';
+      progressEntry.status = status === 'done' ? 'completed' : 'partial';
       progressEntry.summary = summarizeChanges(result.output);
       progressEntry.validationResults =
         validationResults.length > 0 ? validationResults : undefined;
@@ -923,7 +890,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     }
 
     if (status === 'done') {
-      const completionReason = getCompletionReason(result.output, completionOptions);
+      const completionReason = completionResult.reason || 'Task marked as complete by agent';
       const duration = Date.now() - startTime;
       const minutes = Math.floor(duration / 60000);
       const seconds = Math.floor((duration % 60000) / 1000);
