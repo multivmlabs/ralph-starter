@@ -147,6 +147,7 @@ export function buildIterationContext(opts: ContextBuildOptions): BuiltContext {
   const preamble = `You are a coding agent in an autonomous development loop (iteration ${iteration}/${opts.maxIterations}).
 
 Rules:
+- IMPORTANT: The current working directory IS the project root. Create ALL files here — do NOT create a subdirectory for the project (e.g., do NOT run \`mkdir my-app\` or \`npx create-vite my-app\`). If you use a scaffolding tool, run it with \`.\` as the target (e.g., \`npm create vite@latest . -- --template react\`).
 - Study IMPLEMENTATION_PLAN.md and work on ONE task at a time
 - Mark each subtask [x] in IMPLEMENTATION_PLAN.md immediately when done
 - Study specs/ directory for original requirements
@@ -156,6 +157,15 @@ Rules:
 - After creating or modifying files, verify the project compiles by running the build or dev command
 - When ALL tasks are complete, explicitly state "All tasks completed"
 - If you learn how to run/build the project, update AGENTS.md
+
+Technology gotchas (CRITICAL — follow these exactly):
+- Tailwind CSS v4 (current version): The setup has changed significantly from v3.
+  * Install: \`npm install tailwindcss @tailwindcss/postcss postcss\`
+  * postcss.config.js must use: \`plugins: { '@tailwindcss/postcss': {} }\` (NOT \`tailwindcss\`)
+  * CSS file must use: \`@import "tailwindcss";\` (NOT \`@tailwind base/components/utilities\` — those are v3 directives)
+  * Do NOT create tailwind.config.js — Tailwind v4 uses CSS-based configuration
+- JSX: Never put unescaped quotes inside attribute strings. For SVG backgrounds or data URLs, use a CSS file or encodeURIComponent().
+- Run the dev server or build command to verify the project works before marking setup tasks complete.
 `;
 
   // No structured tasks — pass the task with preamble

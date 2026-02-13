@@ -584,7 +584,9 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
   }
 
   // Auto-install relevant skills from skills.sh (if available)
-  await autoInstallSkillsFromTask(finalTask, cwd);
+  // Enable by default for greenfield projects (no package.json yet)
+  const isLikelyGreenfield = !existsSync(join(cwd, 'package.json'));
+  await autoInstallSkillsFromTask(finalTask, cwd, { forceEnable: isLikelyGreenfield });
 
   // Apply preset if specified
   let preset: PresetConfig | undefined;

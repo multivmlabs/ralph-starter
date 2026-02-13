@@ -127,10 +127,18 @@ async function installSkill(candidate: SkillCandidate, globalInstall: boolean): 
   }
 }
 
-export async function autoInstallSkillsFromTask(task: string, cwd: string): Promise<string[]> {
+export async function autoInstallSkillsFromTask(
+  task: string,
+  cwd: string,
+  options?: { forceEnable?: boolean }
+): Promise<string[]> {
   if (!task.trim()) return [];
-  const autoInstallEnabled = process.env.RALPH_ENABLE_SKILL_AUTO_INSTALL === '1';
-  if (!autoInstallEnabled || process.env.RALPH_DISABLE_SKILL_AUTO_INSTALL === '1') return [];
+  // Explicit disable always wins
+  if (process.env.RALPH_DISABLE_SKILL_AUTO_INSTALL === '1') return [];
+  // Enable if: env var set, OR caller opts in (greenfield projects)
+  const autoInstallEnabled =
+    process.env.RALPH_ENABLE_SKILL_AUTO_INSTALL === '1' || options?.forceEnable === true;
+  if (!autoInstallEnabled) return [];
 
   const queries = buildSkillQueries(task);
   if (queries.length === 0) return [];

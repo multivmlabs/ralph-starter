@@ -7,8 +7,10 @@ import {
   formatPrBody,
   generateSemanticPrTitle,
   getCurrentBranch,
+  getHeadCommitHash,
   gitCommit,
   gitPush,
+  hasIterationChanges,
   hasUncommittedChanges,
   type IssueRef,
   type SemanticPrType,
@@ -139,6 +141,43 @@ async function getLatestMtime(dir: string): Promise<number> {
   }
 
   return latestMtime;
+}
+
+/**
+ * Filesystem snapshot for git-independent change detection.
+ * Counts files and total bytes, skipping node_modules/.git/hidden dirs.
+ */
+async function getFilesystemSnapshot(
+  dir: string
+): Promise<{ fileCount: number; totalSize: number }> {
+  let fileCount = 0;
+  let totalSize = 0;
+
+  async function walk(currentDir: string): Promise<void> {
+    try {
+      const entries = await readdir(currentDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
+        const fullPath = join(currentDir, entry.name);
+        try {
+          const stats = await stat(fullPath);
+          if (entry.isDirectory()) {
+            await walk(fullPath);
+          } else {
+            fileCount++;
+            totalSize += stats.size;
+          }
+        } catch {
+          // File may have been deleted during walk
+        }
+      }
+    } catch {
+      // Directory unreadable
+    }
+  }
+
+  await walk(dir);
+  return { fileCount, totalSize };
 }
 
 /**
@@ -469,6 +508,9 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
   // Track completed tasks to show progress diff between iterations
   let previousCompletedTasks = initialTaskCount.completed;
 
+  // Filesystem snapshot for git-independent change detection
+  let previousSnapshot = await getFilesystemSnapshot(options.cwd);
+
   for (let i = 1; i <= maxIterations; i++) {
     const iterationStart = Date.now();
 
@@ -647,6 +689,9 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
 
     // Run the agent with step detection (include skills in task)
     // NOTE: Don't use maxTurns - it can cause issues. Let agent complete naturally.
+    // Snapshot HEAD before agent runs — used to detect commits made during iteration
+    const iterationStartHash = await getHeadCommitHash(options.cwd);
+
     const agentOptions: AgentRunOptions = {
       task: iterationTask,
       cwd: options.cwd,
@@ -691,7 +736,16 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     let status = completionResult.status;
 
     // Track file changes between iterations for stall detection
-    const hasChanges = await hasUncommittedChanges(options.cwd);
+    // Primary: filesystem snapshot (works without git)
+    // Secondary: git-based detection (catches committed changes when git available)
+    const currentSnapshot = await getFilesystemSnapshot(options.cwd);
+    const fsChanged =
+      currentSnapshot.fileCount !== previousSnapshot.fileCount ||
+      currentSnapshot.totalSize !== previousSnapshot.totalSize;
+    const gitChanged = await hasIterationChanges(options.cwd, iterationStartHash);
+    const hasChanges = fsChanged || gitChanged;
+    previousSnapshot = currentSnapshot;
+
     if (!hasChanges) {
       consecutiveIdleIterations++;
     } else {
@@ -711,7 +765,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     }
 
     // Stall detection: stop if no file changes for 2+ consecutive iterations
-    if (consecutiveIdleIterations >= 2 && i > 1) {
+    if (consecutiveIdleIterations >= 3 && i > 3) {
       console.log(
         chalk.yellow(
           `  No file changes for ${consecutiveIdleIterations} consecutive iterations - stopping`
@@ -834,11 +888,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       options.validate &&
       validationCommands.some((vc) => vc.name === 'build' || vc.name === 'typecheck');
 
-    if (
-      buildCommands.length > 0 &&
-      !buildCoveredByFullValidation &&
-      (await hasUncommittedChanges(options.cwd))
-    ) {
+    if (buildCommands.length > 0 && !buildCoveredByFullValidation && i > 1) {
       spinner.start(chalk.yellow(`Loop ${i}: Running build check...`));
 
       const buildResults: ValidationResult[] = [];
@@ -892,8 +942,9 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
           await progressTracker.appendEntry(progressEntry);
         }
 
-        const compressedFeedback = compressValidationFeedback(feedback);
-        taskWithSkills = `${taskWithSkills}\n\n${compressedFeedback}`;
+        // Pass build feedback to context builder for next iteration
+        // (don't mutate taskWithSkills — that defeats context trimming)
+        lastValidationFeedback = feedback;
         continue; // Go to next iteration to fix build issues
       }
       spinner.succeed(chalk.green(`Loop ${i}: Build check passed`));
@@ -905,7 +956,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     const warmupThreshold = options.validationWarmup ?? 0;
     const pastWarmup = completedTasks >= warmupThreshold;
 
-    if (validationCommands.length > 0 && pastWarmup && (await hasUncommittedChanges(options.cwd))) {
+    if (validationCommands.length > 0 && pastWarmup && i > 1) {
       spinner.start(chalk.yellow(`Loop ${i}: Running validation...`));
 
       validationResults = await runAllValidations(options.cwd, validationCommands);

@@ -12,6 +12,43 @@ export async function hasUncommittedChanges(cwd: string): Promise<boolean> {
   }
 }
 
+/**
+ * Get the current HEAD commit hash.
+ * Returns empty string if not a git repo or no commits yet.
+ */
+export async function getHeadCommitHash(cwd: string): Promise<string> {
+  const git: SimpleGit = simpleGit({ baseDir: cwd });
+  try {
+    const hash = await git.revparse(['HEAD']);
+    return hash.trim();
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Detect whether an iteration produced any changes — either uncommitted
+ * working tree changes OR new commits since `startHash`.
+ *
+ * This is critical because agents like Claude Code auto-commit during their
+ * run. If we only check `git status`, committed work looks like "no changes"
+ * and trips the stall detector / skips build validation.
+ */
+export async function hasIterationChanges(cwd: string, startHash: string): Promise<boolean> {
+  // First check: uncommitted changes (staged or unstaged)
+  if (await hasUncommittedChanges(cwd)) {
+    return true;
+  }
+
+  // Second check: new commits since iteration start
+  if (!startHash) return false;
+
+  const currentHash = await getHeadCommitHash(cwd);
+  if (!currentHash) return false;
+
+  return currentHash !== startHash;
+}
+
 export async function gitCommit(cwd: string, message: string): Promise<void> {
   const git: SimpleGit = simpleGit({ baseDir: cwd });
 
