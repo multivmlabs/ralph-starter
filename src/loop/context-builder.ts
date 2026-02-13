@@ -7,6 +7,8 @@
  * - Iterations 4+: Current task only + error summary
  */
 
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { estimateTokens } from './cost-tracker.js';
 import type { PlanTask, TaskCount } from './task-counter.js';
 
@@ -27,6 +29,8 @@ export interface ContextBuildOptions {
   validationFeedback?: string;
   /** Maximum input tokens budget (0 = unlimited) */
   maxInputTokens?: number;
+  /** Abbreviated spec summary for later iterations (avoids agent re-reading specs/) */
+  specSummary?: string;
 }
 
 export interface BuiltContext {
@@ -104,6 +108,43 @@ export function compressValidationFeedback(feedback: string, maxChars: number = 
 }
 
 /**
+ * Build an abbreviated spec summary from the specs/ directory.
+ * Gives later iterations a quick design reference without requiring
+ * the agent to re-read spec files via tool calls.
+ */
+export function buildSpecSummary(cwd: string, maxChars: number = 1500): string | undefined {
+  const specsDir = join(cwd, 'specs');
+  if (!existsSync(specsDir)) return undefined;
+
+  try {
+    const specFiles = readdirSync(specsDir).filter((f) => f.endsWith('.md'));
+    if (specFiles.length === 0) return undefined;
+
+    const parts: string[] = [];
+    let totalLength = 0;
+
+    for (const file of specFiles) {
+      const content = readFileSync(join(specsDir, file), 'utf-8');
+      const available = maxChars - totalLength;
+      if (available <= 100) {
+        parts.push(`\n[${specFiles.length - parts.length} more spec file(s) omitted]`);
+        break;
+      }
+      const truncated =
+        content.length > available
+          ? `${content.slice(0, available)}\n[... truncated ...]`
+          : content;
+      parts.push(truncated);
+      totalLength += truncated.length;
+    }
+
+    return parts.join('\n---\n');
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Build a trimmed implementation plan context showing only the current task
  * with a summary of completed and pending tasks.
  */
@@ -156,6 +197,7 @@ export function buildIterationContext(opts: ContextBuildOptions): BuiltContext {
     iteration,
     validationFeedback,
     maxInputTokens = 0,
+    specSummary,
   } = opts;
 
   const totalTasks = taskInfo.total;
@@ -175,7 +217,7 @@ Rules:
 - Don't assume functionality is not already implemented — search the codebase first
 - Implement completely — no placeholders or stubs
 - Create files before importing them — never import components or modules that don't exist yet
-- Do NOT run build or dev server commands yourself — the loop automatically runs lint checks between iterations and a full build on the final iteration. NEVER start a dev server (\`npm run dev\`, \`npx vite\`, etc.) — it blocks forever and wastes resources
+- Do NOT run build or dev server commands yourself — the loop automatically runs lint checks between iterations and a full build on the final iteration. NEVER start a dev server (\`npm run dev\`, \`npx vite\`, etc.) — it blocks forever and wastes resources. (Exception: if explicitly told to do visual verification, you may briefly start a dev server and MUST kill it when done.)
 - When ALL tasks are complete, explicitly state "All tasks completed"
 - If you learn how to run/build the project, update AGENTS.md
 
@@ -188,13 +230,11 @@ Technology gotchas (CRITICAL — follow these exactly):
 - JSX: Never put unescaped quotes inside attribute strings. For SVG backgrounds or data URLs, use a CSS file or encodeURIComponent().
 - Do NOT run \`npm run build\` or \`npm run dev\` manually — the loop handles validation automatically (lint between tasks, full build at the end).
 
-Design quality (IMPORTANT — avoid generic AI aesthetics):
-- NEVER use purple-blue gradient backgrounds or gradient text — this is the #1 AI design tell
-- NEVER default to Inter, Roboto, or system fonts — pick distinctive typography (e.g. DM Sans, Playfair Display, Space Mono)
-- NEVER use glass morphism, neumorphism, or frosted-glass cards
-- Choose ONE clear design direction (bold/minimal/retro/editorial/playful) and commit to it
+Design quality (IMPORTANT):
+- FIRST PRIORITY: If specs/ contains a design specification, follow it EXACTLY — match the described colors, spacing, layout, typography, and visual style faithfully. The spec is the source of truth.
+- If no spec exists, choose ONE clear design direction (bold/minimal/retro/editorial/playful) and commit to it
 - Use a specific color palette with max 3-4 colors, not rainbow gradients
-- Prefer flat or subtle shadows over glassmorphism effects
+- Avoid generic AI aesthetics: no purple-blue gradient backgrounds/text, no glass morphism/neumorphism, no Inter/Roboto defaults — pick distinctive typography (e.g. DM Sans, Playfair Display, Space Mono)
 `;
 
   // No structured tasks — pass the task with preamble
@@ -233,12 +273,15 @@ Complete these subtasks, then mark them done in IMPLEMENTATION_PLAN.md by changi
     debugParts.push('mode=full (iteration 1)');
     debugParts.push(`included: preamble + full spec + skills + task ${taskNum}/${totalTasks}`);
   } else if (iteration <= 3) {
-    // Iterations 2-3: Preamble + trimmed plan context + spec reference
+    // Iterations 2-3: Preamble + trimmed plan context + spec summary
     const planContext = buildTrimmedPlanContext(currentTask, taskInfo);
+    const specRef = specSummary
+      ? `\n## Spec Summary (reference — follow this faithfully)\n${specSummary}\n`
+      : '\nStudy specs/ for requirements if needed.';
 
     prompt = `${preamble}
-Continue working on the project. Study specs/ for requirements if needed. Check IMPLEMENTATION_PLAN.md for full progress.
-
+Continue working on the project. Check IMPLEMENTATION_PLAN.md for full progress.
+${specRef}
 ${planContext}`;
 
     // Add compressed validation feedback if present
@@ -252,12 +295,15 @@ ${planContext}`;
     debugParts.push(`mode=trimmed (iteration ${iteration})`);
     debugParts.push(`excluded: full spec, skills`);
   } else {
-    // Iterations 4+: Preamble + minimal context
+    // Iterations 4+: Preamble + minimal context + truncated spec hint
     const planContext = buildTrimmedPlanContext(currentTask, taskInfo);
+    const specHint = specSummary
+      ? `\nSpec key points:\n${specSummary.slice(0, 500)}${specSummary.length > 500 ? '\n[... see specs/ for full details ...]' : ''}\n`
+      : '\nSpecs in specs/.';
 
     prompt = `${preamble}
-Continue working on the project. Specs in specs/. Check IMPLEMENTATION_PLAN.md for progress.
-
+Continue working on the project. Check IMPLEMENTATION_PLAN.md for progress.
+${specHint}
 ${planContext}`;
 
     // Add heavily compressed validation feedback if present
