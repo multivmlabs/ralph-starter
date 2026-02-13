@@ -1,6 +1,6 @@
 /**
  * Generates a single markdown file containing all ralph-starter documentation.
- * Output: docs/static/ralph-starter-docs.md
+ * Output: docs/static/docs.md
  *
  * Usage: node scripts/generate-full-docs.cjs
  */
