@@ -257,7 +257,13 @@ function shouldAutoApplySkill(skill: ClaudeSkill, task: string): boolean {
     taskLower.includes('landing') ||
     taskLower.includes('frontend') ||
     taskLower.includes('ui') ||
-    taskLower.includes('ux');
+    taskLower.includes('ux') ||
+    taskLower.includes('page') ||
+    taskLower.includes('dashboard') ||
+    taskLower.includes('app') ||
+    taskLower.includes('component') ||
+    taskLower.includes('shop') ||
+    taskLower.includes('store');
 
   const isDesignSkill =
     text.includes('design') ||

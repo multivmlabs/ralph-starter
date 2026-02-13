@@ -187,6 +187,14 @@ Technology gotchas (CRITICAL — follow these exactly):
   * Do NOT create tailwind.config.js — Tailwind v4 uses CSS-based configuration
 - JSX: Never put unescaped quotes inside attribute strings. For SVG backgrounds or data URLs, use a CSS file or encodeURIComponent().
 - Run the dev server or build command to verify the project works before marking setup tasks complete.
+
+Design quality (IMPORTANT — avoid generic AI aesthetics):
+- NEVER use purple-blue gradient backgrounds or gradient text — this is the #1 AI design tell
+- NEVER default to Inter, Roboto, or system fonts — pick distinctive typography (e.g. DM Sans, Playfair Display, Space Mono)
+- NEVER use glass morphism, neumorphism, or frosted-glass cards
+- Choose ONE clear design direction (bold/minimal/retro/editorial/playful) and commit to it
+- Use a specific color palette with max 3-4 colors, not rainbow gradients
+- Prefer flat or subtle shadows over glassmorphism effects
 `;
 
   // No structured tasks — pass the task with preamble

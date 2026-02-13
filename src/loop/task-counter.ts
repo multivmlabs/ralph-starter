@@ -242,14 +242,14 @@ export function calculateOptimalIterations(
   if (taskCount.total === 0) {
     const estimate = taskContent ? estimateTasksFromContent(taskContent) : null;
     if (estimate && estimate.estimated > 0) {
-      const buffer = Math.max(2, Math.ceil(estimate.estimated * 0.3));
+      const buffer = Math.max(3, Math.ceil(estimate.estimated * 0.3));
       let iterations = estimate.estimated + buffer;
-      iterations = Math.max(3, iterations);
+      iterations = Math.max(5, iterations);
       iterations = Math.min(15, iterations);
       return { iterations, taskCount, reason: estimate.reason };
     }
     return {
-      iterations: 7,
+      iterations: 10,
       taskCount,
       reason: 'No plan or spec structure found, using default',
     };
@@ -264,14 +264,14 @@ export function calculateOptimalIterations(
     };
   }
 
-  // Calculate buffer (at least 2, or 30% of pending tasks for retries)
-  const buffer = Math.max(2, Math.ceil(taskCount.pending * 0.3));
+  // Calculate buffer (at least 3, or 30% of pending tasks for retries)
+  const buffer = Math.max(3, Math.ceil(taskCount.pending * 0.3));
 
   // Calculate iterations: pending tasks + buffer
   let iterations = taskCount.pending + buffer;
 
   // Apply bounds
-  iterations = Math.max(3, iterations); // Minimum 3
+  iterations = Math.max(5, iterations); // Minimum 5
   iterations = Math.min(MAX_ESTIMATED_ITERATIONS, iterations);
 
   return {

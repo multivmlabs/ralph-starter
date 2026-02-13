@@ -763,7 +763,10 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     // Re-parse tasks after agent runs to catch newly completed tasks
     const postIterationTaskInfo = parsePlanTasks(options.cwd);
     const tasksProgressedThisIteration = postIterationTaskInfo.completed > previousCompletedTasks;
-    const hasProductiveProgress = hasChanges || tasksProgressedThisIteration;
+    // Build/validation failures are NOT idle — agent is actively debugging
+    const hadValidationFailure = lastValidationFeedback !== null;
+    const hasProductiveProgress =
+      hasChanges || tasksProgressedThisIteration || hadValidationFailure;
 
     if (!hasProductiveProgress) {
       consecutiveIdleIterations++;
@@ -783,8 +786,10 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       await waitForFilesystemQuiescence(options.cwd, 2000);
     }
 
-    // Stall detection: stop if no productive progress for 3+ consecutive iterations
-    if (consecutiveIdleIterations >= 3 && i > 3) {
+    // Stall detection: stop if no productive progress for consecutive iterations
+    // More lenient for larger projects (5+ tasks) which need more iterations for scaffolding
+    const staleThreshold = taskInfo.total > 5 ? 4 : 3;
+    if (consecutiveIdleIterations >= staleThreshold && i > 3) {
       console.log(
         chalk.yellow(
           `  No progress for ${consecutiveIdleIterations} consecutive iterations - stopping`
