@@ -20,7 +20,7 @@ import { formatPresetsHelp, getPreset, type PresetConfig } from '../presets/inde
 import { autoInstallSkillsFromTask } from '../skills/auto-install.js';
 import { getSourceDefaults } from '../sources/config.js';
 import { fetchFromSource } from '../sources/index.js';
-import { showWelcomeCompact } from '../wizard/ui.js';
+import { showWelcome } from '../wizard/ui.js';
 
 /** Default fallback repo for GitHub issues when no project is specified */
 const DEFAULT_GITHUB_ISSUES_REPO = 'multivmlabs/ralph-ideas';
@@ -251,7 +251,7 @@ export async function runCommand(
     }
   }
 
-  showWelcomeCompact();
+  showWelcome();
 
   // Check for git repo
   if (options.commit || options.push || options.pr) {
