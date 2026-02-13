@@ -20,6 +20,10 @@ export interface AgentRunOptions {
   streamOutput?: boolean;
   /** Callback for each line of output */
   onOutput?: (line: string) => void;
+  /** Agent timeout in milliseconds (default: 300000 = 5 min) */
+  timeoutMs?: number;
+  /** Maximum output size in bytes before truncating (default: 50MB) */
+  maxOutputBytes?: number;
 }
 
 const AGENTS: Record<AgentType, { name: string; command: string; checkCmd: string[] }> = {
@@ -159,7 +163,9 @@ export async function runAgent(
     });
 
     let output = '';
+    let outputBytes = 0;
     let stdoutBuffer = '';
+    const maxOutputBytes = options.maxOutputBytes || 50 * 1024 * 1024; // Default 50MB
 
     // Track data timing for debugging and silence notifications
     let lastDataTime = Date.now();
@@ -182,8 +188,8 @@ export async function runAgent(
       }
     }, 5000);
 
-    // Timeout: 5 minutes for actual work
-    const timeoutMs = 300000;
+    // Configurable timeout (default: 5 minutes)
+    const timeoutMs = options.timeoutMs || 300000;
     const timeout = setTimeout(() => {
       clearInterval(silenceChecker);
       if (process.env.RALPH_DEBUG) {
@@ -197,6 +203,21 @@ export async function runAgent(
     // Process stdout line-by-line for real-time updates
     proc.stdout?.on('data', (data: Buffer) => {
       const chunk = data.toString();
+      outputBytes += data.byteLength;
+
+      // Guard against unbounded memory growth — keep last portion if over limit.
+      // Repeatable: no flag gate, so output stays bounded even with continuous streaming.
+      if (outputBytes > maxOutputBytes) {
+        const keepBytes = Math.floor(maxOutputBytes * 0.8);
+        output = output.slice(-keepBytes);
+        outputBytes = Buffer.byteLength(output); // Reset counter to actual buffer size
+        if (process.env.RALPH_DEBUG) {
+          console.error(
+            `[DEBUG] Output exceeded ${maxOutputBytes} bytes, truncated to ~${outputBytes}`
+          );
+        }
+      }
+
       output += chunk;
       stdoutBuffer += chunk;
       lastDataTime = Date.now();
@@ -227,6 +248,7 @@ export async function runAgent(
 
     proc.stderr?.on('data', (data: Buffer) => {
       const chunk = data.toString();
+      outputBytes += data.byteLength; // Include stderr in byte accounting
       output += chunk;
       // Debug: log stderr output
       if (process.env.RALPH_DEBUG) {

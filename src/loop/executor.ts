@@ -192,6 +192,8 @@ export interface LoopOptions {
   model?: string; // Model name for cost estimation
   contextBudget?: number; // Max input tokens per iteration (0 = unlimited)
   validationWarmup?: number; // Skip validation until N tasks completed (for greenfield builds)
+  maxCost?: number; // Maximum cost in USD before stopping (0 = unlimited)
+  agentTimeout?: number; // Agent timeout in milliseconds (default: 300000 = 5 min)
 }
 
 export interface LoopResult {
@@ -205,7 +207,8 @@ export interface LoopResult {
     | 'max_iterations'
     | 'circuit_breaker'
     | 'rate_limit'
-    | 'file_signal';
+    | 'file_signal'
+    | 'cost_ceiling';
   stats?: {
     totalDuration: number;
     avgIterationDuration: number;
@@ -387,6 +390,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     ? new CostTracker({
         model: options.model || 'claude-3-sonnet',
         maxIterations: maxIterations,
+        maxCost: options.maxCost,
       })
     : null;
 
@@ -519,6 +523,21 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       }
     }
 
+    // Check cost ceiling before starting iteration
+    if (costTracker) {
+      const overBudget = costTracker.isOverBudget();
+      if (overBudget) {
+        console.log(
+          chalk.red(
+            `\n  Cost ceiling reached: ${formatCost(overBudget.currentCost)} >= ${formatCost(overBudget.maxCost)} budget`
+          )
+        );
+        finalIteration = i - 1;
+        exitReason = 'cost_ceiling';
+        break;
+      }
+    }
+
     // Log iteration warnings
     const progressPercent = (i / maxIterations) * 100;
     if (progressPercent >= 90 && progressPercent < 95) {
@@ -634,6 +653,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       auto: options.auto,
       // maxTurns removed - was causing issues, match wizard behavior
       streamOutput: !!process.env.RALPH_DEBUG, // Show raw JSON when debugging
+      timeoutMs: options.agentTimeout,
       onOutput: (line: string) => {
         const step = detectStepFromOutput(line);
         if (step) {
