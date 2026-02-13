@@ -32,9 +32,10 @@ export function parsePlanTasks(cwd: string): TaskCount {
   }
 
   // Return cached result if file hasn't changed (avoids redundant reads within same iteration)
+  let preMtime = 0;
   try {
-    const mtimeMs = statSync(planPath).mtimeMs;
-    if (_planCache && _planCache.path === planPath && _planCache.mtimeMs === mtimeMs) {
+    preMtime = statSync(planPath).mtimeMs;
+    if (_planCache && _planCache.path === planPath && _planCache.mtimeMs === preMtime) {
       return _planCache.result;
     }
   } catch {
@@ -130,9 +131,12 @@ export function parsePlanTasks(cwd: string): TaskCount {
       tasks,
     };
 
-    // Cache result with mtime for subsequent calls within the same iteration
+    // Cache result only if file wasn't modified during parsing (double-stat guard)
     try {
-      _planCache = { path: planPath, mtimeMs: statSync(planPath).mtimeMs, result };
+      const postMtime = statSync(planPath).mtimeMs;
+      if (postMtime === preMtime) {
+        _planCache = { path: planPath, mtimeMs: postMtime, result };
+      }
     } catch {
       // stat failed — skip caching
     }
