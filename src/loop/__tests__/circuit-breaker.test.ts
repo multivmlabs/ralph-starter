@@ -226,5 +226,19 @@ describe('CircuitBreaker', () => {
         )
       ).toBe(true);
     });
+
+    it('should normalize timestamps correctly (before :line:col pattern)', () => {
+      const customBreaker = new CircuitBreaker({
+        maxConsecutiveFailures: 100,
+        maxSameErrorCount: 3,
+      });
+
+      // Same error with different timestamps should hash identically
+      customBreaker.recordFailure('Error at 2026-02-13T14:07:39 in module');
+      customBreaker.recordSuccess();
+      customBreaker.recordFailure('Error at 2026-02-13T15:22:01 in module');
+      customBreaker.recordSuccess();
+      expect(customBreaker.recordFailure('Error at 2026-02-14T09:00:00 in module')).toBe(true);
+    });
   });
 });
