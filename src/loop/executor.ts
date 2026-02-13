@@ -236,6 +236,7 @@ export interface LoopOptions {
   maxCost?: number; // Maximum cost in USD before stopping (0 = unlimited)
   agentTimeout?: number; // Agent timeout in milliseconds (default: 300000 = 5 min)
   initialValidationFeedback?: string; // Pre-populate with errors (used by `fix` command)
+  maxSkills?: number; // Cap skills included in prompt (default: 5)
 }
 
 export interface LoopResult {
@@ -445,11 +446,11 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
   // Lightweight lint for intermediate iterations (build only runs on final iteration)
   let lintCommands = detectLintCommands(options.cwd);
 
-  // Detect Claude Code skills
+  // Detect Claude Code skills (capped by maxSkills option)
   const detectedSkills = detectClaudeSkills(options.cwd);
   let taskWithSkills = options.task;
   if (detectedSkills.length > 0) {
-    const skillsPrompt = formatSkillsForPrompt(detectedSkills, options.task);
+    const skillsPrompt = formatSkillsForPrompt(detectedSkills, options.task, options.maxSkills);
     taskWithSkills = `${options.task}\n\n${skillsPrompt}`;
   }
 
@@ -484,7 +485,12 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     startupLines.push(`  Auto-commit: ${chalk.green('enabled')}`);
   }
   if (detectedSkills.length > 0) {
-    startupLines.push(`  Skills:      ${chalk.white(`${detectedSkills.length} detected`)}`);
+    const effectiveSkills = options.maxSkills
+      ? Math.min(detectedSkills.length, options.maxSkills)
+      : Math.min(detectedSkills.length, 5);
+    startupLines.push(
+      `  Skills:      ${chalk.white(`${effectiveSkills} active (${detectedSkills.length} installed)`)}`
+    );
   }
   if (rateLimiter) {
     startupLines.push(`  Rate limit:  ${chalk.white(`${options.rateLimit}/hour`)}`);

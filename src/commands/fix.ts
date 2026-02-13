@@ -220,9 +220,11 @@ export async function fixCommand(customTask: string | undefined, options: FixOpt
 
   // --design flag: structured visual-first fix flow
   if (options.design) {
-    fixTask = `You are fixing design and visual issues in this project. Follow this structured methodology:
+    fixTask = `You are fixing design and visual issues in this project. Ignore IMPLEMENTATION_PLAN.md — this is a visual fix pass, not a feature build.
 
-## Phase 1: Visual Audit
+IMPORTANT: Your VERY FIRST action must be to start the dev server and take screenshots. Do NOT read files or explore the codebase first — start visually.
+
+## Phase 1: Visual Audit (DO THIS FIRST)
 1. Start the dev server (e.g. \`npm run dev\` or \`npx vite\`) — this OVERRIDES the "no dev server" rule
 2. Take full-page screenshots at 3 viewports: desktop (1440px), tablet (768px), mobile (375px)
 3. Analyze each screenshot carefully against the spec below
@@ -274,6 +276,7 @@ This is a visual/design task. After making your CSS and styling changes, you MUS
     trackProgress: true,
     checkFileCompletion: false,
     validate: mode === 'scan',
+    maxSkills: options.design ? 4 : undefined,
   });
 
   // --- Step 5: Verify fix by re-running validations ---
