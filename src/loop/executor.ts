@@ -1,3 +1,4 @@
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import chalk from 'chalk';
@@ -360,6 +361,53 @@ function detectCompletionWithReason(
   return { status: 'continue', reason: '' };
 }
 
+/**
+ * Append an iteration summary to .ralph/iteration-log.md.
+ * Gives the agent inter-iteration memory without session continuity.
+ */
+function appendIterationLog(
+  cwd: string,
+  iteration: number,
+  summary: string,
+  validationPassed: boolean,
+  hasChanges: boolean
+): void {
+  try {
+    const ralphDir = join(cwd, '.ralph');
+    if (!existsSync(ralphDir)) mkdirSync(ralphDir, { recursive: true });
+
+    const logPath = join(ralphDir, 'iteration-log.md');
+    const entry = `## Iteration ${iteration}
+- Status: ${validationPassed ? 'validation passed' : 'validation failed'}
+- Changes: ${hasChanges ? 'yes' : 'no files changed'}
+- Summary: ${summary.slice(0, 200)}
+`;
+    appendFileSync(logPath, entry);
+  } catch {
+    // Non-critical — don't break the loop if we can't write the log
+  }
+}
+
+/**
+ * Read the last N iteration summaries from .ralph/iteration-log.md.
+ * Used by context-builder to give the agent memory of previous iterations.
+ */
+export function readIterationLog(cwd: string, maxEntries = 3): string | undefined {
+  try {
+    const logPath = join(cwd, '.ralph', 'iteration-log.md');
+    if (!existsSync(logPath)) return undefined;
+
+    const content = readFileSync(logPath, 'utf-8');
+    const entries = content.split(/^## Iteration /m).filter((e) => e.trim());
+    if (entries.length === 0) return undefined;
+
+    const recent = entries.slice(-maxEntries).map((e) => `## Iteration ${e}`);
+    return recent.join('\n');
+  } catch {
+    return undefined;
+  }
+}
+
 function summarizeChanges(output: string): string {
   // Try to extract a meaningful summary from the output
   const lines = output.split('\n').filter((l) => l.trim());
@@ -701,6 +749,9 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     iterProgress.updateProgress(i, maxIterations, costTracker?.getStats()?.totalCost?.totalCost);
 
     // Build iteration-specific task with smart context windowing
+    // Read iteration log for inter-iteration memory (iterations 2+)
+    const iterationLog = i > 1 ? readIterationLog(options.cwd) : undefined;
+
     const builtContext = buildIterationContext({
       fullTask: options.task,
       taskWithSkills,
@@ -712,6 +763,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       maxInputTokens: options.contextBudget || 0,
       specSummary,
       skipPlanInstructions: options.skipPlanInstructions,
+      iterationLog,
     });
     const iterationTask = builtContext.prompt;
 
@@ -1184,6 +1236,11 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       }
       await progressTracker.appendEntry(progressEntry);
     }
+
+    // Write iteration summary for inter-iteration memory
+    const iterSummary = summarizeChanges(result.output);
+    const iterValidationPassed = validationResults.every((r) => r.success);
+    appendIterationLog(options.cwd, i, iterSummary, iterValidationPassed, hasChanges);
 
     if (status === 'done') {
       const completionReason = completionResult.reason || 'Task marked as complete by agent';

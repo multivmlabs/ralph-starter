@@ -33,6 +33,8 @@ export interface ContextBuildOptions {
   specSummary?: string;
   /** Skip IMPLEMENTATION_PLAN.md instructions in preamble (used by fix --design) */
   skipPlanInstructions?: boolean;
+  /** Iteration log content from .ralph/iteration-log.md (previous iteration summaries) */
+  iterationLog?: string;
 }
 
 export interface BuiltContext {
@@ -245,11 +247,17 @@ Design quality (IMPORTANT):
 - Avoid generic AI aesthetics: no purple-blue gradient backgrounds/text, no glass morphism/neumorphism, no Inter/Roboto defaults — pick distinctive typography (e.g. DM Sans, Playfair Display, Space Mono)
 `;
 
+  // Inject iteration log for iterations 2+ (gives agent memory of what happened before)
+  const iterationLogSection =
+    iteration > 1 && opts.iterationLog
+      ? `\n## Previous Iterations\n${opts.iterationLog}\nUse this history to avoid repeating failed approaches.\n`
+      : '';
+
   // No structured tasks — pass the task with preamble
   if (!currentTask || totalTasks === 0) {
     if (iteration > 1) {
       // Later iterations without structured tasks — remind agent to create a plan
-      prompt = `${preamble}
+      prompt = `${preamble}${iterationLogSection}
 Continue working on the project.
 If you haven't already, create an IMPLEMENTATION_PLAN.md with structured tasks.
 Study the specs/ directory for the original specification.
@@ -287,7 +295,7 @@ Complete these subtasks, then mark them done in IMPLEMENTATION_PLAN.md by changi
       ? `\n## Spec Summary (reference — follow this faithfully)\n${specSummary}\n`
       : '\nStudy specs/ for requirements if needed.';
 
-    prompt = `${preamble}
+    prompt = `${preamble}${iterationLogSection}
 Continue working on the project. Check IMPLEMENTATION_PLAN.md for full progress.
 ${specRef}
 ${planContext}`;
@@ -309,7 +317,7 @@ ${planContext}`;
       ? `\nSpec key points:\n${specSummary.slice(0, 500)}${specSummary.length > 500 ? '\n[... see specs/ for full details ...]' : ''}\n`
       : '\nSpecs in specs/.';
 
-    prompt = `${preamble}
+    prompt = `${preamble}${iterationLogSection}
 Continue working on the project. Check IMPLEMENTATION_PLAN.md for progress.
 ${specHint}
 ${planContext}`;
