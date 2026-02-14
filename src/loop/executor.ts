@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -838,6 +839,27 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     }
 
     iterProgress.stop('Iteration complete');
+
+    // Kill orphaned dev servers after design iterations (agent may crash without cleanup)
+    if (options.fixMode === 'design') {
+      try {
+        const pids = execSync('lsof -ti :3000,:5173,:4321,:8080 2>/dev/null', {
+          encoding: 'utf-8',
+          timeout: 3000,
+        }).trim();
+        if (pids) {
+          for (const pid of pids.split('\n').filter(Boolean)) {
+            try {
+              process.kill(Number(pid), 'SIGTERM');
+            } catch {
+              /* already dead */
+            }
+          }
+        }
+      } catch {
+        /* no processes on those ports — normal */
+      }
+    }
 
     // Track cost for this iteration (silent - summary shown at end)
     if (costTracker) {
