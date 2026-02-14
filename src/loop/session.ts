@@ -66,6 +66,8 @@ export interface SessionState {
   pauseReason?: string;
   /** Error message (if failed) */
   error?: string;
+  /** Last validation feedback (preserved for resume) */
+  lastValidationFeedback?: string;
   /** Exit reason */
   exitReason?:
     | 'completed'
@@ -197,7 +199,11 @@ export async function updateSessionIteration(
 /**
  * Pause the current session
  */
-export async function pauseSession(cwd: string, reason?: string): Promise<SessionState | null> {
+export async function pauseSession(
+  cwd: string,
+  reason?: string,
+  validationFeedback?: string
+): Promise<SessionState | null> {
   const session = await loadSession(cwd);
   if (!session) return null;
 
@@ -205,6 +211,7 @@ export async function pauseSession(cwd: string, reason?: string): Promise<Sessio
   session.status = 'paused';
   session.exitReason = 'paused';
   session.pauseReason = reason;
+  if (validationFeedback) session.lastValidationFeedback = validationFeedback;
 
   await saveSession(session);
   return session;
