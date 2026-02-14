@@ -7,6 +7,8 @@
  * - Iterations 4+: Current task only + error summary
  */
 
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { estimateTokens } from './cost-tracker.js';
 import type { PlanTask, TaskCount } from './task-counter.js';
 
@@ -27,6 +29,12 @@ export interface ContextBuildOptions {
   validationFeedback?: string;
   /** Maximum input tokens budget (0 = unlimited) */
   maxInputTokens?: number;
+  /** Abbreviated spec summary for later iterations (avoids agent re-reading specs/) */
+  specSummary?: string;
+  /** Skip IMPLEMENTATION_PLAN.md instructions in preamble (used by fix --design) */
+  skipPlanInstructions?: boolean;
+  /** Iteration log content from .ralph/iteration-log.md (previous iteration summaries) */
+  iterationLog?: string;
 }
 
 export interface BuiltContext {
@@ -63,9 +71,29 @@ export function compressValidationFeedback(feedback: string, maxChars: number = 
   const lines = stripped.split('\n');
   const compressed: string[] = ['## Validation Failed\n'];
   let currentLength = compressed[0].length;
+  let sectionCount = 0;
+  let totalSections = 0;
+
+  // Count total ### sections for the omission summary
+  for (const line of lines) {
+    if (line.startsWith('### ')) totalSections++;
+  }
 
   for (const line of lines) {
-    // Always include headers (### command name)
+    // Track section headers (### command name)
+    if (line.startsWith('### ')) {
+      // If we already have one complete section and are over budget, stop
+      if (sectionCount >= 1 && currentLength + line.length + 1 > maxChars - 100) {
+        const remaining = totalSections - sectionCount;
+        if (remaining > 0) {
+          compressed.push(`\n[${remaining} more failing section(s) omitted]`);
+        }
+        break;
+      }
+      sectionCount++;
+    }
+
+    // Always include ## and ### headers
     if (line.startsWith('### ') || line.startsWith('## ')) {
       compressed.push(line);
       currentLength += line.length + 1;
@@ -81,6 +109,43 @@ export function compressValidationFeedback(feedback: string, maxChars: number = 
 
   compressed.push('\nPlease fix the above issues before continuing.');
   return compressed.join('\n');
+}
+
+/**
+ * Build an abbreviated spec summary from the specs/ directory.
+ * Gives later iterations a quick design reference without requiring
+ * the agent to re-read spec files via tool calls.
+ */
+export function buildSpecSummary(cwd: string, maxChars: number = 1500): string | undefined {
+  const specsDir = join(cwd, 'specs');
+  if (!existsSync(specsDir)) return undefined;
+
+  try {
+    const specFiles = readdirSync(specsDir).filter((f) => f.endsWith('.md'));
+    if (specFiles.length === 0) return undefined;
+
+    const parts: string[] = [];
+    let totalLength = 0;
+
+    for (const file of specFiles) {
+      const content = readFileSync(join(specsDir, file), 'utf-8');
+      const available = maxChars - totalLength;
+      if (available <= 100) {
+        parts.push(`\n[${specFiles.length - parts.length} more spec file(s) omitted]`);
+        break;
+      }
+      const truncated =
+        content.length > available
+          ? `${content.slice(0, available)}\n[... truncated ...]`
+          : content;
+      parts.push(truncated);
+      totalLength += truncated.length;
+    }
+
+    return parts.join('\n---\n');
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -136,27 +201,83 @@ export function buildIterationContext(opts: ContextBuildOptions): BuiltContext {
     iteration,
     validationFeedback,
     maxInputTokens = 0,
+    specSummary,
+    skipPlanInstructions = false,
   } = opts;
 
   const totalTasks = taskInfo.total;
   const completedTasks = taskInfo.completed;
   const debugParts: string[] = [];
   let prompt: string;
+  let wasTrimmed = false;
 
-  // No structured tasks — just pass the task as-is
+  // Plan-related rules — omitted for fix/design passes where IMPLEMENTATION_PLAN.md is irrelevant
+  const planRules = skipPlanInstructions
+    ? '- This is a fix/review pass. Focus on the specific instructions in the task below.'
+    : `- Study IMPLEMENTATION_PLAN.md and work on ONE task at a time
+- Mark each subtask [x] in IMPLEMENTATION_PLAN.md immediately when done
+- Study specs/ directory for original requirements`;
+
+  // Loop-aware preamble — gives the agent behavioral context per Ralph Playbook patterns
+  const preamble = `You are a coding agent in an autonomous development loop (iteration ${iteration}/${opts.maxIterations}).
+
+Rules:
+- IMPORTANT: The current working directory IS the project root. Create ALL files here — do NOT create a subdirectory for the project (e.g., do NOT run \`mkdir my-app\` or \`npx create-vite my-app\`). If you use a scaffolding tool, run it with \`.\` as the target (e.g., \`npm create vite@latest . -- --template react\`).
+${planRules}
+- Don't assume functionality is not already implemented — search the codebase first
+- Implement completely — no placeholders or stubs
+- Create files before importing them — never import components or modules that don't exist yet
+- Do NOT run build or dev server commands yourself — the loop automatically runs lint checks between iterations and a full build on the final iteration. NEVER start a dev server (\`npm run dev\`, \`npx vite\`, etc.) — it blocks forever and wastes resources. (Exception: if explicitly told to do visual verification, you may briefly start a dev server and MUST kill it when done.)
+${skipPlanInstructions ? '- Follow the completion instructions in the task below' : '- When ALL tasks are complete, explicitly state "All tasks completed"'}
+- If you learn how to run/build the project, update AGENTS.md
+
+Technology gotchas (CRITICAL — follow these exactly):
+- Tailwind CSS v4 (current version): The setup has changed significantly from v3.
+  * Install: \`npm install tailwindcss @tailwindcss/postcss postcss\`
+  * postcss.config.js must use: \`plugins: { '@tailwindcss/postcss': {} }\` (NOT \`tailwindcss\`)
+  * CSS file must use: \`@import "tailwindcss";\` (NOT \`@tailwind base/components/utilities\` — those are v3 directives)
+  * Do NOT create tailwind.config.js — Tailwind v4 uses CSS-based configuration
+- JSX: Never put unescaped quotes inside attribute strings. For SVG backgrounds or data URLs, use a CSS file or encodeURIComponent().
+- Do NOT run \`npm run build\` or \`npm run dev\` manually — the loop handles validation automatically (lint between tasks, full build at the end).
+
+Design quality (IMPORTANT):
+- FIRST PRIORITY: If specs/ contains a design specification, follow it EXACTLY — match the described colors, spacing, layout, typography, and visual style faithfully. The spec is the source of truth.
+- If no spec exists, choose ONE clear design direction (bold/minimal/retro/editorial/playful) and commit to it
+- Use a specific color palette with max 3-4 colors, not rainbow gradients
+- Avoid generic AI aesthetics: no purple-blue gradient backgrounds/text, no glass morphism/neumorphism, no Inter/Roboto defaults — pick distinctive typography (e.g. DM Sans, Playfair Display, Space Mono)
+`;
+
+  // Inject iteration log for iterations 2+ (gives agent memory of what happened before)
+  const iterationLogSection =
+    iteration > 1 && opts.iterationLog
+      ? `\n## Previous Iterations\n${opts.iterationLog}\nUse this history to avoid repeating failed approaches.\n`
+      : '';
+
+  // No structured tasks — pass the task with preamble
   if (!currentTask || totalTasks === 0) {
-    prompt = taskWithSkills;
+    if (iteration > 1) {
+      // Later iterations without structured tasks — remind agent to create a plan
+      prompt = `${preamble}${iterationLogSection}
+Continue working on the project.
+If you haven't already, create an IMPLEMENTATION_PLAN.md with structured tasks.
+Study the specs/ directory for the original specification.
+
+${taskWithSkills}`;
+    } else {
+      prompt = `${preamble}\n${taskWithSkills}`;
+    }
     if (validationFeedback) {
       const compressed = compressValidationFeedback(validationFeedback);
       prompt = `${prompt}\n\n${compressed}`;
     }
     debugParts.push('mode=raw (no structured tasks)');
   } else if (iteration === 1) {
-    // Iteration 1: Full context — spec + skills + full current task details
+    // Iteration 1: Full context — preamble + spec + skills + full current task details
     const taskNum = completedTasks + 1;
     const subtasksList = currentTask.subtasks?.map((st) => `- [ ] ${st.name}`).join('\n') || '';
 
-    prompt = `${taskWithSkills}
+    prompt = `${preamble}
+${taskWithSkills}
 
 ## Current Task (${taskNum}/${totalTasks}): ${currentTask.name}
 
@@ -166,13 +287,17 @@ ${subtasksList}
 Complete these subtasks, then mark them done in IMPLEMENTATION_PLAN.md by changing [ ] to [x].`;
 
     debugParts.push('mode=full (iteration 1)');
-    debugParts.push(`included: full spec + skills + task ${taskNum}/${totalTasks}`);
+    debugParts.push(`included: preamble + full spec + skills + task ${taskNum}/${totalTasks}`);
   } else if (iteration <= 3) {
-    // Iterations 2-3: Trimmed plan context + abbreviated spec reference
+    // Iterations 2-3: Preamble + trimmed plan context + spec summary
     const planContext = buildTrimmedPlanContext(currentTask, taskInfo);
+    const specRef = specSummary
+      ? `\n## Spec Summary (reference — follow this faithfully)\n${specSummary}\n`
+      : '\nStudy specs/ for requirements if needed.';
 
-    prompt = `Continue working on the project. Check IMPLEMENTATION_PLAN.md for full progress.
-
+    prompt = `${preamble}${iterationLogSection}
+Continue working on the project. Check IMPLEMENTATION_PLAN.md for full progress.
+${specRef}
 ${planContext}`;
 
     // Add compressed validation feedback if present
@@ -182,14 +307,19 @@ ${planContext}`;
       debugParts.push('included: compressed validation feedback');
     }
 
+    wasTrimmed = true;
     debugParts.push(`mode=trimmed (iteration ${iteration})`);
     debugParts.push(`excluded: full spec, skills`);
   } else {
-    // Iterations 4+: Minimal context — just current task
+    // Iterations 4+: Preamble + minimal context + truncated spec hint
     const planContext = buildTrimmedPlanContext(currentTask, taskInfo);
+    const specHint = specSummary
+      ? `\nSpec key points:\n${specSummary.slice(0, 500)}${specSummary.length > 500 ? '\n[... see specs/ for full details ...]' : ''}\n`
+      : '\nSpecs in specs/.';
 
-    prompt = `Continue working on the project.
-
+    prompt = `${preamble}${iterationLogSection}
+Continue working on the project. Check IMPLEMENTATION_PLAN.md for progress.
+${specHint}
 ${planContext}`;
 
     // Add heavily compressed validation feedback if present
@@ -199,19 +329,29 @@ ${planContext}`;
       debugParts.push('included: minimal validation feedback (500 chars)');
     }
 
+    wasTrimmed = true;
     debugParts.push(`mode=minimal (iteration ${iteration})`);
     debugParts.push('excluded: spec, skills, plan history');
   }
 
   // Apply token budget if set
-  let wasTrimmed = iteration > 1 && currentTask !== null && totalTasks > 0;
   const estimatedTokens = estimateTokens(prompt);
 
   if (maxInputTokens > 0 && estimatedTokens > maxInputTokens) {
-    // Aggressively trim: truncate the prompt to fit budget
+    // Semantic trimming: cut at paragraph/line boundaries instead of mid-instruction
     const targetChars = maxInputTokens * 3.5; // rough chars-per-token
     if (prompt.length > targetChars) {
-      prompt = `${prompt.slice(0, targetChars)}\n\n[Context truncated to fit ${maxInputTokens} token budget]`;
+      // Find the last paragraph break before the budget
+      let cutPoint = prompt.lastIndexOf('\n\n', targetChars);
+      if (cutPoint < targetChars * 0.5) {
+        // No paragraph break in the second half — fall back to last line break
+        cutPoint = prompt.lastIndexOf('\n', targetChars);
+      }
+      if (cutPoint < targetChars * 0.5) {
+        // No suitable break found — hard cut (rare edge case)
+        cutPoint = targetChars;
+      }
+      prompt = `${prompt.slice(0, cutPoint)}\n\n[Context truncated to fit ${maxInputTokens} token budget]`;
       wasTrimmed = true;
       debugParts.push(`truncated: ${estimatedTokens} -> ~${maxInputTokens} tokens`);
     }

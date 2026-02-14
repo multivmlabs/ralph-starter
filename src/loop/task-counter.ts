@@ -1,5 +1,24 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+
+/** Maximum iterations for estimated calculations */
+export const MAX_ESTIMATED_ITERATIONS = 25;
+
+/** Mtime-based cache for parsePlanTasks to avoid redundant file reads within the same iteration */
+let _planCache: { path: string; mtimeMs: number; result: TaskCount } | null = null;
+
+/** Deep-clone a TaskCount to prevent cache mutation by consumers */
+function cloneTaskCount(tc: TaskCount): TaskCount {
+  return {
+    total: tc.total,
+    completed: tc.completed,
+    pending: tc.pending,
+    tasks: tc.tasks.map((t) => ({
+      ...t,
+      subtasks: t.subtasks?.map((st) => ({ ...st })),
+    })),
+  };
+}
 
 export interface PlanTask {
   name: string;
@@ -23,8 +42,15 @@ export interface TaskCount {
 export function parsePlanTasks(cwd: string): TaskCount {
   const planPath = join(cwd, 'IMPLEMENTATION_PLAN.md');
 
-  if (!existsSync(planPath)) {
-    return { total: 0, completed: 0, pending: 0, tasks: [] };
+  // Return cached result if file hasn't changed (avoids redundant reads within same iteration)
+  let preMtime = 0;
+  try {
+    preMtime = statSync(planPath).mtimeMs;
+    if (_planCache && _planCache.path === planPath && _planCache.mtimeMs === preMtime) {
+      return cloneTaskCount(_planCache.result);
+    }
+  } catch {
+    // stat failed (file may not exist) — fall through to read attempt
   }
 
   try {
@@ -109,13 +135,26 @@ export function parsePlanTasks(cwd: string): TaskCount {
     const completed = tasks.filter((t) => t.completed).length;
     const pending = tasks.filter((t) => !t.completed).length;
 
-    return {
+    const result: TaskCount = {
       total: tasks.length,
       completed,
       pending,
       tasks,
     };
+
+    // Cache result only if file wasn't modified during parsing (double-stat guard)
+    try {
+      const postMtime = statSync(planPath).mtimeMs;
+      if (postMtime === preMtime) {
+        _planCache = { path: planPath, mtimeMs: postMtime, result };
+      }
+    } catch {
+      // stat failed — skip caching
+    }
+
+    return result;
   } catch {
+    _planCache = null;
     return { total: 0, completed: 0, pending: 0, tasks: [] };
   }
 }
@@ -137,28 +176,77 @@ export function getTaskByIndex(cwd: string, index: number): PlanTask | null {
 }
 
 /**
+ * Estimate task complexity from spec/task content when no plan file exists.
+ * Counts structural elements (headings, bullet points, numbered items)
+ * and maps them to an estimated task count.
+ */
+export function estimateTasksFromContent(content: string): { estimated: number; reason: string } {
+  if (!content || content.length < 20) {
+    return { estimated: 0, reason: 'no content' };
+  }
+
+  const lines = content.split('\n');
+
+  // Count structural signals
+  const headings = lines.filter((l) => /^#{1,4}\s+/.test(l)).length;
+  const bullets = lines.filter((l) => /^\s*[-*]\s+/.test(l)).length;
+  const numbered = lines.filter((l) => /^\s*\d+[.)]\s+/.test(l)).length;
+  const checkboxes = lines.filter((l) => /^\s*[-*]\s*\[[ xX]\]/.test(l)).length;
+
+  // If there are explicit checkboxes, use that count
+  if (checkboxes > 0) {
+    return { estimated: checkboxes, reason: `${checkboxes} checkboxes in spec` };
+  }
+
+  // Estimate from structural elements: headings define major tasks,
+  // dense bullet lists suggest subtasks within those
+  const majorTasks = Math.max(1, headings);
+  const detailItems = bullets + numbered;
+
+  // Heuristic: ~4 detail items per iteration of work
+  const fromDetails = Math.ceil(detailItems / 4);
+  const estimated = Math.max(majorTasks, fromDetails, 1);
+
+  return {
+    estimated,
+    reason: `estimated from spec (${headings} sections, ${bullets + numbered} items)`,
+  };
+}
+
+/**
  * Calculate optimal number of loop iterations based on task count
  *
  * Formula:
- * - If tasks exist: pendingTasks + buffer (for retries/validation fixes)
+ * - If plan exists: pendingTasks + buffer (for retries/validation fixes)
  * - Buffer = max(2, pendingTasks * 0.3) - at least 2, or 30% extra for retries
+ * - If no plan but spec content: estimate from spec structure
  * - Minimum: 3 (even for small tasks)
  * - Maximum: 25 (prevent runaway loops)
- * - If no plan: 10 (sensible default)
  */
-export function calculateOptimalIterations(cwd: string): {
+export function calculateOptimalIterations(
+  cwd: string,
+  taskContent?: string
+): {
   iterations: number;
   taskCount: TaskCount;
   reason: string;
 } {
   const taskCount = parsePlanTasks(cwd);
 
-  // No implementation plan - use default
+  // No implementation plan - estimate from spec content if available
   if (taskCount.total === 0) {
+    const estimate = taskContent ? estimateTasksFromContent(taskContent) : null;
+    if (estimate && estimate.estimated > 0) {
+      const buffer = Math.max(3, Math.ceil(estimate.estimated * 0.3));
+      let iterations = estimate.estimated + buffer;
+      iterations = Math.max(5, iterations);
+      iterations = Math.min(15, iterations);
+      return { iterations, taskCount, reason: estimate.reason };
+    }
     return {
       iterations: 10,
       taskCount,
-      reason: 'No implementation plan found, using default',
+      reason: 'No plan or spec structure found, using default',
     };
   }
 
@@ -171,15 +259,15 @@ export function calculateOptimalIterations(cwd: string): {
     };
   }
 
-  // Calculate buffer (at least 2, or 30% of pending tasks for retries)
-  const buffer = Math.max(2, Math.ceil(taskCount.pending * 0.3));
+  // Calculate buffer (at least 3, or 30% of pending tasks for retries)
+  const buffer = Math.max(3, Math.ceil(taskCount.pending * 0.3));
 
   // Calculate iterations: pending tasks + buffer
   let iterations = taskCount.pending + buffer;
 
   // Apply bounds
-  iterations = Math.max(3, iterations); // Minimum 3
-  iterations = Math.min(25, iterations); // Maximum 25
+  iterations = Math.max(5, iterations); // Minimum 5
+  iterations = Math.min(MAX_ESTIMATED_ITERATIONS, iterations);
 
   return {
     iterations,

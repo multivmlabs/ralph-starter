@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { execa } from 'execa';
+import { detectPackageManager, getRunCommand } from '../utils/package-manager.js';
 
 export interface ValidationCommand {
   name: string;
@@ -68,18 +69,23 @@ export function detectValidationCommands(cwd: string): ValidationCommand[] {
       try {
         const pkg = JSON.parse(readFileSync(packagePath, 'utf-8'));
         const scripts = pkg.scripts || {};
+        const pm = detectPackageManager(cwd);
 
         if (scripts.test && scripts.test !== 'echo "Error: no test specified" && exit 1') {
-          commands.push({ name: 'test', command: 'npm', args: ['run', 'test'] });
+          const cmd = getRunCommand(pm, 'test');
+          commands.push({ name: 'test', ...cmd });
         }
         if (scripts.lint) {
-          commands.push({ name: 'lint', command: 'npm', args: ['run', 'lint'] });
+          const cmd = getRunCommand(pm, 'lint');
+          commands.push({ name: 'lint', ...cmd });
         }
         if (scripts.build) {
-          commands.push({ name: 'build', command: 'npm', args: ['run', 'build'] });
+          const cmd = getRunCommand(pm, 'build');
+          commands.push({ name: 'build', ...cmd });
         }
         if (scripts.typecheck) {
-          commands.push({ name: 'typecheck', command: 'npm', args: ['run', 'typecheck'] });
+          const cmd = getRunCommand(pm, 'typecheck');
+          commands.push({ name: 'typecheck', ...cmd });
         }
       } catch {
         // Invalid package.json
@@ -88,6 +94,169 @@ export function detectValidationCommands(cwd: string): ValidationCommand[] {
   }
 
   return commands;
+}
+
+/**
+ * Detect lint-only commands for lightweight intermediate-iteration checks.
+ * Much faster than build (5-15s vs 30-60s), good for catching syntax errors mid-loop.
+ * Returns empty array if no lint command is available — caller should skip validation.
+ */
+export function detectLintCommands(cwd: string): ValidationCommand[] {
+  const commands: ValidationCommand[] = [];
+
+  // Check AGENTS.md for lint command
+  const agentsPath = join(cwd, 'AGENTS.md');
+  if (existsSync(agentsPath)) {
+    const content = readFileSync(agentsPath, 'utf-8');
+    const lintMatch = content.match(/[-*]\s*\*?\*?lint\*?\*?[:\s]+`([^`]+)`/i);
+    if (lintMatch) {
+      const parts = lintMatch[1].trim().split(/\s+/);
+      commands.push({ name: 'lint', command: parts[0], args: parts.slice(1) });
+    }
+  }
+
+  // Fallback to package.json
+  if (commands.length === 0) {
+    const packagePath = join(cwd, 'package.json');
+    if (existsSync(packagePath)) {
+      try {
+        const pkg = JSON.parse(readFileSync(packagePath, 'utf-8'));
+        const scripts = pkg.scripts || {};
+        const pm = detectPackageManager(cwd);
+
+        if (scripts.lint) {
+          const cmd = getRunCommand(pm, 'lint');
+          commands.push({ name: 'lint', ...cmd });
+        }
+      } catch {
+        // Invalid package.json
+      }
+    }
+  }
+
+  return commands;
+}
+
+/**
+ * Run a lint validation command with a short timeout (lint is fast).
+ */
+export async function runLintValidation(
+  cwd: string,
+  command: ValidationCommand
+): Promise<ValidationResult> {
+  try {
+    const result = await execa(command.command, command.args, {
+      cwd,
+      timeout: 60000, // 1 minute timeout (lint is fast)
+      reject: false,
+    });
+
+    return {
+      success: result.exitCode === 0,
+      command: `${command.command} ${command.args.join(' ')}`,
+      output: result.stdout,
+      ...(result.exitCode !== 0 && { error: result.stderr || result.stdout }),
+    };
+  } catch (error) {
+    return {
+      success: false,
+      command: `${command.command} ${command.args.join(' ')}`,
+      output: '',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Detect build-only commands for always-on build validation.
+ * Unlike detectValidationCommands(), this:
+ * 1. Only returns build/typecheck commands (not test/lint)
+ * 2. Has TypeScript fallback (npx tsc --noEmit) when no build script exists
+ * 3. Is designed to be called per-iteration (re-detects if package.json appears mid-loop)
+ */
+export function detectBuildCommands(cwd: string): ValidationCommand[] {
+  const commands: ValidationCommand[] = [];
+
+  // Check AGENTS.md for build command
+  const agentsPath = join(cwd, 'AGENTS.md');
+  if (existsSync(agentsPath)) {
+    const content = readFileSync(agentsPath, 'utf-8');
+
+    const buildMatch = content.match(/[-*]\s*\*?\*?build\*?\*?[:\s]+`([^`]+)`/i);
+    if (buildMatch) {
+      const parts = buildMatch[1].trim().split(/\s+/);
+      commands.push({ name: 'build', command: parts[0], args: parts.slice(1) });
+    }
+
+    const typecheckMatch = content.match(/[-*]\s*\*?\*?typecheck\*?\*?[:\s]+`([^`]+)`/i);
+    if (typecheckMatch) {
+      const parts = typecheckMatch[1].trim().split(/\s+/);
+      commands.push({ name: 'typecheck', command: parts[0], args: parts.slice(1) });
+    }
+  }
+
+  // Fallback to package.json
+  if (commands.length === 0) {
+    const packagePath = join(cwd, 'package.json');
+    if (existsSync(packagePath)) {
+      try {
+        const pkg = JSON.parse(readFileSync(packagePath, 'utf-8'));
+        const scripts = pkg.scripts || {};
+        const pm = detectPackageManager(cwd);
+
+        if (scripts.build) {
+          const cmd = getRunCommand(pm, 'build');
+          commands.push({ name: 'build', ...cmd });
+        }
+        if (scripts.typecheck) {
+          const cmd = getRunCommand(pm, 'typecheck');
+          commands.push({ name: 'typecheck', ...cmd });
+        }
+      } catch {
+        // Invalid package.json
+      }
+    }
+  }
+
+  // TypeScript fallback: if no build/typecheck script but tsconfig.json exists
+  if (commands.length === 0) {
+    const tsconfigPath = join(cwd, 'tsconfig.json');
+    if (existsSync(tsconfigPath)) {
+      commands.push({ name: 'typecheck', command: 'npx', args: ['tsc', '--noEmit'] });
+    }
+  }
+
+  return commands;
+}
+
+/**
+ * Run a single build validation command with a shorter timeout.
+ */
+export async function runBuildValidation(
+  cwd: string,
+  command: ValidationCommand
+): Promise<ValidationResult> {
+  try {
+    const result = await execa(command.command, command.args, {
+      cwd,
+      timeout: 120000, // 2 minute timeout (vs 5 min for full validation)
+      reject: false,
+    });
+
+    return {
+      success: result.exitCode === 0,
+      command: `${command.command} ${command.args.join(' ')}`,
+      output: result.stdout,
+      ...(result.exitCode !== 0 && { error: result.stderr || result.stdout }),
+    };
+  } catch (error) {
+    return {
+      success: false,
+      command: `${command.command} ${command.args.join(' ')}`,
+      output: '',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
 }
 
 /**
@@ -129,7 +298,9 @@ export async function runValidation(
 }
 
 /**
- * Run all validation commands
+ * Run all validation commands.
+ * Runs every command regardless of individual failures — this gives the agent
+ * a complete picture of all issues, enabling multi-fix iterations.
  */
 export async function runAllValidations(
   cwd: string,
@@ -140,11 +311,6 @@ export async function runAllValidations(
   for (const command of commands) {
     const result = await runValidation(cwd, command);
     results.push(result);
-
-    // Stop on first failure
-    if (!result.success) {
-      break;
-    }
   }
 
   return results;

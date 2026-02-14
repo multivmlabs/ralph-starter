@@ -1,3 +1,5 @@
+import { execSync } from 'node:child_process';
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import chalk from 'chalk';
@@ -7,8 +9,10 @@ import {
   formatPrBody,
   generateSemanticPrTitle,
   getCurrentBranch,
+  getHeadCommitHash,
   gitCommit,
   gitPush,
+  hasIterationChanges,
   hasUncommittedChanges,
   type IssueRef,
   type SemanticPrType,
@@ -18,12 +22,11 @@ import { ProgressRenderer } from '../ui/progress-renderer.js';
 import {
   displayRateLimitStats,
   parseRateLimitFromOutput,
-  type RateLimitInfo,
   type SessionContext,
 } from '../utils/rate-limit-display.js';
 import { type Agent, type AgentRunOptions, runAgent } from './agents.js';
 import { CircuitBreaker, type CircuitBreakerConfig } from './circuit-breaker.js';
-import { buildIterationContext, compressValidationFeedback } from './context-builder.js';
+import { buildIterationContext, buildSpecSummary } from './context-builder.js';
 import { CostTracker, type CostTrackerStats, formatCost } from './cost-tracker.js';
 import { estimateLoop, formatEstimateDetailed } from './estimator.js';
 import { checkFileBasedCompletion, createProgressTracker, type ProgressEntry } from './progress.js';
@@ -31,11 +34,15 @@ import { RateLimiter } from './rate-limiter.js';
 import { analyzeResponse, hasExitSignal } from './semantic-analyzer.js';
 import { detectClaudeSkills, formatSkillsForPrompt } from './skills.js';
 import { detectStepFromOutput } from './step-detector.js';
-import { getCurrentTask, parsePlanTasks } from './task-counter.js';
+import { getCurrentTask, MAX_ESTIMATED_ITERATIONS, parsePlanTasks } from './task-counter.js';
 import {
+  detectBuildCommands,
+  detectLintCommands,
   detectValidationCommands,
   formatValidationFeedback,
   runAllValidations,
+  runBuildValidation,
+  runLintValidation,
   type ValidationResult,
 } from './validation.js';
 
@@ -141,6 +148,43 @@ async function getLatestMtime(dir: string): Promise<number> {
 }
 
 /**
+ * Filesystem snapshot for git-independent change detection.
+ * Counts files and total bytes, skipping node_modules/.git/hidden dirs.
+ */
+async function getFilesystemSnapshot(
+  dir: string
+): Promise<{ fileCount: number; totalSize: number }> {
+  let fileCount = 0;
+  let totalSize = 0;
+
+  async function walk(currentDir: string): Promise<void> {
+    try {
+      const entries = await readdir(currentDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
+        const fullPath = join(currentDir, entry.name);
+        try {
+          const stats = await stat(fullPath);
+          if (entry.isDirectory()) {
+            await walk(fullPath);
+          } else {
+            fileCount++;
+            totalSize += stats.size;
+          }
+        } catch {
+          // File may have been deleted during walk
+        }
+      }
+    } catch {
+      // Directory unreadable
+    }
+  }
+
+  await walk(dir);
+  return { fileCount, totalSize };
+}
+
+/**
  * Wait for filesystem to settle (no new writes)
  */
 async function waitForFilesystemQuiescence(dir: string, timeoutMs = 3000): Promise<void> {
@@ -190,6 +234,13 @@ export interface LoopOptions {
   trackCost?: boolean; // Track token usage and cost
   model?: string; // Model name for cost estimation
   contextBudget?: number; // Max input tokens per iteration (0 = unlimited)
+  validationWarmup?: number; // Skip validation until N tasks completed (for greenfield builds)
+  maxCost?: number; // Maximum cost in USD before stopping (0 = unlimited)
+  agentTimeout?: number; // Agent timeout in milliseconds (default: 300000 = 5 min)
+  initialValidationFeedback?: string; // Pre-populate with errors (used by `fix` command)
+  maxSkills?: number; // Cap skills included in prompt (default: 5)
+  skipPlanInstructions?: boolean; // Skip IMPLEMENTATION_PLAN.md rules in preamble (fix --design)
+  fixMode?: 'design' | 'scan' | 'custom'; // Display mode for fix command headers
 }
 
 export interface LoopResult {
@@ -203,7 +254,8 @@ export interface LoopResult {
     | 'max_iterations'
     | 'circuit_breaker'
     | 'rate_limit'
-    | 'file_signal';
+    | 'file_signal'
+    | 'cost_ceiling';
   stats?: {
     totalDuration: number;
     avgIterationDuration: number;
@@ -235,112 +287,127 @@ interface CompletionOptions {
   minCompletionIndicators?: number;
 }
 
-function detectCompletion(
+/**
+ * Detect completion status AND reason in a single pass.
+ * Avoids running analyzeResponse() twice by combining detectCompletion + getCompletionReason.
+ */
+function detectCompletionWithReason(
   output: string,
   options: CompletionOptions = {}
-): 'done' | 'blocked' | 'continue' {
+): { status: 'done' | 'blocked' | 'continue'; reason: string } {
   const { completionPromise, requireExitSignal = false, minCompletionIndicators = 1 } = options;
 
-  // 1. Check explicit completion promise first (highest priority)
+  // --- Cheap checks first (string includes / simple regex) ---
+
+  // 1. Explicit completion promise (highest priority)
   if (completionPromise && output.includes(completionPromise)) {
-    return 'done';
+    return { status: 'done', reason: `Found completion promise: "${completionPromise}"` };
   }
 
-  // 2. Check for <promise>COMPLETE</promise> tag
+  // 2. <promise>COMPLETE</promise> tag
   if (/<promise>COMPLETE<\/promise>/i.test(output)) {
-    return 'done';
+    return { status: 'done', reason: 'Found <promise>COMPLETE</promise> marker' };
   }
 
-  // 3. Use semantic analyzer for more nuanced detection
-  const analysis = analyzeResponse(output);
-
-  // Check for blocked status
-  if (analysis.stuckScore >= 0.7 && analysis.confidence !== 'low') {
-    return 'blocked';
+  // 3. Explicit EXIT_SIGNAL (cheap regex)
+  const hasExplicitSignal = hasExitSignal(output);
+  if (hasExplicitSignal && !requireExitSignal) {
+    return { status: 'done', reason: 'Found EXIT_SIGNAL: true' };
   }
 
-  // Check blocked markers (legacy support)
+  // 4. Legacy completion markers (cheap string search)
   const upperOutput = output.toUpperCase();
+  if (!requireExitSignal) {
+    for (const marker of COMPLETION_MARKERS) {
+      if (upperOutput.includes(marker.toUpperCase())) {
+        return { status: 'done', reason: `Found completion marker: "${marker}"` };
+      }
+    }
+  }
+
+  // 5. Blocked markers (cheap string search)
   for (const marker of BLOCKED_MARKERS) {
     if (upperOutput.includes(marker.toUpperCase())) {
-      return 'blocked';
+      return { status: 'blocked', reason: `Found blocked marker: "${marker}"` };
     }
   }
 
-  // Check for explicit EXIT_SIGNAL
-  const hasExplicitSignal = hasExitSignal(output);
+  // --- Expensive check last (semantic analysis with many regex patterns) ---
 
-  // If exit signal is required, check for it
+  const analysis = analyzeResponse(output);
+
+  if (analysis.stuckScore >= 0.7 && analysis.confidence !== 'low') {
+    return { status: 'blocked', reason: 'Semantic analysis detected stuck state' };
+  }
+
+  // When exit signal is required, validate it with semantic indicators
   if (requireExitSignal) {
     if (hasExplicitSignal && analysis.indicators.completion.length >= minCompletionIndicators) {
-      return 'done';
+      return { status: 'done', reason: 'Found EXIT_SIGNAL: true with completion indicators' };
     }
-    // Continue if no explicit signal
-    if (!hasExplicitSignal) {
-      return 'continue';
-    }
+    return { status: 'continue', reason: '' };
   }
 
-  // Check completion indicators
+  // Semantic completion detection (only reached when no explicit markers matched)
   if (
     analysis.completionScore >= 0.7 &&
     analysis.indicators.completion.length >= minCompletionIndicators
   ) {
-    return 'done';
+    const indicators = analysis.indicators.completion.slice(0, 3);
+    return {
+      status: 'done',
+      reason: `Semantic analysis (${Math.round(analysis.completionScore * 100)}% confident): ${indicators.join(', ')}`,
+    };
   }
 
-  // Explicit exit signals always count
-  if (hasExplicitSignal) {
-    return 'done';
-  }
-
-  // Legacy marker support
-  for (const marker of COMPLETION_MARKERS) {
-    if (upperOutput.includes(marker.toUpperCase())) {
-      return 'done';
-    }
-  }
-
-  return 'continue';
+  return { status: 'continue', reason: '' };
 }
 
 /**
- * Get human-readable reason for completion (UX 3)
+ * Append an iteration summary to .ralph/iteration-log.md.
+ * Gives the agent inter-iteration memory without session continuity.
  */
-function getCompletionReason(output: string, options: CompletionOptions): string {
-  const { completionPromise } = options;
+function appendIterationLog(
+  cwd: string,
+  iteration: number,
+  summary: string,
+  validationPassed: boolean,
+  hasChanges: boolean
+): void {
+  try {
+    const ralphDir = join(cwd, '.ralph');
+    if (!existsSync(ralphDir)) mkdirSync(ralphDir, { recursive: true });
 
-  // Check explicit completion promise first
-  if (completionPromise && output.includes(completionPromise)) {
-    return `Found completion promise: "${completionPromise}"`;
+    const logPath = join(ralphDir, 'iteration-log.md');
+    const entry = `## Iteration ${iteration}
+- Status: ${validationPassed ? 'validation passed' : 'validation failed'}
+- Changes: ${hasChanges ? 'yes' : 'no files changed'}
+- Summary: ${summary.slice(0, 200)}
+`;
+    appendFileSync(logPath, entry);
+  } catch {
+    // Non-critical — don't break the loop if we can't write the log
   }
+}
 
-  // Check for <promise>COMPLETE</promise> tag
-  if (/<promise>COMPLETE<\/promise>/i.test(output)) {
-    return 'Found <promise>COMPLETE</promise> marker';
+/**
+ * Read the last N iteration summaries from .ralph/iteration-log.md.
+ * Used by context-builder to give the agent memory of previous iterations.
+ */
+export function readIterationLog(cwd: string, maxEntries = 3): string | undefined {
+  try {
+    const logPath = join(cwd, '.ralph', 'iteration-log.md');
+    if (!existsSync(logPath)) return undefined;
+
+    const content = readFileSync(logPath, 'utf-8');
+    const entries = content.split(/^## Iteration /m).filter((e) => e.trim());
+    if (entries.length === 0) return undefined;
+
+    const recent = entries.slice(-maxEntries).map((e) => `## Iteration ${e}`);
+    return recent.join('\n');
+  } catch {
+    return undefined;
   }
-
-  // Check for explicit EXIT_SIGNAL
-  if (hasExitSignal(output)) {
-    return 'Found EXIT_SIGNAL: true';
-  }
-
-  // Check completion markers
-  const upperOutput = output.toUpperCase();
-  for (const marker of COMPLETION_MARKERS) {
-    if (upperOutput.includes(marker.toUpperCase())) {
-      return `Found completion marker: "${marker}"`;
-    }
-  }
-
-  // Use semantic analysis
-  const analysis = analyzeResponse(output);
-  if (analysis.completionScore >= 0.7) {
-    const indicators = analysis.indicators.completion.slice(0, 3);
-    return `Semantic analysis (${Math.round(analysis.completionScore * 100)}% confident): ${indicators.join(', ')}`;
-  }
-
-  return 'Task marked as complete by agent';
 }
 
 function summarizeChanges(output: string): string {
@@ -391,12 +458,13 @@ function summarizeChanges(output: string): string {
 
 export async function runLoop(options: LoopOptions): Promise<LoopResult> {
   const spinner = ora();
-  const maxIterations = options.maxIterations || 50;
+  let maxIterations = options.maxIterations || 50;
   const commits: string[] = [];
   const startTime = Date.now();
   let validationFailures = 0;
   let exitReason: LoopResult['exitReason'] = 'max_iterations';
   let finalIteration = maxIterations;
+  let consecutiveIdleIterations = 0;
 
   // Initialize circuit breaker
   const circuitBreaker = new CircuitBreaker(options.circuitBreaker);
@@ -416,19 +484,33 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     ? new CostTracker({
         model: options.model || 'claude-3-sonnet',
         maxIterations: maxIterations,
+        maxCost: options.maxCost,
       })
     : null;
 
   // Detect validation commands if validation is enabled
   const validationCommands = options.validate ? detectValidationCommands(options.cwd) : [];
 
-  // Detect Claude Code skills
+  // Always-on build validation (not gated by --validate flag)
+  // Re-detected inside the loop for greenfield projects where package.json appears mid-loop
+  let buildCommands = detectBuildCommands(options.cwd);
+  // Lightweight lint for intermediate iterations (build only runs on final iteration)
+  let lintCommands = detectLintCommands(options.cwd);
+
+  // Detect Claude Code skills (capped by maxSkills option)
   const detectedSkills = detectClaudeSkills(options.cwd);
   let taskWithSkills = options.task;
   if (detectedSkills.length > 0) {
-    const skillsPrompt = formatSkillsForPrompt(detectedSkills, options.task);
+    const skillsPrompt = formatSkillsForPrompt(detectedSkills, options.task, options.maxSkills);
     taskWithSkills = `${options.task}\n\n${skillsPrompt}`;
   }
+
+  // Build abbreviated spec summary for context builder (iterations 2+)
+  const specSummary = buildSpecSummary(options.cwd);
+
+  // Track validation feedback separately — don't mutate taskWithSkills
+  // initialValidationFeedback lets the `fix` command pre-populate errors for iteration 1
+  let lastValidationFeedback = options.initialValidationFeedback || '';
 
   // Completion detection options
   const completionOptions: CompletionOptions = {
@@ -454,7 +536,12 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     startupLines.push(`  Auto-commit: ${chalk.green('enabled')}`);
   }
   if (detectedSkills.length > 0) {
-    startupLines.push(`  Skills:      ${chalk.white(`${detectedSkills.length} detected`)}`);
+    const effectiveSkills = options.maxSkills
+      ? Math.min(detectedSkills.length, options.maxSkills)
+      : Math.min(detectedSkills.length, 5);
+    startupLines.push(
+      `  Skills:      ${chalk.white(`${effectiveSkills} active (${detectedSkills.length} installed)`)}`
+    );
   }
   if (rateLimiter) {
     startupLines.push(`  Rate limit:  ${chalk.white(`${options.rateLimit}/hour`)}`);
@@ -486,6 +573,15 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
 
   // Track completed tasks to show progress diff between iterations
   let previousCompletedTasks = initialTaskCount.completed;
+  let previousTotalTasks = initialTaskCount.total;
+
+  // Track whether we've already extended the loop for build-fix retries
+  // When the build fails on the "final" iteration, we grant 2 extra iterations to fix it (once)
+  let buildFixExtended = false;
+  const BUILD_FIX_EXTRA_ITERATIONS = 2;
+
+  // Filesystem snapshot for git-independent change detection
+  let previousSnapshot = await getFilesystemSnapshot(options.cwd);
 
   for (let i = 1; i <= maxIterations; i++) {
     const iterationStart = Date.now();
@@ -531,12 +627,28 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     }
 
     // Check for file-based completion signals
-    if (options.checkFileCompletion) {
+    // Skip if validation just failed — the agent needs a chance to fix build errors first
+    if (options.checkFileCompletion && !lastValidationFeedback) {
       const fileCompletion = await checkFileBasedCompletion(options.cwd);
       if (fileCompletion.completed) {
         spinner.succeed(chalk.green(`File-based completion: ${fileCompletion.reason}`));
         finalIteration = i - 1;
         exitReason = 'file_signal';
+        break;
+      }
+    }
+
+    // Check cost ceiling before starting iteration
+    if (costTracker) {
+      const overBudget = costTracker.isOverBudget();
+      if (overBudget) {
+        console.log(
+          chalk.red(
+            `\n  Cost ceiling reached: ${formatCost(overBudget.currentCost)} >= ${formatCost(overBudget.maxCost)} budget`
+          )
+        );
+        finalIteration = i - 1;
+        exitReason = 'cost_ceiling';
         break;
       }
     }
@@ -569,6 +681,9 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     // Check if tasks were completed since last iteration
     const newlyCompleted = completedTasks - previousCompletedTasks;
     if (newlyCompleted > 0 && i > 1) {
+      // Task completion is forward progress — reset circuit breaker consecutive failures
+      circuitBreaker.recordSuccess();
+
       // Get names of newly completed tasks (strip markdown)
       const maxNameWidth = Math.max(30, getTerminalWidth() - 30);
       const completedNames = taskInfo.tasks
@@ -582,6 +697,26 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       }
     }
     previousCompletedTasks = completedTasks;
+
+    // Dynamic iteration budget: if agent expanded the plan (added more tasks),
+    // recalculate maxIterations so we don't run out mid-project
+    if (totalTasks > previousTotalTasks && totalTasks > 0) {
+      const buffer = Math.max(3, Math.ceil(totalTasks * 0.3));
+      const newMax = Math.min(
+        MAX_ESTIMATED_ITERATIONS,
+        Math.max(maxIterations, totalTasks + buffer)
+      );
+      if (newMax > maxIterations) {
+        console.log(
+          chalk.dim(
+            `  Adjusting iterations: ${maxIterations} → ${newMax} (plan expanded to ${totalTasks} tasks)`
+          )
+        );
+        maxIterations = newMax;
+        finalIteration = maxIterations;
+      }
+      previousTotalTasks = totalTasks;
+    }
 
     // Show loop header with task info
     const sourceIcon = getSourceIcon(options.sourceType);
@@ -603,11 +738,26 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
         chalk.dim(truncateToFit(`  ${options.agent.name} │ Iter ${i}/${maxIterations}`, innerWidth))
       );
     } else {
-      const fallbackLine = `  ${sourceIcon} Loop ${i}/${maxIterations} │ Running ${options.agent.name}`;
+      const modeLabel =
+        options.fixMode === 'design'
+          ? 'Design Fix'
+          : options.fixMode
+            ? 'Fix'
+            : `Running ${options.agent.name}`;
+      const fallbackLine = `  ${sourceIcon} Loop ${i}/${maxIterations} │ ${modeLabel}`;
       headerLines.push(chalk.white.bold(truncateToFit(fallbackLine, innerWidth)));
     }
     console.log();
     console.log(drawBox(headerLines, { color: chalk.cyan, width: boxWidth }));
+
+    // Show subtask tree if current task has subtasks
+    if (currentTask?.subtasks && currentTask.subtasks.length > 0) {
+      for (const st of currentTask.subtasks) {
+        const icon = st.completed ? chalk.green('  [x]') : chalk.dim('  [ ]');
+        const name = truncateToFit(cleanTaskName(st.name), innerWidth - 8);
+        console.log(`${icon} ${chalk.dim(name)}`);
+      }
+    }
     console.log();
 
     // Create progress renderer for this iteration
@@ -616,6 +766,9 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     iterProgress.updateProgress(i, maxIterations, costTracker?.getStats()?.totalCost?.totalCost);
 
     // Build iteration-specific task with smart context windowing
+    // Read iteration log for inter-iteration memory (iterations 2+)
+    const iterationLog = i > 1 ? readIterationLog(options.cwd) : undefined;
+
     const builtContext = buildIterationContext({
       fullTask: options.task,
       taskWithSkills,
@@ -623,8 +776,11 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       taskInfo,
       iteration: i,
       maxIterations,
-      validationFeedback: undefined, // Validation feedback handled separately below
+      validationFeedback: lastValidationFeedback || undefined,
       maxInputTokens: options.contextBudget || 0,
+      specSummary,
+      skipPlanInstructions: options.skipPlanInstructions,
+      iterationLog,
     });
     const iterationTask = builtContext.prompt;
 
@@ -647,12 +803,16 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
 
     // Run the agent with step detection (include skills in task)
     // NOTE: Don't use maxTurns - it can cause issues. Let agent complete naturally.
+    // Snapshot HEAD before agent runs — used to detect commits made during iteration
+    const iterationStartHash = await getHeadCommitHash(options.cwd);
+
     const agentOptions: AgentRunOptions = {
       task: iterationTask,
       cwd: options.cwd,
       auto: options.auto,
       // maxTurns removed - was causing issues, match wizard behavior
       streamOutput: !!process.env.RALPH_DEBUG, // Show raw JSON when debugging
+      timeoutMs: options.agentTimeout,
       onOutput: (line: string) => {
         const step = detectStepFromOutput(line);
         if (step) {
@@ -680,31 +840,110 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
 
     iterProgress.stop('Iteration complete');
 
-    // Track cost for this iteration (silent - summary shown at end)
-    if (costTracker) {
-      costTracker.recordIteration(options.task, result.output);
-    }
-
-    // Check for completion using enhanced detection
-    let status = detectCompletion(result.output, completionOptions);
-
-    // Verify completion - check if files were actually changed
-    if (status === 'done' && i === 1) {
-      // On first iteration, verify that files were actually created/modified
-      const hasChanges = await hasUncommittedChanges(options.cwd);
-      if (!hasChanges) {
-        console.log(chalk.yellow('  Agent reported done but no files changed - continuing...'));
-        status = 'continue';
-      } else {
-        // Wait for filesystem to settle before declaring done
-        await waitForFilesystemQuiescence(options.cwd, 2000);
+    // Kill orphaned dev servers after design iterations (agent may crash without cleanup)
+    if (options.fixMode === 'design') {
+      try {
+        const pids = execSync('lsof -ti :3000,:5173,:4321,:8080 2>/dev/null', {
+          encoding: 'utf-8',
+          timeout: 3000,
+        }).trim();
+        if (pids) {
+          for (const pid of pids.split('\n').filter(Boolean)) {
+            try {
+              process.kill(Number(pid), 'SIGTERM');
+            } catch {
+              /* already dead */
+            }
+          }
+        }
+      } catch {
+        /* no processes on those ports — normal */
       }
     }
 
-    // In build mode, don't allow completion while plan tasks remain
-    if (status === 'done' && options.task.includes('IMPLEMENTATION_PLAN.md')) {
+    // Track cost for this iteration (silent - summary shown at end)
+    if (costTracker) {
+      costTracker.recordIteration(options.task, result.output);
+
+      // Post-iteration cost ceiling check — prevent starting another expensive iteration
+      const overBudget = costTracker.isOverBudget();
+      if (overBudget) {
+        console.log(
+          chalk.red(
+            `\n  Cost ceiling reached after iteration ${i}: ${formatCost(overBudget.currentCost)} >= ${formatCost(overBudget.maxCost)} budget`
+          )
+        );
+        finalIteration = i;
+        exitReason = 'cost_ceiling';
+        break;
+      }
+    }
+
+    // Check for completion using enhanced detection (single-pass: status + reason)
+    const completionResult = detectCompletionWithReason(result.output, completionOptions);
+    let status = completionResult.status;
+
+    // Track file changes between iterations for stall detection
+    // Primary: filesystem snapshot (works without git)
+    // Secondary: git-based detection (catches committed changes when git available)
+    const currentSnapshot = await getFilesystemSnapshot(options.cwd);
+    const fsChanged =
+      currentSnapshot.fileCount !== previousSnapshot.fileCount ||
+      currentSnapshot.totalSize !== previousSnapshot.totalSize;
+    const gitChanged = await hasIterationChanges(options.cwd, iterationStartHash);
+    const hasChanges = fsChanged || gitChanged;
+    previousSnapshot = currentSnapshot;
+
+    // Task-aware stall detection: check both file changes AND task progress
+    // Re-parse tasks after agent runs to catch newly completed tasks
+    const postIterationTaskInfo = parsePlanTasks(options.cwd);
+    const tasksProgressedThisIteration = postIterationTaskInfo.completed > previousCompletedTasks;
+    // Build/validation failures are NOT idle — agent is actively debugging
+    const hadValidationFailure = !!lastValidationFeedback;
+    // Design mode: screenshot analysis is productive even without file changes
+    const outputLower = result.output.toLowerCase();
+    const hasDesignActivity =
+      options.fixMode === 'design' &&
+      (outputLower.includes('screenshot') || outputLower.includes('viewport'));
+    const hasProductiveProgress =
+      hasChanges || tasksProgressedThisIteration || hadValidationFailure || hasDesignActivity;
+
+    if (!hasProductiveProgress) {
+      consecutiveIdleIterations++;
+    } else {
+      consecutiveIdleIterations = 0;
+    }
+
+    // Verify completion - check if files were actually changed
+    if (status === 'done' && !hasChanges) {
+      if (i === 1) {
+        console.log(chalk.yellow('  Agent reported done but no files changed - continuing...'));
+        status = 'continue';
+      }
+      // On later iterations, allow done if agent genuinely finished (no more work to do)
+    } else if (status === 'done' && hasChanges) {
+      // Wait for filesystem to settle before declaring done
+      await waitForFilesystemQuiescence(options.cwd, 2000);
+    }
+
+    // Stall detection: stop if no productive progress for consecutive iterations
+    // More lenient for larger projects (5+ tasks) which need more iterations for scaffolding
+    const staleThreshold = taskInfo.total > 5 ? 4 : 3;
+    if (consecutiveIdleIterations >= staleThreshold && i > 3) {
+      console.log(
+        chalk.yellow(
+          `  No progress for ${consecutiveIdleIterations} consecutive iterations - stopping`
+        )
+      );
+      finalIteration = i;
+      exitReason = 'completed';
+      break;
+    }
+
+    // Don't allow completion while plan tasks remain (check plan file if it exists)
+    if (status === 'done') {
       const latestTaskInfo = parsePlanTasks(options.cwd);
-      if (latestTaskInfo.pending > 0) {
+      if (latestTaskInfo.total > 0 && latestTaskInfo.pending > 0) {
         console.log(
           chalk.yellow(
             `  Agent reported done but ${latestTaskInfo.pending} task(s) remain - continuing...`
@@ -797,18 +1036,136 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       };
     }
 
-    // Run validation (backpressure) if enabled and there are changes
-    let _validationPassed = true;
-    let validationResults: ValidationResult[] = [];
+    // --- Tiered validation: lint on intermediate iterations, build on final ---
+    // Re-detect commands if none found yet (greenfield: package.json may appear mid-loop)
+    if (buildCommands.length === 0) {
+      buildCommands = detectBuildCommands(options.cwd);
+      if (buildCommands.length > 0 && process.env.RALPH_DEBUG) {
+        console.error(
+          `[DEBUG] Build commands detected: ${buildCommands.map((c) => c.name).join(', ')}`
+        );
+      }
+    }
+    if (lintCommands.length === 0) {
+      lintCommands = detectLintCommands(options.cwd);
+    }
 
-    if (validationCommands.length > 0 && (await hasUncommittedChanges(options.cwd))) {
+    const buildCoveredByFullValidation =
+      options.validate &&
+      validationCommands.some((vc) => vc.name === 'build' || vc.name === 'typecheck');
+
+    // Determine if this is a "final" iteration where the full build should run:
+    // - Last allowed iteration, OR all plan tasks are complete
+    const preValidationTaskInfo = parsePlanTasks(options.cwd);
+    const isFinalIteration = i === maxIterations || preValidationTaskInfo.pending === 0;
+
+    if (!buildCoveredByFullValidation && i > 1) {
+      const checkResults: ValidationResult[] = [];
+      let checkLabel = '';
+
+      if (isFinalIteration && buildCommands.length > 0) {
+        // Final iteration: run full build validation (catches compile errors)
+        checkLabel = 'build';
+        spinner.start(chalk.yellow(`Loop ${i}: Running build check...`));
+        for (const cmd of buildCommands) {
+          checkResults.push(await runBuildValidation(options.cwd, cmd));
+        }
+      } else if (!isFinalIteration && lintCommands.length > 0) {
+        // Intermediate iteration: run lightweight lint check (fast feedback)
+        checkLabel = 'lint';
+        spinner.start(chalk.yellow(`Loop ${i}: Running lint check...`));
+        for (const cmd of lintCommands) {
+          checkResults.push(await runLintValidation(options.cwd, cmd));
+        }
+      }
+
+      if (checkResults.length > 0) {
+        const allPassed = checkResults.every((r) => r.success);
+
+        if (!allPassed) {
+          validationFailures++;
+          const feedback = formatValidationFeedback(checkResults);
+          spinner.fail(
+            chalk.red(`Loop ${i}: ${checkLabel === 'build' ? 'Build' : 'Lint'} check failed`)
+          );
+
+          const failedSummaries: string[] = [];
+          for (const vr of checkResults) {
+            if (!vr.success) {
+              const errorText = vr.error || vr.output || '';
+              const errorCount = (errorText.match(/error/gi) || []).length;
+              const hint = errorCount > 0 ? `${errorCount} errors` : 'failed';
+              failedSummaries.push(`${vr.command} (${hint})`);
+            }
+          }
+          console.log(chalk.red(`  ✗ ${failedSummaries.join(' │ ')}`));
+
+          const errorMsg = checkResults
+            .filter((r) => !r.success)
+            .map((r) => r.error?.slice(0, 200) || r.output?.slice(0, 200) || r.command)
+            .join('\n');
+          const tripped = circuitBreaker.recordFailure(errorMsg);
+
+          if (tripped) {
+            const reason = circuitBreaker.getTripReason();
+            console.log(chalk.red(`Circuit breaker tripped: ${reason}`));
+            if (progressTracker && progressEntry) {
+              progressEntry.status = 'failed';
+              progressEntry.summary = `Circuit breaker tripped (${checkLabel}): ${reason}`;
+              progressEntry.validationResults = checkResults;
+              progressEntry.duration = Date.now() - iterationStart;
+              await progressTracker.appendEntry(progressEntry);
+            }
+            finalIteration = i;
+            exitReason = 'circuit_breaker';
+            break;
+          }
+
+          if (progressTracker && progressEntry) {
+            progressEntry.status = 'validation_failed';
+            progressEntry.summary = `${checkLabel === 'build' ? 'Build' : 'Lint'} check failed`;
+            progressEntry.validationResults = checkResults;
+            progressEntry.duration = Date.now() - iterationStart;
+            await progressTracker.appendEntry(progressEntry);
+          }
+
+          // If build failed on the final iteration, extend the loop to let the agent fix it
+          if (checkLabel === 'build' && isFinalIteration && !buildFixExtended) {
+            const newMax = maxIterations + BUILD_FIX_EXTRA_ITERATIONS;
+            console.log(
+              chalk.yellow(
+                `  Extending loop by ${BUILD_FIX_EXTRA_ITERATIONS} iterations to fix build errors (${maxIterations} → ${newMax})`
+              )
+            );
+            maxIterations = newMax;
+            finalIteration = maxIterations;
+            buildFixExtended = true;
+          }
+
+          lastValidationFeedback = feedback;
+          continue;
+        }
+        spinner.succeed(
+          chalk.green(`Loop ${i}: ${checkLabel === 'build' ? 'Build' : 'Lint'} check passed`)
+        );
+        circuitBreaker.recordSuccess();
+        lastValidationFeedback = '';
+      }
+    }
+
+    // Run full validation (backpressure) if enabled and there are changes
+    // Skip validation during warm-up period (greenfield builds where early tasks can't pass tests)
+    let validationResults: ValidationResult[] = [];
+    const warmupThreshold = options.validationWarmup ?? 0;
+    const pastWarmup = completedTasks >= warmupThreshold;
+
+    if (validationCommands.length > 0 && pastWarmup && i > 1) {
       spinner.start(chalk.yellow(`Loop ${i}: Running validation...`));
 
       validationResults = await runAllValidations(options.cwd, validationCommands);
       const allPassed = validationResults.every((r) => r.success);
 
       if (!allPassed) {
-        _validationPassed = false;
         validationFailures++;
         const feedback = formatValidationFeedback(validationResults);
         spinner.fail(chalk.red(`Loop ${i}: Validation failed`));
@@ -863,14 +1220,15 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
           await progressTracker.appendEntry(progressEntry);
         }
 
-        // Continue loop with compressed validation feedback
-        const compressedFeedback = compressValidationFeedback(feedback);
-        taskWithSkills = `${taskWithSkills}\n\n${compressedFeedback}`;
+        // Pass validation feedback to context builder for next iteration
+        // (don't mutate taskWithSkills — that defeats context trimming)
+        lastValidationFeedback = feedback;
         continue; // Go to next iteration to fix issues
       } else {
-        // Validation passed - record success
+        // Validation passed - record success and clear feedback
         spinner.succeed(chalk.green(`Loop ${i}: Validation passed`));
         circuitBreaker.recordSuccess();
+        lastValidationFeedback = '';
       }
     }
 
@@ -905,7 +1263,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
 
     // Update progress entry
     if (progressTracker && progressEntry) {
-      progressEntry.status = status === 'done' ? 'completed' : 'completed';
+      progressEntry.status = status === 'done' ? 'completed' : 'partial';
       progressEntry.summary = summarizeChanges(result.output);
       progressEntry.validationResults =
         validationResults.length > 0 ? validationResults : undefined;
@@ -922,8 +1280,13 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       await progressTracker.appendEntry(progressEntry);
     }
 
+    // Write iteration summary for inter-iteration memory
+    const iterSummary = summarizeChanges(result.output);
+    const iterValidationPassed = validationResults.every((r) => r.success);
+    appendIterationLog(options.cwd, i, iterSummary, iterValidationPassed, hasChanges);
+
     if (status === 'done') {
-      const completionReason = getCompletionReason(result.output, completionOptions);
+      const completionReason = completionResult.reason || 'Task marked as complete by agent';
       const duration = Date.now() - startTime;
       const minutes = Math.floor(duration / 60000);
       const seconds = Math.floor((duration % 60000) / 1000);
@@ -960,9 +1323,6 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
         `Iter ${i}/${maxIterations}${taskLabel}${costLabel} │ ${elapsedMin}m ${elapsedSec}s`
       )
     );
-
-    // Small delay between iterations
-    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
   // Post-loop actions

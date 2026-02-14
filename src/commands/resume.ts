@@ -127,6 +127,7 @@ export async function resumeCommand(options: ResumeCommandOptions = {}): Promise
     checkFileCompletion: session.options.checkFileCompletion,
     trackCost: session.options.trackCost,
     model: session.options.model,
+    initialValidationFeedback: session.lastValidationFeedback,
   };
 
   // Run the loop
