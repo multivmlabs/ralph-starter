@@ -1,0 +1,34 @@
+{
+  "version.label": {
+    "message": "下一个",
+    "description": "The label for version current"
+  },
+  "sidebar.docsSidebar.category.Interactive Wizard": {
+    "message": "交互式向导",
+    "description": "The label for category 'Interactive Wizard' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.Input Sources": {
+    "message": "输入源",
+    "description": "The label for category 'Input Sources' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.MCP Integration": {
+    "message": "MCP 集成",
+    "description": "The label for category 'MCP Integration' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.CLI Reference": {
+    "message": "CLI 参考",
+    "description": "The label for category 'CLI Reference' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.Guides": {
+    "message": "指南",
+    "description": "The label for category 'Guides' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.Advanced": {
+    "message": "高级",
+    "description": "The label for category 'Advanced' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.Community": {
+    "message": "社区",
+    "description": "The label for category 'Community' in sidebar 'docsSidebar'"
+  }
+}

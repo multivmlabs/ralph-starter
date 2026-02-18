@@ -9,3 +9,9 @@ ralph:
   title: ralph-starter maintainers
   url: https://github.com/multivmlabs/ralph-starter
   image_url: /img/small-logo.png
+
+ruben:
+  name: Ruben Marcus
+  title: Creator of ralph-starter
+  url: https://github.com/rubenmarcus
+  image_url: https://github.com/rubenmarcus.png

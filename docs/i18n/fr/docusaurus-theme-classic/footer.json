@@ -1,0 +1,58 @@
+{
+  "link.title.Docs": {
+    "message": "Documentation",
+    "description": "The title of the footer links column with title=Docs in the footer"
+  },
+  "link.title.Community": {
+    "message": "Communauté",
+    "description": "The title of the footer links column with title=Community in the footer"
+  },
+  "link.title.More": {
+    "message": "Plus",
+    "description": "The title of the footer links column with title=More in the footer"
+  },
+  "link.item.label.Getting Started": {
+    "message": "Commencer",
+    "description": "The label of footer link with label=Getting Started linking to /docs/intro"
+  },
+  "link.item.label.CLI Reference": {
+    "message": "Référence CLI",
+    "description": "The label of footer link with label=CLI Reference linking to /docs/cli/run"
+  },
+  "link.item.label.Integrations": {
+    "message": "Intégrations",
+    "description": "The label of footer link with label=Integrations linking to /docs/sources/overview"
+  },
+  "link.item.label.Blog": {
+    "message": "Blog",
+    "description": "The label of footer link with label=Blog linking to /blog"
+  },
+  "link.item.label.GitHub": {
+    "message": "GitHub",
+    "description": "The label of footer link with label=GitHub linking to https://github.com/multivmlabs/ralph-starter"
+  },
+  "link.item.label.Twitter / X": {
+    "message": "Twitter / X",
+    "description": "The label of footer link with label=Twitter / X linking to https://x.com/ralphstarter"
+  },
+  "link.item.label.Ideas & Roadmap": {
+    "message": "Idées et Feuille de Route",
+    "description": "The label of footer link with label=Ideas & Roadmap linking to https://github.com/multivmlabs/ralph-ideas/issues"
+  },
+  "link.item.label.Templates": {
+    "message": "Modèles",
+    "description": "The label of footer link with label=Templates linking to https://github.com/multivmlabs/ralph-templates"
+  },
+  "link.item.label.npm": {
+    "message": "npm",
+    "description": "The label of footer link with label=npm linking to https://www.npmjs.com/package/ralph-starter"
+  },
+  "link.item.label.Changelog": {
+    "message": "Journal des Modifications",
+    "description": "The label of footer link with label=Changelog linking to /docs/community/changelog"
+  },
+  "copyright": {
+    "message": "<div class=\"footer__logos\"><a href=\"/\" class=\"footer__logo-link\"><img src=\"/img/favicon-96x96.png\" alt=\"ralph-starter\" height=\"28\" /></a><span class=\"footer__logo-separator\">&</span><a href=\"https://multivmlabs.com\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"footer__logo-link\"><img src=\"/img/multivm-logo.png\" alt=\"MultiVM Labs\" height=\"28\" /></a></div><div class=\"footer__copyright-text\">v0.1.1-beta.16 · vibecoded with love ❤️ by <a href=\"https://github.com/rubenmarcus\" target=\"_blank\" rel=\"noopener noreferrer\">rubenmarcus</a></div>",
+    "description": "The footer copyright"
+  }
+}

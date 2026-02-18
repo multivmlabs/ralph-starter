@@ -1,0 +1,30 @@
+{
+  "title": {
+    "message": "ralph starter",
+    "description": "The title in the navbar"
+  },
+  "logo.alt": {
+    "message": "ralph-starter",
+    "description": "The alt text of navbar logo"
+  },
+  "item.label.Docs": {
+    "message": "ドキュメント",
+    "description": "Navbar item with label Docs"
+  },
+  "item.label.Use Cases": {
+    "message": "ユースケース",
+    "description": "Navbar item with label Use Cases"
+  },
+  "item.label.Integrations": {
+    "message": "連携",
+    "description": "Navbar item with label Integrations"
+  },
+  "item.label.Templates": {
+    "message": "テンプレート",
+    "description": "Navbar item with label Templates"
+  },
+  "item.label.Blog": {
+    "message": "ブログ",
+    "description": "Navbar item with label Blog"
+  }
+}

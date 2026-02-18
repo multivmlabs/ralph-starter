@@ -1,0 +1,34 @@
+{
+  "version.label": {
+    "message": "Siguiente",
+    "description": "The label for version current"
+  },
+  "sidebar.docsSidebar.category.Interactive Wizard": {
+    "message": "Asistente Interactivo",
+    "description": "The label for category 'Interactive Wizard' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.Input Sources": {
+    "message": "Fuentes de Entrada",
+    "description": "The label for category 'Input Sources' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.MCP Integration": {
+    "message": "Integración MCP",
+    "description": "The label for category 'MCP Integration' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.CLI Reference": {
+    "message": "Referencia CLI",
+    "description": "The label for category 'CLI Reference' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.Guides": {
+    "message": "Guías",
+    "description": "The label for category 'Guides' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.Advanced": {
+    "message": "Avanzado",
+    "description": "The label for category 'Advanced' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.Community": {
+    "message": "Comunidad",
+    "description": "The label for category 'Community' in sidebar 'docsSidebar'"
+  }
+}

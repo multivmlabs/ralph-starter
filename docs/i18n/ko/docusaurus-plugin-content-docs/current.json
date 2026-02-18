@@ -1,0 +1,34 @@
+{
+  "version.label": {
+    "message": "다음",
+    "description": "The label for version current"
+  },
+  "sidebar.docsSidebar.category.Interactive Wizard": {
+    "message": "대화형 마법사",
+    "description": "The label for category 'Interactive Wizard' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.Input Sources": {
+    "message": "입력 소스",
+    "description": "The label for category 'Input Sources' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.MCP Integration": {
+    "message": "MCP 통합",
+    "description": "The label for category 'MCP Integration' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.CLI Reference": {
+    "message": "CLI 참조",
+    "description": "The label for category 'CLI Reference' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.Guides": {
+    "message": "가이드",
+    "description": "The label for category 'Guides' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.Advanced": {
+    "message": "고급",
+    "description": "The label for category 'Advanced' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.Community": {
+    "message": "커뮤니티",
+    "description": "The label for category 'Community' in sidebar 'docsSidebar'"
+  }
+}

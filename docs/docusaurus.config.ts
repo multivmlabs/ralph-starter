@@ -27,12 +27,25 @@ const config: Config = {
   markdown: {
     hooks: {
       onBrokenMarkdownLinks: 'warn',
+      onBrokenMarkdownImages: 'warn',
     },
   },
 
   i18n: {
     defaultLocale: 'en',
-    locales: ['en'],
+    locales: ['en', 'pt', 'es', 'fr', 'tr', 'de', 'ar', 'zh-Hans', 'ja', 'ko'],
+    localeConfigs: {
+      en: { label: 'English' },
+      pt: { label: 'Portugues', direction: 'ltr' },
+      es: { label: 'Espanol', direction: 'ltr' },
+      fr: { label: 'Francais', direction: 'ltr' },
+      tr: { label: 'Turkce', direction: 'ltr' },
+      de: { label: 'Deutsch', direction: 'ltr' },
+      ar: { label: 'العربية', direction: 'rtl' },
+      'zh-Hans': { label: '简体中文', direction: 'ltr' },
+      ja: { label: '日本語', direction: 'ltr' },
+      ko: { label: '한국어', direction: 'ltr' },
+    },
   },
 
   // SEO metadata and structured data for AEO
@@ -238,7 +251,12 @@ const config: Config = {
           editUrl: 'https://github.com/multivmlabs/ralph-starter/tree/main/docs/',
           routeBasePath: 'docs',
         },
-        blog: false, // Disabled for now
+        blog: {
+          showReadingTime: true,
+          editUrl: 'https://github.com/multivmlabs/ralph-starter/tree/main/docs/',
+          blogSidebarTitle: 'All posts',
+          blogSidebarCount: 'ALL',
+        },
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -308,6 +326,15 @@ const config: Config = {
           position: 'left',
         },
         {
+          to: '/blog',
+          label: 'Blog',
+          position: 'left',
+        },
+        {
+          type: 'localeDropdown',
+          position: 'right',
+        },
+        {
           type: 'html',
           position: 'right',
           value: '<a href="https://www.npmjs.com/package/ralph-starter" target="_blank" rel="noopener noreferrer" class="navbar__badge-link"><img src="https://img.shields.io/npm/dm/ralph-starter?style=for-the-badge&colorA=08080A&colorB=28282E&label=downloads&logo=npm&logoColor=CB3837" alt="npm downloads" height="28" /></a>',
@@ -328,6 +355,7 @@ const config: Config = {
             { label: 'Getting Started', to: '/docs/intro' },
             { label: 'CLI Reference', to: '/docs/cli/run' },
             { label: 'Integrations', to: '/docs/sources/overview' },
+            { label: 'Blog', to: '/blog' },
           ],
         },
         {
