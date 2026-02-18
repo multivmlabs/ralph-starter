@@ -140,7 +140,9 @@ export async function executeTaskBatch(options: TaskExecutionOptions): Promise<T
       const loopResult = await runLoop(loopOptions);
 
       result.iterations = loopResult.iterations;
-      // Cost tracking is handled by the loop internally
+      if (loopResult.stats?.costStats) {
+        result.cost = loopResult.stats.costStats.totalCost.totalCost;
+      }
 
       // Check if there are changes to commit
       if (commit && (await hasUncommittedChanges(cwd))) {
@@ -174,9 +176,8 @@ export async function executeTaskBatch(options: TaskExecutionOptions): Promise<T
       result.error = error instanceof Error ? error.message : 'Unknown error';
       onTaskFail?.(task, error instanceof Error ? error : new Error('Unknown error'), i);
       await onTaskComplete?.(task, result, i);
-      // On failure, stay on current branch to allow debugging
-      // but still update previousBranch so next task can continue
-      previousBranch = result.branch || previousBranch;
+      // On failure, do NOT update previousBranch — next task should branch
+      // from last successful state, not a broken one
     }
     // NOTE: No finally block that switches back to original branch
     // We want to stay on the current auto branch for cascading

@@ -1,3 +1,4 @@
+import { detectPackageManager, formatRunCommand } from '../utils/package-manager.js';
 import type { TechStack, WizardAnswers } from './types.js';
 import { formatComplexity, formatProjectType } from './ui.js';
 
@@ -39,10 +40,35 @@ export function generateSpec(answers: WizardAnswers): string {
     if (answers.techStack.styling) {
       sections.push(`- **Styling:** ${formatTech(answers.techStack.styling)}`);
     }
+    if (answers.techStack.uiLibrary) {
+      sections.push(`- **UI Library:** ${formatTech(answers.techStack.uiLibrary)}`);
+    }
     if (answers.techStack.language) {
       sections.push(`- **Language:** ${formatTech(answers.techStack.language)}`);
     }
     sections.push('');
+
+    // Technical setup notes (prevents common pitfalls like CSS cascade conflicts)
+    if (answers.techStack.styling === 'tailwind') {
+      sections.push('### Setup Notes');
+      sections.push('');
+      sections.push(
+        '- Use Tailwind CSS v4 with `@import "tailwindcss"` — do NOT use v3 `@tailwind` directives'
+      );
+      sections.push(
+        '- Do NOT add manual CSS resets — Tailwind v4 preflight handles `box-sizing`, margin/padding resets'
+      );
+      sections.push(
+        '- Custom CSS must be wrapped in `@layer base { }` or `@layer components { }` to avoid overriding Tailwind utilities'
+      );
+      if (answers.techStack.uiLibrary) {
+        sections.push(
+          `- Use ${formatTech(answers.techStack.uiLibrary)} components — install and add components as needed`
+        );
+        sections.push('- Use motion-primitives for page transitions and micro-interactions');
+      }
+      sections.push('');
+    }
   }
 
   // Features
@@ -149,6 +175,45 @@ export function generateAgentsMd(answers: WizardAnswers): string {
     sections.push('- Use Prisma for database access');
   }
 
+  // Styling-specific instructions
+  if (answers.techStack.styling === 'tailwind') {
+    sections.push('');
+    sections.push('### Tailwind CSS v4 Setup (CRITICAL)');
+    sections.push('');
+    sections.push('- Install: `npm install tailwindcss @tailwindcss/postcss postcss`');
+    sections.push("- postcss.config.js: `plugins: { '@tailwindcss/postcss': {} }`");
+    sections.push(
+      '- CSS entry: `@import "tailwindcss";` (NOT `@tailwind base/components/utilities`)'
+    );
+    sections.push('- Do NOT create tailwind.config.js (v4 uses CSS-based config)');
+    sections.push(
+      '- Do NOT add a manual CSS reset (`* { margin: 0; padding: 0; }`) — Tailwind v4 preflight handles this'
+    );
+    sections.push(
+      '- If you need custom base styles, wrap them in `@layer base { }` — unlayered CSS overrides ALL Tailwind utilities'
+    );
+  }
+
+  // UI Library setup
+  const uiLib = answers.techStack.uiLibrary;
+  if (uiLib === 'shadcn' || uiLib === 'shadcn-vue' || uiLib === 'shadcn-svelte') {
+    sections.push('');
+    sections.push('### UI Components');
+    sections.push('');
+    if (uiLib === 'shadcn') {
+      sections.push('- Use shadcn/ui for UI components: `npx shadcn@latest init`');
+      sections.push('- Add components as needed: `npx shadcn@latest add button card dialog`');
+    } else if (uiLib === 'shadcn-vue') {
+      sections.push('- Use shadcn-vue for UI components');
+    } else if (uiLib === 'shadcn-svelte') {
+      sections.push('- Use shadcn-svelte for UI components');
+    }
+    sections.push('- Use motion-primitives for animations');
+    sections.push(
+      '- Follow the component patterns from shadcn — composable, accessible, customizable'
+    );
+  }
+
   sections.push('');
   sections.push('## Validation Commands');
   sections.push('');
@@ -160,9 +225,11 @@ export function generateAgentsMd(answers: WizardAnswers): string {
     answers.techStack.backend === 'nodejs';
 
   if (hasNodeStack) {
-    sections.push('- **lint**: `npm run lint`');
-    sections.push('- **build**: `npm run build`');
-    sections.push('- **test**: `npm test`');
+    // Detect PM from working directory if available, default to npm for greenfield projects
+    const pm = answers.workingDirectory ? detectPackageManager(answers.workingDirectory) : 'npm';
+    sections.push(`- **lint**: \`${formatRunCommand(pm, 'lint')}\``);
+    sections.push(`- **build**: \`${formatRunCommand(pm, 'build')}\``);
+    sections.push(`- **test**: \`${formatRunCommand(pm, 'test')}\``);
   } else if (answers.techStack.backend === 'python') {
     sections.push('- **lint**: `ruff check .`');
     sections.push('- **test**: `pytest`');
@@ -190,7 +257,14 @@ export function generateAgentsMd(answers: WizardAnswers): string {
  * Check if tech stack has any values
  */
 function hasTechStack(stack: TechStack): boolean {
-  return !!(stack.frontend || stack.backend || stack.database || stack.styling || stack.language);
+  return !!(
+    stack.frontend ||
+    stack.backend ||
+    stack.database ||
+    stack.styling ||
+    stack.uiLibrary ||
+    stack.language
+  );
 }
 
 /**
@@ -216,6 +290,12 @@ function formatTech(tech: string): string {
     css: 'CSS',
     scss: 'SCSS',
     'styled-components': 'styled-components',
+    shadcn: 'shadcn/ui',
+    'shadcn-vue': 'shadcn-vue',
+    'shadcn-svelte': 'shadcn-svelte',
+    mui: 'Material UI',
+    chakra: 'Chakra UI',
+    'motion-primitives': 'motion-primitives',
     typescript: 'TypeScript',
     javascript: 'JavaScript',
   };

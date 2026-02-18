@@ -6,6 +6,7 @@ import { authCommand } from './commands/auth.js';
 import { autoCommand } from './commands/auto.js';
 import { checkCommand } from './commands/check.js';
 import { configCommand } from './commands/config.js';
+import { fixCommand } from './commands/fix.js';
 import { initCommand } from './commands/init.js';
 import { integrationsCommand } from './commands/integrations.js';
 import { pauseCommand } from './commands/pause.js';
@@ -83,6 +84,10 @@ program
   .option('--circuit-breaker-failures <n>', 'Max consecutive failures before stopping (default: 3)')
   .option('--circuit-breaker-errors <n>', 'Max same error occurrences before stopping (default: 5)')
   .option(
+    '--validation-warmup <n>',
+    'Skip validation until N tasks are completed (auto-detected for greenfield builds)'
+  )
+  .option(
     '--context-budget <n>',
     'Max input tokens per iteration for smart context trimming (0 = unlimited)'
   )
@@ -99,6 +104,18 @@ program
   .option('--figma-preview', 'Show content changes without applying (content mode)')
   .option('--figma-mapping <file>', 'Custom content mapping file (content mode)')
   .action(runCommand);
+
+// ralph-starter fix - Fix build errors and code quality issues
+program
+  .command('fix [task]')
+  .description('Fix build errors and code quality issues (optional: describe what to fix)')
+  .option('--scan', 'Force full project scan (build + lint + typecheck + tests)')
+  .option('--agent <agent>', 'Agent to use (default: auto-detect)')
+  .option('--commit', 'Auto-commit the fix')
+  .option('--max-iterations <n>', 'Max fix iterations (default: 3)')
+  .option('--output-dir <dir>', 'Project directory (default: cwd)')
+  .option('--design', 'Visual-first design fix: screenshot, analyze, plan, and fix design issues')
+  .action(fixCommand);
 
 // ralph-starter init - Initialize Ralph in a project
 program

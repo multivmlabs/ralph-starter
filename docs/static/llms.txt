@@ -15,6 +15,7 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [auto](https://ralphstarter.ai/docs/cli/auto): Autonomous batch task processing from GitHub and Linear
 - [check](https://ralphstarter.ai/docs/cli/check): Validate configuration and test LLM connection
 - [config](https://ralphstarter.ai/docs/cli/config): Manage source configuration and credentials
+- [fix](https://ralphstarter.ai/docs/cli/fix): Fix build errors, lint issues, or design problems
 - [init](https://ralphstarter.ai/docs/cli/init): Initialize Ralph Playbook in a project
 - [integrations](https://ralphstarter.ai/docs/cli/integrations): Manage, test, and fetch data from integrations
 - [plan](https://ralphstarter.ai/docs/cli/plan): Create implementation plan from specs

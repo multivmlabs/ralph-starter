@@ -9,6 +9,51 @@ export interface ClaudeSkill {
   source: 'global' | 'project' | 'agents' | 'skills.sh';
 }
 
+/** Keywords that indicate the task involves web/UI/design work */
+export const WEB_TASK_KEYWORDS = [
+  // Page/app types
+  'web',
+  'website',
+  'landing',
+  'frontend',
+  'page',
+  'dashboard',
+  'app',
+  'component',
+  'shop',
+  'store',
+  // UI/UX terms
+  'ui',
+  'ux',
+  // CSS/visual properties (detect styling tasks)
+  'css',
+  'style',
+  'styling',
+  'layout',
+  'padding',
+  'margin',
+  'spacing',
+  'color',
+  'colour',
+  'background',
+  'theme',
+  'dark mode',
+  'font',
+  'typography',
+  'border',
+  'shadow',
+  'radius',
+  'responsive',
+  'breakpoint',
+  'animation',
+  'transition',
+  'grid',
+  'flex',
+  'flexbox',
+  'align',
+  'position',
+];
+
 /**
  * Parse YAML frontmatter from markdown content
  * Returns name and description if found
@@ -251,13 +296,7 @@ function shouldAutoApplySkill(skill: ClaudeSkill, task: string): boolean {
   const text = `${name} ${desc}`;
   const taskLower = task.toLowerCase();
 
-  const taskIsWeb =
-    taskLower.includes('web') ||
-    taskLower.includes('website') ||
-    taskLower.includes('landing') ||
-    taskLower.includes('frontend') ||
-    taskLower.includes('ui') ||
-    taskLower.includes('ux');
+  const taskIsWeb = WEB_TASK_KEYWORDS.some((kw) => taskLower.includes(kw));
 
   const isDesignSkill =
     text.includes('design') ||
@@ -273,24 +312,40 @@ function shouldAutoApplySkill(skill: ClaudeSkill, task: string): boolean {
   return false;
 }
 
-export function formatSkillsForPrompt(skills: ClaudeSkill[], task?: string): string {
+export function formatSkillsForPrompt(
+  skills: ClaudeSkill[],
+  task?: string,
+  maxSkills?: number
+): string {
   if (skills.length === 0) return '';
+
+  const MAX_SKILLS_IN_PROMPT = maxSkills || 5;
+
+  // When we have a task, only include relevant skills to avoid prompt bloat
+  let selected: ClaudeSkill[];
+  if (task) {
+    const relevant = skills.filter((skill) => shouldAutoApplySkill(skill, task));
+    selected =
+      relevant.length > 0
+        ? relevant.slice(0, MAX_SKILLS_IN_PROMPT)
+        : skills.slice(0, MAX_SKILLS_IN_PROMPT);
+  } else {
+    selected = skills.slice(0, MAX_SKILLS_IN_PROMPT);
+  }
 
   const lines = ['## Available Claude Code Skills', ''];
 
-  for (const skill of skills) {
+  for (const skill of selected) {
     lines.push(`- **${skill.name}**: ${skill.description || 'No description'}`);
   }
 
   lines.push('');
 
   if (task) {
-    const autoApply = skills.filter((skill) => shouldAutoApplySkill(skill, task));
-    if (autoApply.length > 0) {
-      const skillList = autoApply.map((skill) => `/${skill.name}`).join(', ');
-      lines.push(`Auto-apply these skills: ${skillList}`);
-      lines.push('');
-    }
+    // All selected skills are already relevant — tell the agent to apply them
+    const skillList = selected.map((skill) => `/${skill.name}`).join(', ');
+    lines.push(`Auto-apply these skills: ${skillList}`);
+    lines.push('');
   }
 
   lines.push('Use these skills when appropriate by invoking them with /skill-name.');

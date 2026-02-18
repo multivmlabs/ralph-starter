@@ -40,6 +40,7 @@ const sidebars: SidebarsConfig = {
       collapsed: true,
       items: [
         'cli/run',
+        'cli/fix',
         'cli/init',
         'cli/plan',
         'cli/config',

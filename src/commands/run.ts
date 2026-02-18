@@ -20,6 +20,8 @@ import { formatPresetsHelp, getPreset, type PresetConfig } from '../presets/inde
 import { autoInstallSkillsFromTask } from '../skills/auto-install.js';
 import { getSourceDefaults } from '../sources/config.js';
 import { fetchFromSource } from '../sources/index.js';
+import { detectPackageManager, formatRunCommand, getRunCommand } from '../utils/package-manager.js';
+import { showWelcome } from '../wizard/ui.js';
 
 /** Default fallback repo for GitHub issues when no project is specified */
 const DEFAULT_GITHUB_ISSUES_REPO = 'multivmlabs/ralph-ideas';
@@ -42,19 +44,14 @@ function detectRunCommand(
     try {
       const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
       const scripts = pkg.scripts || {};
+      const pm = detectPackageManager(cwd);
 
       // Priority order for dev commands
-      if (scripts.dev) {
-        return { command: 'npm', args: ['run', 'dev'], description: 'npm run dev' };
-      }
-      if (scripts.start) {
-        return { command: 'npm', args: ['run', 'start'], description: 'npm run start' };
-      }
-      if (scripts.serve) {
-        return { command: 'npm', args: ['run', 'serve'], description: 'npm run serve' };
-      }
-      if (scripts.preview) {
-        return { command: 'npm', args: ['run', 'preview'], description: 'npm run preview' };
+      for (const script of ['dev', 'start', 'serve', 'preview']) {
+        if (scripts[script]) {
+          const cmd = getRunCommand(pm, script);
+          return { ...cmd, description: formatRunCommand(pm, script) };
+        }
       }
     } catch {
       // Ignore parse errors
@@ -223,6 +220,7 @@ export interface RunCommandOptions {
   circuitBreakerFailures?: number;
   circuitBreakerErrors?: number;
   contextBudget?: number;
+  validationWarmup?: number;
   // Figma options
   figmaMode?: 'spec' | 'tokens' | 'components' | 'assets' | 'content';
   figmaFramework?: 'react' | 'vue' | 'svelte' | 'astro' | 'nextjs' | 'nuxt' | 'html';
@@ -250,10 +248,7 @@ export async function runCommand(
     }
   }
 
-  console.log();
-  console.log(chalk.cyan.bold('ralph-starter'));
-  console.log(chalk.dim('Ralph Wiggum made easy'));
-  console.log();
+  showWelcome();
 
   // Check for git repo
   if (options.commit || options.push || options.pr) {
@@ -337,16 +332,39 @@ export async function runCommand(
       const isIntegrationSource = integrationSources.includes(options.from?.toLowerCase() || '');
 
       if (isIntegrationSource && !options.auto && !options.outputDir) {
-        const { projectLocation } = await inquirer.prompt([
-          {
-            type: 'list',
-            name: 'projectLocation',
-            message: 'Where do you want to run this task?',
-            choices: [
+        // Detect existing project markers to choose smart default ordering
+        const projectMarkers = [
+          'package.json',
+          '.git',
+          'Cargo.toml',
+          'go.mod',
+          'pyproject.toml',
+          'requirements.txt',
+          'Gemfile',
+          'pom.xml',
+          'build.gradle',
+        ];
+        const hasProjectMarkers = projectMarkers.some((f) => existsSync(join(cwd, f)));
+
+        // If existing project detected, default to "Current directory" first
+        const choices = hasProjectMarkers
+          ? [
               { name: `Current directory (${cwd})`, value: 'current' },
               { name: 'Create new project folder', value: 'new' },
               { name: 'Enter custom path', value: 'custom' },
-            ],
+            ]
+          : [
+              { name: 'Create new project folder', value: 'new' },
+              { name: `Current directory (${cwd})`, value: 'current' },
+              { name: 'Enter custom path', value: 'custom' },
+            ];
+
+        const { projectLocation } = await inquirer.prompt([
+          {
+            type: 'select',
+            name: 'projectLocation',
+            message: 'Where do you want to run this task?',
+            choices,
           },
         ]);
 
@@ -455,7 +473,7 @@ export async function runCommand(
       writeFileSync(implementationPlanPath, extractedPlan);
       console.log(chalk.cyan('Created IMPLEMENTATION_PLAN.md from spec'));
 
-      finalTask = `Build the following project based on this specification:
+      finalTask = `Study the following specification carefully:
 
 ${sourceSpec}
 
@@ -463,13 +481,33 @@ ${sourceSpec}
 
 An IMPLEMENTATION_PLAN.md file has been created with tasks extracted from this spec.
 As you complete each task, mark it done by changing [ ] to [x] in IMPLEMENTATION_PLAN.md.
-Focus on one task at a time.`;
+Focus on ONE task at a time. Don't assume functionality is not already implemented — search the codebase first.
+Implement completely — no placeholders or stubs.`;
     } else {
-      finalTask = `Build the following project based on this specification:
+      finalTask = `Study the following specification carefully:
 
 ${sourceSpec}
 
-Analyze the specification and implement all required features. Create a proper project structure with all necessary files.`;
+## Getting Started
+
+IMPORTANT: Before writing any code, you MUST first:
+1. Study the specification above thoroughly
+2. Search the codebase — don't assume functionality is not already implemented
+3. Create an IMPLEMENTATION_PLAN.md file with tasks broken down as:
+
+### Task 1: [name]
+- [ ] Subtask a
+- [ ] Subtask b
+
+### Task 2: [name]
+- [ ] Subtask a
+
+Break the spec into 3-8 logical tasks, sorted by priority.
+
+4. Then start working on Task 1 only.
+
+As you complete each subtask, mark it done by changing [ ] to [x] in IMPLEMENTATION_PLAN.md.
+Focus on ONE task at a time. Implement completely — no placeholders or stubs.`;
     }
     console.log(chalk.cyan('Using fetched specification as task'));
   }
@@ -545,7 +583,7 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
     return;
   }
 
-  // Auto-install relevant skills from skills.sh (if available)
+  // Auto-install relevant skills from skills.sh (enabled by default)
   await autoInstallSkillsFromTask(finalTask, cwd);
 
   // Apply preset if specified
@@ -563,7 +601,11 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
   }
 
   // Calculate smart iterations based on tasks (always, unless explicitly overridden)
-  const { iterations: smartIterations, taskCount, reason } = calculateOptimalIterations(cwd);
+  const {
+    iterations: smartIterations,
+    taskCount,
+    reason,
+  } = calculateOptimalIterations(cwd, finalTask);
   if (!options.maxIterations && !preset?.maxIterations) {
     if (taskCount.total > 0) {
       console.log(
@@ -571,6 +613,16 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
       );
     }
     console.log(chalk.dim(`Max iterations: ${smartIterations} (${reason})`));
+  }
+
+  // Auto-detect greenfield builds: skip validation until enough tasks are done
+  const isGreenfield = taskCount.total > 0 && taskCount.completed === 0;
+  const autoWarmup = isGreenfield ? Math.max(2, Math.floor(taskCount.total * 0.5)) : 0;
+  const validationWarmup = options.validationWarmup ? Number(options.validationWarmup) : autoWarmup;
+  if (validationWarmup > 0 && options.validate) {
+    console.log(
+      chalk.dim(`Validation warm-up: skipping until ${validationWarmup} tasks completed`)
+    );
   }
 
   // Apply preset values with CLI overrides
@@ -587,6 +639,7 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
     prIssueRef: sourceIssueRef,
     prLabels: options.auto ? ['AUTO'] : undefined,
     validate: options.validate ?? preset?.validate,
+    validationWarmup,
     sourceType: options.from?.toLowerCase(),
     // New options
     completionPromise: options.completionPromise ?? preset?.completionPromise,

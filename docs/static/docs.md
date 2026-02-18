@@ -2,7 +2,7 @@
 
 > AI-powered autonomous coding tool. Connect GitHub, Linear, Notion, Figma and run AI coding loops from specs to production.
 
-> Generated on 2026-02-18 | [ralphstarter.ai](https://ralphstarter.ai)
+> Generated on 2026-02-13 | [ralphstarter.ai](https://ralphstarter.ai)
 
 ## Table of Contents
 
