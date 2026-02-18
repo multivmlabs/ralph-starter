@@ -331,10 +331,6 @@ const config: Config = {
           position: 'left',
         },
         {
-          type: 'localeDropdown',
-          position: 'right',
-        },
-        {
           type: 'html',
           position: 'right',
           value: '<a href="https://www.npmjs.com/package/ralph-starter" target="_blank" rel="noopener noreferrer" class="navbar__badge-link"><img src="https://img.shields.io/npm/dm/ralph-starter?style=for-the-badge&colorA=08080A&colorB=28282E&label=downloads&logo=npm&logoColor=CB3837" alt="npm downloads" height="28" /></a>',
@@ -372,6 +368,21 @@ const config: Config = {
           items: [
             { label: 'npm', href: 'https://www.npmjs.com/package/ralph-starter' },
             { label: 'Changelog', to: '/docs/community/changelog' },
+          ],
+        },
+        {
+          title: 'Languages',
+          items: [
+            { label: 'English', href: `${siteUrl}/` },
+            { label: 'Portugues', href: `${siteUrl}/pt/` },
+            { label: 'Espanol', href: `${siteUrl}/es/` },
+            { label: 'Francais', href: `${siteUrl}/fr/` },
+            { label: 'Turkce', href: `${siteUrl}/tr/` },
+            { label: 'Deutsch', href: `${siteUrl}/de/` },
+            { label: 'العربية', href: `${siteUrl}/ar/` },
+            { label: '简体中文', href: `${siteUrl}/zh-Hans/` },
+            { label: '日本語', href: `${siteUrl}/ja/` },
+            { label: '한국어', href: `${siteUrl}/ko/` },
           ],
         },
       ],
