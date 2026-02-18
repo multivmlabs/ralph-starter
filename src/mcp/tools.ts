@@ -49,6 +49,34 @@ const toolSchemas = {
       .describe('Filter by category (development, debugging, review, documentation, specialized)'),
   }),
 
+  ralph_task: z.object({
+    action: z.enum(['list', 'create', 'update', 'close', 'comment']).describe('Task action'),
+    source: z
+      .enum(['github', 'linear', 'all'])
+      .optional()
+      .describe('Source platform (default: all for list, required for create)'),
+    project: z
+      .string()
+      .optional()
+      .describe('Project filter (owner/repo for GitHub, team name for Linear)'),
+    id: z
+      .string()
+      .optional()
+      .describe('Task ID for update/close/comment (#123 for GitHub, RAL-42 for Linear)'),
+    title: z.string().optional().describe('Task title (for create)'),
+    description: z.string().optional().describe('Task description (for create)'),
+    status: z.string().optional().describe('Status filter or new status (for list/update)'),
+    comment: z.string().optional().describe('Comment text (for close/comment)'),
+    labels: z.array(z.string()).optional().describe('Labels (for create)'),
+    priority: z.string().optional().describe('Priority: P0, P1, P2, P3'),
+    assignee: z
+      .string()
+      .optional()
+      .describe('Assignee (GitHub username or Linear display name, for create/update)'),
+    label: z.string().optional().describe('Label filter (for list)'),
+    limit: z.number().optional().describe('Max tasks to fetch (default: 50)'),
+  }),
+
   ralph_fetch_spec: z.object({
     path: z.string().min(1).describe('Project directory path'),
     source: z
@@ -202,6 +230,51 @@ export function getTools(): Tool[] {
       },
     },
     {
+      name: 'ralph_task',
+      description:
+        'Manage tasks across GitHub and Linear. List tasks from both platforms, create new issues, update status, close tasks, and add comments. Detects the platform from the task ID format: #123 for GitHub, RAL-42 for Linear.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          action: {
+            type: 'string',
+            description: 'Task action: list, create, update, close, comment',
+            enum: ['list', 'create', 'update', 'close', 'comment'],
+          },
+          source: {
+            type: 'string',
+            description: 'Source platform: github, linear, or all (default: all for list)',
+            enum: ['github', 'linear', 'all'],
+          },
+          project: {
+            type: 'string',
+            description: 'Project filter (owner/repo for GitHub, team name for Linear)',
+          },
+          id: {
+            type: 'string',
+            description: 'Task ID for update/close/comment (#123 for GitHub, RAL-42 for Linear)',
+          },
+          title: { type: 'string', description: 'Task title (for create)' },
+          description: { type: 'string', description: 'Task description (for create)' },
+          status: { type: 'string', description: 'Status filter or new status' },
+          comment: { type: 'string', description: 'Comment text' },
+          labels: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Labels (for create)',
+          },
+          priority: { type: 'string', description: 'Priority: P0, P1, P2, P3' },
+          assignee: {
+            type: 'string',
+            description: 'Assignee (GitHub username or Linear display name)',
+          },
+          label: { type: 'string', description: 'Label filter (for list)' },
+          limit: { type: 'number', description: 'Max tasks (default: 50)' },
+        },
+        required: ['action'],
+      },
+    },
+    {
       name: 'ralph_fetch_spec',
       description:
         'Fetch a specification from an external integration without running the coding loop. Returns the raw spec content as markdown. Supports GitHub (issues, PRs), Linear (tickets by project/team), Notion (pages, databases), and Figma (design specs, tokens, components, content, assets). Use this to preview what will be built before committing to a full run.',
@@ -271,6 +344,9 @@ export async function handleToolCall(
 
       case 'ralph_fetch_spec':
         return await handleFetchSpec(args);
+
+      case 'ralph_task':
+        return await handleTask(args);
 
       default:
         return {
@@ -521,4 +597,125 @@ function formatRunResult(result: RunCoreResult): string {
     return text;
   }
   return `Loop failed: ${result.error}`;
+}
+
+async function handleTask(
+  args: Record<string, unknown> | undefined
+): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
+  const parsed = toolSchemas.ralph_task.parse(args);
+
+  const { isWritableIntegration } = await import('../integrations/base.js');
+
+  // Helper to get integrations for a source
+  async function getIntegrations(source: string) {
+    const integrations = [];
+    if (source === 'github' || source === 'all') {
+      const { GitHubIntegration } = await import('../integrations/github/source.js');
+      const gh = new GitHubIntegration();
+      if (isWritableIntegration(gh) && (await gh.isAvailable())) {
+        integrations.push(gh);
+      }
+    }
+    if (source === 'linear' || source === 'all') {
+      const { LinearIntegration } = await import('../integrations/linear/source.js');
+      const linear = new LinearIntegration();
+      if (isWritableIntegration(linear) && (await linear.isAvailable())) {
+        integrations.push(linear);
+      }
+    }
+    return integrations;
+  }
+
+  const priorityMap: Record<string, number> = { P0: 1, P1: 2, P2: 3, P3: 4 };
+
+  switch (parsed.action) {
+    case 'list': {
+      const source = parsed.source || 'all';
+      const integrations = await getIntegrations(source);
+      const allTasks = [];
+      for (const integration of integrations) {
+        const tasks = await integration.listTasks({
+          project: parsed.project,
+          label: parsed.label,
+          status: parsed.status,
+          limit: parsed.limit || 50,
+        });
+        allTasks.push(...tasks);
+      }
+      return {
+        content: [{ type: 'text', text: JSON.stringify(allTasks, null, 2) }],
+      };
+    }
+
+    case 'create': {
+      if (!parsed.title) throw new Error('title is required for create');
+      const source = parsed.source || 'github';
+      if (source === 'all') throw new Error('Specify source (github or linear) for create');
+      const integrations = await getIntegrations(source);
+      if (integrations.length === 0) throw new Error(`${source} not available`);
+      const task = await integrations[0].createTask(
+        {
+          title: parsed.title,
+          description: parsed.description,
+          labels: parsed.labels,
+          priority: parsed.priority ? priorityMap[parsed.priority.toUpperCase()] : undefined,
+          assignee: parsed.assignee,
+          project: parsed.project,
+        },
+        { project: parsed.project }
+      );
+      return {
+        content: [{ type: 'text', text: JSON.stringify(task, null, 2) }],
+      };
+    }
+
+    case 'update': {
+      if (!parsed.id) throw new Error('id is required for update');
+      const source = parsed.source || (/^#?\d+$/.test(parsed.id) ? 'github' : 'linear');
+      const integrations = await getIntegrations(source);
+      if (integrations.length === 0) throw new Error(`${source} not available`);
+      const task = await integrations[0].updateTask(
+        parsed.id.replace(/^#/, ''),
+        {
+          status: parsed.status,
+          comment: parsed.comment,
+          priority: parsed.priority ? priorityMap[parsed.priority.toUpperCase()] : undefined,
+          assignee: parsed.assignee,
+        },
+        { project: parsed.project }
+      );
+      return {
+        content: [{ type: 'text', text: JSON.stringify(task, null, 2) }],
+      };
+    }
+
+    case 'close': {
+      if (!parsed.id) throw new Error('id is required for close');
+      const source = parsed.source || (/^#?\d+$/.test(parsed.id) ? 'github' : 'linear');
+      const integrations = await getIntegrations(source);
+      if (integrations.length === 0) throw new Error(`${source} not available`);
+      await integrations[0].closeTask(parsed.id.replace(/^#/, ''), parsed.comment, {
+        project: parsed.project,
+      });
+      return {
+        content: [{ type: 'text', text: `Closed ${parsed.id}` }],
+      };
+    }
+
+    case 'comment': {
+      if (!parsed.id || !parsed.comment) throw new Error('id and comment are required');
+      const source = parsed.source || (/^#?\d+$/.test(parsed.id) ? 'github' : 'linear');
+      const integrations = await getIntegrations(source);
+      if (integrations.length === 0) throw new Error(`${source} not available`);
+      await integrations[0].addComment(parsed.id.replace(/^#/, ''), parsed.comment, {
+        project: parsed.project,
+      });
+      return {
+        content: [{ type: 'text', text: `Comment added to ${parsed.id}` }],
+      };
+    }
+
+    default:
+      throw new Error(`Unknown task action: ${parsed.action}`);
+  }
 }

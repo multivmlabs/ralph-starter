@@ -10,6 +10,10 @@ import {
   BaseIntegration,
   type IntegrationOptions,
   type IntegrationResult,
+  type TaskCreateInput,
+  type TaskReference,
+  type TaskUpdateInput,
+  type WritableIntegration,
 } from '../base.js';
 
 interface LinearIssue {
@@ -44,7 +48,8 @@ interface LinearResponse {
   errors?: Array<{ message: string }>;
 }
 
-export class LinearIntegration extends BaseIntegration {
+export class LinearIntegration extends BaseIntegration implements WritableIntegration {
+  readonly supportsWrite = true as const;
   name = 'linear';
   displayName = 'Linear';
   description = 'Fetch issues from Linear';
@@ -288,6 +293,396 @@ export class LinearIntegration extends BaseIntegration {
         project: projectName,
         issues: issues.length,
       },
+    };
+  }
+
+  // ============================================
+  // WritableIntegration methods
+  // ============================================
+
+  private async getAuthKey(): Promise<string> {
+    const authMethod = await this.getConfiguredAuthMethod();
+    if (authMethod === 'cli') {
+      return this.getApiKeyFromCli();
+    }
+    return this.getApiKey();
+  }
+
+  private async graphqlMutation(
+    apiKey: string,
+    query: string,
+    variables: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const response = await fetch(this.API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: apiKey,
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+
+    if (!response.ok) {
+      this.error(`Linear API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = (await response.json()) as {
+      data: Record<string, unknown>;
+      errors?: Array<{ message: string }>;
+    };
+    if (data.errors) {
+      this.error(`Linear API error: ${data.errors[0].message}`);
+    }
+    return data.data;
+  }
+
+  async listTasks(options?: IntegrationOptions): Promise<TaskReference[]> {
+    const apiKey = await this.getAuthKey();
+    const projectName = options?.project || 'all';
+    const issues = await this.fetchIssues(apiKey, projectName, options);
+
+    return issues.map((issue) => ({
+      id: issue.id,
+      identifier: issue.identifier,
+      title: issue.title,
+      url: `https://linear.app/issue/${issue.identifier}`,
+      status: issue.state?.name || 'Unknown',
+      source: 'linear' as const,
+      priority: issue.priority,
+      labels: issue.labels?.nodes?.map((l) => l.name),
+    }));
+  }
+
+  async createTask(input: TaskCreateInput, options?: IntegrationOptions): Promise<TaskReference> {
+    const apiKey = await this.getAuthKey();
+
+    // First, resolve team ID from project name
+    const teamId = await this.resolveTeamId(apiKey, input.project || options?.project);
+
+    const mutationInput: Record<string, unknown> = {
+      title: input.title,
+      teamId,
+    };
+
+    if (input.description) mutationInput.description = input.description;
+    if (input.priority) mutationInput.priority = input.priority;
+
+    // Resolve label IDs if provided
+    if (input.labels && input.labels.length > 0) {
+      const labelIds = await this.resolveLabelIds(apiKey, teamId, input.labels);
+      if (labelIds.length > 0) mutationInput.labelIds = labelIds;
+    }
+
+    // Resolve assignee ID if provided
+    if (input.assignee) {
+      mutationInput.assigneeId = await this.resolveAssigneeId(apiKey, input.assignee);
+    }
+
+    const query = `
+      mutation CreateIssue($input: IssueCreateInput!) {
+        issueCreate(input: $input) {
+          success
+          issue {
+            id
+            identifier
+            title
+            url
+            state { name }
+            priority
+          }
+        }
+      }
+    `;
+
+    const data = await this.graphqlMutation(apiKey, query, { input: mutationInput });
+    const result = data.issueCreate as {
+      success: boolean;
+      issue: {
+        id: string;
+        identifier: string;
+        title: string;
+        url: string;
+        state: { name: string };
+        priority: number;
+      };
+    };
+
+    if (!result.success) {
+      this.error('Failed to create Linear issue');
+    }
+
+    return {
+      id: result.issue.id,
+      identifier: result.issue.identifier,
+      title: result.issue.title,
+      url: result.issue.url,
+      status: result.issue.state.name,
+      source: 'linear',
+      priority: result.issue.priority,
+      labels: input.labels,
+    };
+  }
+
+  async updateTask(
+    id: string,
+    input: TaskUpdateInput,
+    options?: IntegrationOptions
+  ): Promise<TaskReference> {
+    const apiKey = await this.getAuthKey();
+
+    // Resolve the issue ID — could be identifier (RAL-42) or UUID
+    const issueId = await this.resolveIssueId(apiKey, id);
+
+    const updateInput: Record<string, unknown> = {};
+
+    if (input.status) {
+      const stateId = await this.resolveStateId(apiKey, issueId, input.status);
+      if (stateId) updateInput.stateId = stateId;
+    }
+
+    if (input.priority !== undefined) {
+      updateInput.priority = input.priority;
+    }
+
+    if (input.assignee) {
+      updateInput.assigneeId = await this.resolveAssigneeId(apiKey, input.assignee);
+    }
+
+    if (Object.keys(updateInput).length > 0) {
+      const query = `
+        mutation UpdateIssue($id: String!, $input: IssueUpdateInput!) {
+          issueUpdate(id: $id, input: $input) {
+            success
+            issue {
+              id
+              identifier
+              title
+              url
+              state { name }
+              priority
+            }
+          }
+        }
+      `;
+
+      await this.graphqlMutation(apiKey, query, { id: issueId, input: updateInput });
+    }
+
+    if (input.comment) {
+      await this.addComment(id, input.comment, options);
+    }
+
+    // Fetch updated issue
+    return await this.getIssueRef(apiKey, issueId);
+  }
+
+  async closeTask(id: string, comment?: string, options?: IntegrationOptions): Promise<void> {
+    const apiKey = await this.getAuthKey();
+    const issueId = await this.resolveIssueId(apiKey, id);
+
+    // Find the "Done" state for this issue's team
+    const doneStateId = await this.resolveStateId(apiKey, issueId, 'Done');
+    if (doneStateId) {
+      const query = `
+        mutation CloseIssue($id: String!, $input: IssueUpdateInput!) {
+          issueUpdate(id: $id, input: $input) { success }
+        }
+      `;
+      await this.graphqlMutation(apiKey, query, { id: issueId, input: { stateId: doneStateId } });
+    }
+
+    if (comment) {
+      await this.addComment(id, comment, options);
+    }
+  }
+
+  async addComment(id: string, body: string, _options?: IntegrationOptions): Promise<void> {
+    const apiKey = await this.getAuthKey();
+    const issueId = await this.resolveIssueId(apiKey, id);
+
+    const query = `
+      mutation AddComment($input: CommentCreateInput!) {
+        commentCreate(input: $input) { success }
+      }
+    `;
+
+    await this.graphqlMutation(apiKey, query, { input: { issueId, body } });
+  }
+
+  // ============================================
+  // Helper resolvers for Linear GraphQL
+  // ============================================
+
+  private async resolveTeamId(apiKey: string, projectOrTeam?: string): Promise<string> {
+    const query = `
+      query GetTeams {
+        teams { nodes { id name key } }
+      }
+    `;
+    const data = await this.graphqlMutation(apiKey, query, {});
+    const teams = (data.teams as { nodes: Array<{ id: string; name: string; key: string }> }).nodes;
+
+    if (teams.length === 0) {
+      this.error('No teams found in your Linear workspace');
+    }
+
+    if (projectOrTeam) {
+      const match = teams.find(
+        (t) =>
+          t.name.toLowerCase() === projectOrTeam.toLowerCase() ||
+          t.key.toLowerCase() === projectOrTeam.toLowerCase()
+      );
+      if (match) return match.id;
+    }
+
+    // Default to first team
+    return teams[0].id;
+  }
+
+  private async resolveLabelIds(
+    apiKey: string,
+    teamId: string,
+    labels: string[]
+  ): Promise<string[]> {
+    const query = `
+      query GetLabels($teamId: ID!) {
+        team(id: $teamId) {
+          labels { nodes { id name } }
+        }
+      }
+    `;
+    const data = await this.graphqlMutation(apiKey, query, { teamId });
+    const existingLabels = (data.team as { labels: { nodes: Array<{ id: string; name: string }> } })
+      .labels.nodes;
+
+    return labels
+      .map((name) => existingLabels.find((l) => l.name.toLowerCase() === name.toLowerCase())?.id)
+      .filter((id): id is string => !!id);
+  }
+
+  private async resolveIssueId(apiKey: string, idOrIdentifier: string): Promise<string> {
+    // Linear's issue(id:) accepts both UUIDs and identifiers (e.g., "ENG-42")
+    // Verify the issue exists and return its UUID
+    const query = `
+      query GetIssue($id: String!) {
+        issue(id: $id) { id }
+      }
+    `;
+    try {
+      const data = await this.graphqlMutation(apiKey, query, { id: idOrIdentifier });
+      return (data.issue as { id: string }).id;
+    } catch {
+      this.error(`Linear issue not found: ${idOrIdentifier}`);
+    }
+  }
+
+  private async resolveStateId(
+    apiKey: string,
+    issueId: string,
+    stateName: string
+  ): Promise<string | null> {
+    const query = `
+      query GetIssueTeam($id: String!) {
+        issue(id: $id) {
+          team {
+            states { nodes { id name type } }
+          }
+        }
+      }
+    `;
+    const data = await this.graphqlMutation(apiKey, query, { id: issueId });
+    const states = (
+      data.issue as {
+        team: { states: { nodes: Array<{ id: string; name: string; type: string }> } };
+      }
+    ).team.states.nodes;
+
+    const match = states.find((s) => s.name.toLowerCase() === stateName.toLowerCase());
+    if (match) return match.id;
+
+    // Try matching by type (e.g., "completed" type for "Done")
+    if (stateName.toLowerCase() === 'done') {
+      const completed = states.find((s) => s.type === 'completed');
+      if (completed) return completed.id;
+    }
+
+    return null;
+  }
+
+  private async resolveAssigneeId(apiKey: string, assigneeName: string): Promise<string> {
+    const query = `
+      query GetUsers {
+        users { nodes { id name displayName email active } }
+      }
+    `;
+    const data = await this.graphqlMutation(apiKey, query, {});
+    const users = (
+      data.users as {
+        nodes: Array<{
+          id: string;
+          name: string;
+          displayName: string;
+          email: string;
+          active: boolean;
+        }>;
+      }
+    ).nodes.filter((u) => u.active);
+
+    const needle = assigneeName.toLowerCase();
+
+    // Exact match: name, displayName, or email prefix
+    const exact = users.find(
+      (u) =>
+        u.name.toLowerCase() === needle ||
+        u.displayName.toLowerCase() === needle ||
+        u.email.toLowerCase().split('@')[0] === needle
+    );
+    if (exact) return exact.id;
+
+    // Partial match: contains
+    const partial = users.find(
+      (u) =>
+        u.name.toLowerCase().includes(needle) ||
+        u.displayName.toLowerCase().includes(needle) ||
+        u.email.toLowerCase().includes(needle)
+    );
+    if (partial) return partial.id;
+
+    const available = users.map((u) => u.displayName || u.name).join(', ');
+    this.error(`No Linear user matching "${assigneeName}". Available members: ${available}`);
+  }
+
+  private async getIssueRef(apiKey: string, issueId: string): Promise<TaskReference> {
+    const query = `
+      query GetIssue($id: String!) {
+        issue(id: $id) {
+          id identifier title url
+          state { name }
+          priority
+          labels { nodes { name } }
+        }
+      }
+    `;
+    const data = await this.graphqlMutation(apiKey, query, { id: issueId });
+    const issue = data.issue as {
+      id: string;
+      identifier: string;
+      title: string;
+      url: string;
+      state: { name: string };
+      priority: number;
+      labels: { nodes: Array<{ name: string }> };
+    };
+
+    return {
+      id: issue.id,
+      identifier: issue.identifier,
+      title: issue.title,
+      url: issue.url,
+      status: issue.state.name,
+      source: 'linear',
+      priority: issue.priority,
+      labels: issue.labels.nodes.map((l) => l.name),
     };
   }
 
