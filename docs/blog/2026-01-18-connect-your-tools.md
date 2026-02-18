@@ -1,120 +1,105 @@
 ---
 slug: connect-your-tools
-title: "Connect Your Tools: From Spec to Code in One Command"
-authors: [ralph]
+title: From spec to code in one command
+authors: [ruben]
 tags: [integrations, github, linear, notion, workflow]
+description: Your specs already live in GitHub, Linear, or Notion. One command pulls them into ralph-starter and starts coding.
+image: /img/blog/linear-workflow.png
 ---
 
-# Connect Your Tools: From Spec to Code in One Command
-
-Your specifications already exist. They're in GitHub issues, Linear tickets, Notion docs, and markdown files. Why copy-paste them into an AI chat?
+Every feature you build starts with a spec that already exists somewhere. GitHub issue, Linear ticket, Notion doc. It's already written. The annoying part is getting it into your AI tool without losing half of it.
 
 <!-- truncate -->
 
-## The Copy-Paste Problem
+## The problem I kept running into
 
-Here's a typical workflow with AI coding assistants:
+I'd open a GitHub issue, read through the description and comments, mentally summarize it, then type a prompt for Claude that captured... maybe 60% of what was actually in the issue. The linked design doc? Forgot to include it. The acceptance criteria someone added in comment #3? Missed that too.
 
-1. Open your GitHub issue
-2. Copy the description
-3. Paste into AI chat
-4. Copy linked context
-5. Paste that too
-6. Ask the AI to implement
-7. Copy the code back
-8. Create a branch, commit, push
-9. Update the issue
+The spec was right there. I was just a really bad copy-paster. And you know what's dumb? I did this for months before it occurred to me that a script could just fetch the issue directly.
 
-That's a lot of manual work. And context gets lost along the way.
+## So I made it one command
 
-## One Command, Full Context
-
-ralph-starter connects directly to your tools:
+ralph-starter just pulls the spec directly and feeds it to the agent:
 
 ```bash
-# Fetch from GitHub and implement
-ralph-starter run --github "myorg/myrepo#123" --commit --pr
-
-# Fetch from Linear
-ralph-starter run --linear "PROJ-456" --commit
-
-# Fetch from Notion
-ralph-starter run --notion "abc123" --commit
+ralph-starter run --github "myorg/api#42" --loops 5 --test --commit
 ```
 
-Everything flows automatically:
-- **Spec** → fetched from your tool
-- **Context** → linked files, comments, attachments
-- **Implementation** → autonomous coding loops
-- **Validation** → tests, lint, build
-- **Delivery** → commit, push, PR
+What happens here: it authenticates with GitHub using your existing `gh` CLI session, grabs issue #42 -- body, all comments, labels, linked references, everything -- and hands it all to the coding agent. Then the agent implements the feature, runs your tests after each loop, and commits when everything passes.
 
-## Supported Integrations
+No tab-switching. No summarizing. No "let me paste the relevant parts." The agent gets the raw spec, the whole thing.
 
-### GitHub Issues & PRs
+## GitHub issues and PRs
+
+This is the one I use the most, by far. Just point it at an issue:
 
 ```bash
 ralph-starter run --github "owner/repo#123"
 ```
 
-Fetches:
-- Issue/PR title and body
-- Comments and discussion
-- Linked files and references
-- Labels and metadata
+It pulls the title, body, comments, file references. If the issue links to other issues, those come along too. Basically the agent sees everything your team wrote -- which is usually way more context than what I'd remember to paste.
 
-### Linear Tickets
+PRs work the same way, which is great for when you get review feedback and don't want to fix 12 nits by hand:
 
 ```bash
-ralph-starter run --linear "PROJ-123"
+ralph-starter run --github "owner/repo#456" --loops 3 --test
 ```
 
-Fetches:
-- Ticket title and description
-- Sub-issues and parent context
-- Attachments and links
-- Priority and status
+## Linear tickets
 
-### Notion Pages
+If your team uses Linear, same deal:
 
 ```bash
-ralph-starter run --notion "page-id"
+ralph-starter run --linear "PROJ-123" --commit
 ```
 
-Fetches:
-- Page content (markdown converted)
-- Linked databases
-- Child pages
-- Embedded files
+Grabs the ticket description, sub-issues, attachments, priority. One thing I've noticed: Linear tickets tend to be really well-structured compared to GitHub issues, so the agent gets cleaner input and the results are usually better on the first try. Not always, but noticeably.
 
-### Local Files & URLs
+## Notion pages
+
+For teams that write everything in Notion (I've been there):
 
 ```bash
-# Local spec file
-ralph-starter run --from ./specs/auth-feature.md
+ralph-starter run --notion "page-id" --loops 5 --test
+```
 
-# Remote URL
+The page content gets converted to markdown, and child pages and linked databases come along for the ride. This is especially nice for those longer specs -- you know, the ones with 3 sections and a table and a "Notes from the last meeting" block. Try pasting all of that into a chat window. Actually, don't.
+
+## Local files and URLs
+
+Sometimes the spec is just a markdown file in your repo:
+
+```bash
+ralph-starter run --from ./specs/auth-feature.md --test --commit
+```
+
+Or a URL:
+
+```bash
 ralph-starter run --from "https://example.com/spec.md"
 ```
 
-## Combining Sources
+## Combining sources (this is the good part)
 
-Need context from multiple places? Combine them:
+OK so the thing I actually use the most in practice is combining a GitHub issue with extra local context:
 
 ```bash
 ralph-starter run \
   --github "owner/repo#123" \
-  --from ./additional-context.md \
+  --from ./docs/api-conventions.md \
   --loops 5 \
+  --test \
   --commit
 ```
 
-## Authentication
+The agent gets the issue spec plus your project conventions in one shot. This is where the quality jumps noticeably. Before I started doing this, the agent would generate code that worked but didn't follow our patterns -- wrong naming conventions, different error handling style, that kind of thing. Now it matches the rest of the codebase on the first try most of the time.
 
-Set up once, use everywhere:
+## Setting up auth
+
+One-time setup, takes like 30 seconds:
 
 ```bash
-# GitHub (uses gh CLI)
+# GitHub (uses your existing gh CLI login)
 gh auth login
 
 # Linear
@@ -124,17 +109,6 @@ ralph-starter config set linear.apiKey lin_api_xxx
 ralph-starter config set notion.token secret_xxx
 ```
 
-## What's Next
-
-We're adding more integrations:
-- Jira
-- Asana
-- Trello
-- Slack threads
-- Discord messages
-
-Your workflow, your tools, your way.
-
 ---
 
-Ready to connect? Check out the [integrations guide](/docs/sources/overview).
+The full list of supported sources is in the [integrations guide](/docs/sources/overview).

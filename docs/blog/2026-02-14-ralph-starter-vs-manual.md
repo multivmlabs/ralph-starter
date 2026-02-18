@@ -3,32 +3,31 @@ slug: ralph-starter-vs-manual
 title: ralph-starter vs doing it manually
 authors: [ruben]
 tags: [ralph-starter, comparison, productivity, workflow]
-image: /img/blog/vs-manual.png
+description: I tracked one full sprint week. 6 tasks manual, 6 with ralph-starter. 45 min vs 12 min per task. $1.87 total for the automated half.
+image: /img/ralph/6.jpg
 ---
 
-I tracked one full week of development. Half the tasks with ralph-starter, half the traditional way. No cherry-picking, no unfair comparisons. Same sprint, same project, same me. Here is what the numbers actually looked like.
+I tracked one full week of development. Half the tasks with ralph-starter, half by hand. Same sprint, same project, same me, same coffee intake (a lot).
 
 <!-- truncate -->
 
-I have been claiming ralph-starter saves time for weeks now. But I realized I never actually measured it side by side. So I decided to run an honest experiment on myself.
+Look, I have been telling people ralph-starter saves time for weeks, but I realized I had never actually measured it. I was just vibing on the feeling that things were faster. That is not great. So I ran an honest experiment on myself.
 
-12 features from the sprint backlog. All had clear specs in [Linear](/blog/ralph-starter-with-linear). A mix of endpoints, bug fixes, component updates, tests. Nothing exotic -- the kind of stuff that fills up a typical sprint.
+12 features from the sprint backlog. All had clear specs in [Linear](/blog/ralph-starter-with-linear). Endpoints, bug fixes, component updates, tests. Nothing exotic -- the kind of stuff that fills up every sprint everywhere.
 
-I split them down the middle. 6 manual (IDE, ChatGPT, write code, run tests, fix, commit). 6 with ralph-starter.
+I split them down the middle. 6 done manually (IDE open, ChatGPT tab, write code, run tests, fix, commit, repeat). 6 with ralph-starter.
 
-![Comparison: manual vs ralph-starter](/img/blog/vs-manual.png)
+## Manual: the way I have been doing it for years
 
-## Manual workflow
+Read the ticket. Think about approach. Open files. Start coding. Hit a snag, open ChatGPT, paste context, get a suggestion back, realize it is not quite right, spend 10 minutes adapting it. Run tests. Something fails. Fix it. Run lint. Fix that too. Commit. Push. Open PR. You know this loop. You have lived this loop.
 
-Read ticket. Think about approach. Open files. Start coding. Hit a snag, open ChatGPT, paste context, get suggestion, adapt it. Run tests, fix. Run lint, fix. Commit. Push. Open PR. You know the drill -- you have done this a thousand times.
+Average: **45 minutes per task** for a total of about 4.5 hours of focused work.
 
-Average: **45 minutes per task**. Total for 6: about 4.5 hours of focused work.
+And honestly, "focused" is generous. A chunk of that time was me being a human clipboard between ChatGPT and my editor. The AI was helpful but I was the integration layer. I was the glue code.
 
-And honestly? Some of those 45 minutes included me staring at a ChatGPT response thinking "that is not quite right" and spending 10 minutes adapting it. The AI was helpful, but I was still the integration layer.
+## ralph-starter: the other way
 
-## ralph-starter workflow
-
-Read ticket. Label "ralph-ready". Run one command. Go work on something else. Review PR when notification comes in.
+Read ticket. Label it "ralph-ready". Run one command. Go do something else. Review the PR when it shows up.
 
 ```bash
 $ ralph-starter run --from linear --project ENG --issue ENG-71 --commit --pr --loops 5 --test --lint
@@ -49,33 +48,33 @@ $ ralph-starter run --from linear --project ENG --issue ENG-71 --commit --pr --l
 ✅ Done in 1m 38s | Cost: $0.23 | Tokens: 17,640
 ```
 
-Average: **12 minutes per task** (mostly waiting while doing other things). Total for 6: about 1.2 hours of active attention. That is reading the PR, checking the diff, hitting approve or leaving a comment.
-
-Let me say that again. 1.2 hours vs 4.5 hours. For the same output.
+Average: **12 minutes per task** -- and most of that was waiting while I worked on other stuff. The actual hands-on time for all 6 was about 1.2 hours. Reading the PR, checking the diff, approving or leaving a comment. That is it.
 
 ## Quality
 
-Both approaches produced working code that passed tests and lint. ralph-starter PRs had slightly more verbose code in some cases -- the AI adds more error handling and comments than I would. But nothing that needed major rework. If anything, the extra error handling was arguably better practice. I am just lazy sometimes.
+Ok here is the part where I have to be honest. Both approaches produced working code. Tests passed, lint passed. The ralph-starter PRs were more verbose in places -- the AI writes more error handling and more comments than I would. Way more. I would have skipped half those try/catch blocks. Is that better practice? Probably. Am I lazy sometimes? Absolutely.
+
+Nothing needed major rework either way. The AI code was not worse. It was just... more cautious than I am.
 
 ## Where ralph-starter won
 
-**Consistency.** Every single PR had tests, passed lint, passed build. When I code manually I sometimes skip tests for small changes. The validation loop does not let the AI skip. This is something I talked about in the [Ralph Wiggum technique](/blog/ralph-wiggum-technique) post -- the loop enforces discipline that I do not always have.
+**Consistency.** Every. Single. PR. Had tests. Passed lint. Passed build. When I code manually I sometimes skip writing tests for small changes. "It is just a tiny fix, I will add tests later." (I never add tests later.) The validation loop does not let the AI get away with that. I talked about this in the [Ralph Wiggum technique](/blog/ralph-wiggum-technique) post -- the loop enforces discipline that I personally do not have.
 
-**Throughput.** 6 features in the time I would normally handle 2, maybe 3. That is not 2x -- that is closer to 3.5x once you factor in context switching overhead.
+**Throughput.** 6 features in the time I would normally do 2, maybe 3. That is not 2x. That is closer to 3.5x once you factor in all the context switching overhead from doing things manually.
 
-**Cost.** The 6 ralph-starter tasks totaled $1.87 in API costs. Six tasks. Less than two dollars. I [track costs carefully](/blog/prompt-caching-saved-me-47-dollars) now and this is typical.
+**Cost.** The 6 ralph-starter tasks cost $1.87 total in API spend, six tasks for less than two dollars. I [track costs carefully](/blog/prompt-caching-saved-me-47-dollars) now and this is pretty normal.
 
-## Where manual won
+## Where I won
 
-**Complex design decisions.** One task needed choosing between two data modeling approaches. The AI would have picked one and run with it. I needed to think through tradeoffs, talk to the team, consider future implications. Ralph Wiggum vibes do not work here -- *"I choo-choo-choose you!"* is not a valid data modeling strategy.
+**Complex design decisions.** One task needed choosing between two data modeling approaches. The AI would have just picked one and run with it. I needed to think through tradeoffs, talk to the team, consider what happens next quarter. Ralph Wiggum vibes do not work here -- *"I choo-choo-choose you!"* is not a valid data modeling strategy.
 
-**Existing context.** On a refactoring task, I knew a certain pattern was going to be deprecated next sprint. The AI did not know that. It would have happily implemented more of the old pattern. Sometimes you need the human who was in last week's meeting.
+**Knowing stuff the AI does not.** On a refactoring task, I knew a certain pattern was going to be deprecated next sprint. The AI had no idea. It would have happily written more of the old pattern and felt great about it. Sometimes you need the person who was in last week's meeting.
 
-## My conclusion
+## What I took away from this
 
-ralph-starter handles "implementation from spec" better than I do. Faster and more consistent. I handle "figure out what to build" better than the AI. The ideal workflow uses both.
+ralph-starter is better than me at "turn this spec into code." Faster, more consistent, less lazy about error handling. I am better than the AI at "figure out what we should build."
 
-Now I spend my energy on three things: writing [clear specs](/blog/specs-are-the-new-code) (AI input), reviewing PRs (AI output), and architecture decisions (AI blind spot). Everything in between -- the mechanical translation of spec to code -- ralph-starter handles that.
+So now I focus on three things: writing [clear specs](/blog/specs-are-the-new-code) (AI input), reviewing PRs (AI output), and architecture decisions (AI blind spot). The mechanical part in between -- translating spec to code -- ralph-starter does that. And it does not get distracted by Slack.
 
 Want to run your own comparison?
 

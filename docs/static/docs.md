@@ -2,7 +2,7 @@
 
 > AI-powered autonomous coding tool. Connect GitHub, Linear, Notion, Figma and run AI coding loops from specs to production.
 
-> Generated on 2026-02-13 | [ralphstarter.ai](https://ralphstarter.ai)
+> Generated on 2026-02-18 | [ralphstarter.ai](https://ralphstarter.ai)
 
 ## Table of Contents
 
@@ -2276,17 +2276,11 @@ and included in the agent's prompt context when relevant.
 
 ### Auto Skill Discovery
 
-Auto skill discovery is opt-in. When enabled, ralph-starter
-queries the skills.sh registry to find and install relevant
-skills automatically.
+Auto skill discovery is enabled by default. ralph-starter
+queries the skills.sh API to find and install relevant
+skills automatically before each run.
 
-Enable it by setting:
-
-```bash
-RALPH_ENABLE_SKILL_AUTO_INSTALL=1
-```
-
-You can also force-disable it with:
+To disable it, set:
 
 ```bash
 RALPH_DISABLE_SKILL_AUTO_INSTALL=1
@@ -5641,9 +5635,11 @@ Once you describe your idea (e.g., "a habit tracker app"), the AI:
 You can then customize:
 
 - **Project Type** - Web, API, CLI, Mobile, Library, Automation
-- **Tech Stack** - Frontend, backend, database choices
+- **Tech Stack** - Frontend, backend, database, styling, UI library choices
 - **Features** - Select which features to include
 - **Complexity** - Prototype, MVP, or Full-featured
+
+**Smart UI defaults**: For web projects, if you don't specify a styling or UI library, ralph-starter defaults to **Tailwind CSS + shadcn/ui + motion-primitives**. The shadcn variant is framework-aware: shadcn/ui for React/Next.js, shadcn-vue for Vue, and shadcn-svelte for Svelte. These defaults produce richer specs with Tailwind v4 setup notes that prevent common CSS cascade conflicts.
 
 #### Step 4: Execution Options
 
@@ -5690,9 +5686,11 @@ $ ralph-starter
   Type: Web Application
 
   Tech Stack:
-    Frontend: react
-    Backend: nodejs
-    Database: sqlite
+    Frontend: React
+    Backend: Node.js
+    Database: SQLite
+    Styling: Tailwind CSS
+    UI Library: shadcn/ui
 
   Key Features:
     • Transaction tracking
@@ -7402,6 +7400,24 @@ Thank you for contributing to ralph-starter!
 ## Changelog
 
 All notable changes to ralph-starter are documented here. This project follows [Semantic Versioning](https://semver.org/).
+
+---
+
+### [0.1.1-beta.17] - 2026-02-14
+
+#### Added
+- **`fix --design` mode**: Structured 5-phase visual fix workflow with screenshot verification, CSS cascade conflict detection, and `DESIGN_VERIFIED` completion token
+- **Smart UI defaults**: Web projects now default to Tailwind CSS + shadcn/ui + motion-primitives when no styling is specified (framework-aware: shadcn-vue for Vue, shadcn-svelte for Svelte)
+- **`uiLibrary` field** in TechStack for explicit UI component library selection
+- **Rich spec generation**: Specs and AGENTS.md now include Tailwind v4 setup notes, CSS cascade layer warnings, and shadcn component setup instructions
+
+#### Fixed
+- Design loop premature exit — `fix --design` now requires explicit `DESIGN_VERIFIED` token after visual confirmation (prevents 1-iteration false completions)
+- Design loop stall detection — screenshot/viewport analysis no longer falsely triggers idle detection
+- Default design iterations increased from 5 to 7 for more thorough visual fixes
+
+#### Changed
+- Completion instruction in agent preamble is now conditional — design mode uses task-specific completion flow instead of generic "All tasks completed"
 
 ---
 

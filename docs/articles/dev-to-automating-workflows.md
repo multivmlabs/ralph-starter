@@ -1,129 +1,201 @@
 ---
 title: Automating entire workflows with ralph-starter
 published: false
-description: I gave my AI agent 10 Linear tickets and went to lunch. Here's what happened.
-tags: ai, coding, automation, productivity
-cover_image: https://ralphstarter.ai/img/blog/auto-mode-github.png
-canonical_url: https://ralphstarter.ai/blog/2026-02-03-ten-github-issues-went-to-lunch
+description: ralph-starter runs Ralph Wiggum loops — fetch a spec, run the AI agent, check tests/lint/build, feed errors back, repeat. Here is how it works and why I built it.
+tags: ralphwiggum, ai, automation, opensource
+cover_image: https://dev-to-uploads.s3.amazonaws.com/uploads/articles/pe3i65tegux045z7ezz4.jpg
+canonical_url: https://ralphstarter.ai/blog/ten-github-issues-went-to-lunch
 ---
 
-What if your Linear ticket became a PR while you were making coffee?
+## What is ralph-starter
 
-Not a vague "AI will change everything" kind of future. I mean right now. You label an issue, run one command, go refill your cup, and there is a pull request waiting when you get back.
+[ralph-starter](https://github.com/multivmlabs/ralph-starter) is a CLI tool that orchestrates AI coding agents in autonomous loops. You give it a task (or point it at a GitHub issue, a Linear ticket, a Notion page), it runs the agent, checks if tests pass, if lint is clean, if build works. If something fails it feeds the error back to the agent and loops again. When everything passes it commits, pushes, and opens a PR.
 
-I know because that is literally what I did last Tuesday.
+It supports Claude Code, Cursor, Codex CLI, OpenCode, Gemini CLI, Copilot, Amp, and Openclaw. You do not need to pick one in advance, it auto-detects what you have installed.
 
-## The workflow we all pretend is fine
+It is open source, MIT licensed. I built it because I was tired of being the middleman between my terminal and my AI chat window.
 
-Ever actually counted how many steps it takes to go from a ticket to a merged PR? I did. Here is the manual version:
+## Why I built it
 
-1. Open Linear (or GitHub, or Jira, whatever)
-2. Read the ticket
-3. Open your IDE
-4. Think about approach
-5. Start coding
-6. Hit a wall, open ChatGPT, paste context
-7. Get suggestion, adapt it, paste back
-8. Run tests. Something breaks
-9. Go back to chat, paste the error
-10. Fix it. Run tests again
-11. Run lint. Fix lint
-12. Commit, push, open PR
+I was using AI coding assistants every day. Claude, ChatGPT, Copilot, whatever was available. And the workflow was always the same: I read a ticket, I open the editor, I start coding, I get stuck, I open the AI chat, I paste the context, I get a suggestion, I adapt it, I paste it back. Then I run tests. Something breaks. I go back to the chat, paste the error, get a fix, paste that back. Lint complains. Another round trip. Then I commit, push, open a PR.
 
-That is 12 steps. I was doing this 5 to 8 times a day. The AI was doing the hard part. I was the middleman copying text between windows.
+That is like 12 steps and I was doing it 5 to 8 times a day. The AI was doing the hard part (writing the code) and I was just the relay moving text between windows. I felt like a human clipboard.
 
-You know what happened? I got tired of being a copy-paste relay and wrote a script to do the relay for me. That script became [ralph-starter](https://github.com/multivmlabs/ralph-starter).
+So I wrote a script that does the relay for me. The script takes a spec, sends it to the agent, runs my test suite, and if something fails it sends the error output back to the agent automatically. No copying, no pasting, no switching windows. The agent sees the error and fixes it on its own.
 
-## What ralph-starter actually does
+That script grew into ralph-starter.
 
-ralph-starter connects to where your specs already live (GitHub issues, Linear tickets, Notion pages, Figma designs) and feeds them to an AI coding agent. Then it runs the agent in a loop: code, test, get feedback, fix, test again. When validation passes, it commits, pushes, and opens a PR. The whole thing. One command, no babysitting.
+## Where it is most useful
 
-## Show me the terminal
+ralph-starter works best when you have:
 
-Alright. I have a GitHub issue #42: "Add /health endpoint that returns 200 with JSON status". Clear spec, acceptance criteria, the whole thing. Here is what I run:
+1. **A clear spec.** "Add /health endpoint that returns 200 with JSON body `{ status: 'ok' }`" finishes in 1 loop. "Make the app better" will still run — the agent will analyze your codebase and pick something to improve — but it might take 4 loops and the result might not be what you wanted. The more specific the spec, the fewer loops and the better the output.
+2. **Tests.** The loop needs something to validate against. If you have no tests the agent does not know when it is done.
+3. **Routine implementation work.** Endpoints, bug fixes, component updates, adding tests, config changes. The stuff that fills up a sprint backlog.
+
+Vague specs do not break it, they just cost more. "Refactor the auth system" with no details will make the agent try different approaches each loop until the circuit breaker trips. "Add JWT middleware at src/middleware/auth.ts using bcrypt, httpOnly cookies, add tests for login success and failure" finishes in 2 loops because the agent knows exactly what done looks like.
+
+I use it every day for the mechanical parts of development. I still do the thinking, the architecture, the spec writing. ralph-starter handles the translation from spec to code.
+
+## Getting started
+
+You can start from an idea and ralph-starter will generate the spec for you:
+
+<!-- TODO: upload screenshot-idea-analyzer.png to dev.to and replace URL -->
+![ralph-starter idea analyzer](https://dev-to-uploads.s3.amazonaws.com/uploads/articles/PLACEHOLDER_IDEA_ANALYZER.png)
+
+Or you can point it at an existing GitHub issue or Linear ticket and it fetches the spec automatically.
 
 ```bash
-ralph-starter run --from github --issue 42 --commit --pr
+# Install and initialize
+npx ralph-starter init
 ```
 
-And here is what actually happens:
+`ralph-starter init` detects your project type (Node.js, Python, Rust, Go), finds which agents you have installed, and sets up your validation commands (test, lint, build). If it finds a Ralph Playbook in your project it picks up AGENTS.md, IMPLEMENTATION_PLAN.md, and your prompt files automatically:
+
+<!-- TODO: upload screenshot-playbook-detected.png to dev.to and replace URL -->
+![Ralph Playbook detected](https://dev-to-uploads.s3.amazonaws.com/uploads/articles/PLACEHOLDER_PLAYBOOK.png)
+
+Run your first task with an inline spec:
+
+```bash
+ralph-starter run "add a /ping endpoint that returns pong" --commit
+```
+
+Or point it at a GitHub issue or Linear ticket:
+
+```bash
+# From GitHub
+ralph-starter run --from github --project rubenmarcus/ralph-starter --issue 2
+
+# From Linear
+ralph-starter run --from linear --project ENG --issue ENG-71 --commit --pr
+```
+
+<!-- TODO: upload screenshot-fetching-spec.png to dev.to and replace URL -->
+![Fetching spec from GitHub](https://dev-to-uploads.s3.amazonaws.com/uploads/articles/PLACEHOLDER_FETCH_SPEC.png)
+
+To connect GitHub, Linear, Notion, or Figma as spec sources, use the config commands:
+
+```bash
+ralph-starter config set github.token ghp_xxx
+ralph-starter config set linear.apiKey lin_api_xxx
+ralph-starter config set notion.apiKey ntn_xxx
+```
+
+`ralph-starter setup` configures the CLI agent preferences. Integrations are managed through `ralph-starter config`.
+
+## How the loop works
+
+The loop executor follows this sequence:
 
 ```
-ralph-starter v0.3.0
+1. Fetch spec (GitHub issue, Linear ticket, inline text)
+2. Create branch (auto/42-health-endpoint)
+3. Run agent with the spec as prompt
+4. Run validations: test → lint → build
+5. If any validation fails → feed error output back to agent → go to step 3
+6. If all pass → commit, push, open PR
+```
 
-Fetching issue #42 from github...
-  → "Add /health endpoint that returns 200 with JSON status"
-  → Branch: auto/42-health-endpoint
+The validation step is configurable in `ralph-starter.config.yaml`:
 
-Detected agent: Claude Code
+```yaml
+validation:
+  test: pnpm test
+  lint: pnpm lint
+  build: pnpm build
+```
 
-Loop 1/5
-  → Agent creating /health endpoint...
-  → Running validation: pnpm test
-  → Tests: 14 passed, 1 failed
-  → Feeding error back to agent...
+When a validation fails, ralph-starter takes the stderr/stdout and builds context for the next iteration. The context includes the original spec, the diff of what changed, and the full validation output. The agent sees `TypeError: Cannot read property 'id' of undefined at src/routes/user.ts:42` and knows exactly what to fix.
 
-Loop 2/5
-  → Agent fixing test assertion...
-  → Running validation: pnpm test
-  → Tests: 15 passed
-  → Running validation: pnpm lint
-  → Lint: passed
-  → Running validation: pnpm build
-  → Build: passed
+The agent does not get a summary. It gets the raw error. This is faster than me copying the error into a chat window because there is zero delay between failure and the next attempt.
 
-All validations passed.
+## Real example: building a landing page from a GitHub issue
 
-Committed: feat(api): add /health endpoint with JSON status
-Pushed to origin/auto/42-health-endpoint
-Created PR #58: "Add /health endpoint - closes #42"
+Here is a real run. I pointed ralph-starter at a GitHub issue that asked for a landing page for a London pet shop. The spec had 8 tasks (header, hero, services, gallery, testimonials, contact form, footer, polish).
 
+<!-- TODO: upload screenshot-pet-shop-loop.png to dev.to and replace URL -->
+![ralph-starter running loop for pet shop](https://dev-to-uploads.s3.amazonaws.com/uploads/articles/PLACEHOLDER_PET_SHOP_LOOP.png)
+
+ralph-starter detected 28 installed skills (frontend-design, tailwind, responsive-web-design, etc.), picked the relevant ones for the task, and started the loop with Claude Code:
+
+<!-- TODO: upload screenshot-skills-detected.png to dev.to and replace URL -->
+![Skills detected and loop starting](https://dev-to-uploads.s3.amazonaws.com/uploads/articles/PLACEHOLDER_SKILLS.png)
+
+The loop ran for 2 iterations. First iteration completed 5 out of 8 tasks (Project Setup, Header & Navigation, Hero Section, Services Section, Featured Pets Gallery). Second iteration picked up the remaining tasks (Testimonials, Contact Form, Footer, Polish). It stopped automatically when no file changes were detected for 2 consecutive iterations.
+
+Final result:
+
+```
 Cost Summary:
-  Tokens: 38K (27K in / 11K out)
-  Cost: $0.18 (2 iterations)
-  Cache savings: $0.09
-  Duration: 47s
+  Tokens: 47.0K (764 in / 46.2K out)
+  Cost: $0.606 ($0.348/iteration avg)
+
+Loop completed!
+  Exit reason: completed
+  Iterations: 2
+  Total duration: 8m 19s
+  Total cost: $0.696 (47.0K tokens)
 ```
 
-Two loops. 47 seconds. $0.18. I did not touch my editor.
+8 minutes. 69 cents. A full landing page with React components, Tailwind styling, and responsive layout. I did not open the editor at all.
 
-## Pick your agent
+## Token costs and how to keep them low
 
-ralph-starter does not care which coding agent you use. It detects what you have installed and works with it. Claude Code is the default (and what I use), but it also supports Cursor, OpenAI Codex, OpenCode, Gemini CLI, GitHub Copilot, Amp, and Openclaw. If you have strong feelings about your agent, keep using it. ralph-starter is the orchestrator, not the brain.
+This is something people always ask me about. Here are my real numbers.
 
-## The cost thing
+I tracked my entire January. 187 tasks completed. $22.41 total. Average of **$0.12 per task**.
 
-People always ask about cost. Fair question. Here is what I actually spend.
+The reason it is cheap is prompt caching. When using Claude Code, the first loop sends the full context at $3.00 per million input tokens. But loops 2, 3, 4 reuse the cached tokens at $0.30 per million. That is 90% less.
 
-Claude's prompt caching is the trick. First loop sends the full context: system prompt, spec, project files. Expensive. But loops 2, 3, 4 reuse cached tokens at 90% discount. Regular input costs $3.00 per million tokens. Cached reads cost $0.30 per million.
+Before each run, ralph-starter shows you an estimate so you know what to expect:
 
-In practice, my average task costs **$0.12**. That is not a typo. Most tasks complete in 2 to 3 loops, and after the first loop most input tokens are cached. I tracked the whole month of January: 187 tasks, $22.41 total. Before prompt caching that same workload would have been over $200.
+<!-- TODO: upload screenshot-estimate.png to dev.to and replace URL -->
+![Cost estimate before run](https://dev-to-uploads.s3.amazonaws.com/uploads/articles/PLACEHOLDER_ESTIMATE.png)
 
-ralph-starter shows you the cost after each run. No surprises.
+After each run it shows the actual cost breakdown: tokens in, tokens out, cache hits, cost per iteration. No surprises. You always know what you are spending.
 
-## Auto mode: the batch processor
+Most tasks finish in 2 to 3 loops. After the first loop, most of the input is already cached. I wrote the detailed breakdown with exact numbers [here](https://ralphstarter.ai/blog/prompt-caching-saved-me-47-dollars).
 
-This is the one that changed my workflow. I label 10 issues as "auto-ready" during sprint grooming. When I am ready (usually before lunch), I run:
+A few things that help keep costs down:
+- **Good specs** mean fewer loops. Clear acceptance criteria = agent knows when it is done.
+- **Prompt caching** saves 90% on input tokens after the first loop.
+- **Circuit breaker** stops tasks that are stuck, so you do not burn money on something unsolvable.
+- **Skills** teach the agent patterns so it gets things right faster (fewer iterations = less cost).
+
+## Batch mode: 10 issues, 8 PRs
+
+During sprint grooming I label issues as "auto-ready". These are the well defined tickets with clear specs. Then I run a single command and go get lunch:
+
+<!-- TODO: upload screenshot-batch-auto.png to dev.to and replace URL -->
+![ralph-starter auto batch mode](https://dev-to-uploads.s3.amazonaws.com/uploads/articles/PLACEHOLDER_BATCH_AUTO.png)
+
+ralph-starter picks up all matching issues, shows the estimate for each, and starts the Ralph Wiggum loop one by one:
 
 ```bash
+# From GitHub
 ralph-starter auto --source github --project multivmlabs/ralph-starter --label "auto-ready" --limit 10
+
+# From Linear
+ralph-starter auto --source linear --project ENG --label "auto-ready" --limit 10
 ```
 
-Each issue gets its own branch, its own loop, its own PR. I come back from lunch to a stack of PRs to review.
+It works with both GitHub Issues and Linear tickets. Each issue gets its own branch, its own loop, its own PR:
 
 ```
 [1/10] Issue #145: Add health check endpoint
-  → Branch: auto/145
-  → 2 loops → Validation: passed
-  → PR #151 created
+  > Branch: auto/145
+  > 2 loops > Validation: passed
+  > PR #151 created
 
 [2/10] Issue #147: Add rate limit headers
-  → Branch: auto/147
-  → 1 loop → Validation: passed
-  → PR #152 created
+  > Branch: auto/147
+  > 1 loop > Validation: passed
+  > PR #152 created
 
 [3/10] Issue #150: Improve performance
-  → 3 loops → Circuit breaker tripped. Skipping.
+  > 3 loops > Circuit breaker tripped. Skipping.
 
 ...
 
@@ -131,62 +203,53 @@ Completed: 8/10 | Failed: 2/10
 Total cost: $1.84
 ```
 
-8 out of 10 is my usual hit rate. The ones that fail are always the vague tickets. "Improve performance" with no details? The agent spins. "Add endpoint X that returns Y with schema Z"? Done in 2 loops every time. The circuit breaker catches stuck ones after 3 consecutive failures so you do not burn money.
+8 out of 10. The 2 that failed were vague tickets. One was "Improve performance" with no metrics or targets. The agent tried different optimizations each loop but had nothing to validate against. The circuit breaker tripped after 3 loops.
 
-Write better tickets, get better results. That is the whole secret.
+The other was a refactoring ticket that referenced a discussion from a team meeting. The agent did not have that context.
 
-## Before and after
+The circuit breaker trips after 3 consecutive identical failures or 5 of the same error type. It prevents burning tokens on something the agent cannot solve.
 
-I tracked a full week. Same types of tasks, half manual, half with ralph-starter.
+## Picking an agent
 
-| | Manual | ralph-starter |
-|---|---|---|
-| Time per task | 45 min | 8 min |
-| Active attention | 45 min | 3 min (review PR) |
-| Tests passing | Usually | Always |
-| Lint passing | Sometimes | Always |
-| Cost per task | $0 (your time) | $0.12 avg |
-| Tasks per day | 5-8 | 15-25 |
-
-The "8 min" for ralph-starter includes the time the agent runs plus me reviewing the PR. My actual hands-on-keyboard time is about 3 minutes. The rest I am doing something else.
-
-The consistency is the thing I did not expect. When I code manually, I sometimes skip tests for small changes. The validation loop does not let the agent skip anything. Every PR passes tests, lint, and build. Every single one.
-
-## Getting started
-
-Three steps. I am not going to write a wall of text here.
+You can be explicit about which agent to use:
 
 ```bash
-# 1. Install
-npx ralph-starter init
-
-# 2. Run your first task
-ralph-starter run "add a /ping endpoint that returns pong" --commit
-
-# 3. Check the result
-git log --oneline -1
+ralph-starter run "your task" --agent claude-code
+ralph-starter run "your task" --agent codex
+ralph-starter run "your task" --agent cursor
 ```
 
-That is it. ralph-starter detects your project, finds your agent, runs the loop. If you want to connect GitHub or Linear, the setup wizard walks you through it:
+Or let ralph-starter auto-detect. It checks what you have installed and uses the first one it finds.
 
-```bash
-ralph-starter setup
-```
+I use Claude Code daily because prompt caching makes the loops cheaper and stream-json output lets ralph-starter track progress in real time. But the loop executor and validation pipeline are the same for all agents. I ran the same JWT auth task on [4 different agents](https://ralphstarter.ai/blog/five-ai-coding-agents) and they all got there, just with different loop counts and costs.
 
-## The Ralph Wiggum thing
+## Why I keep building it
 
-Why "ralph"? The name comes from the [Ralph Wiggum technique](https://ghuntley.com/ralph/). You give the AI a task and let it keep going until done. No back-and-forth prompting. Just "here is the spec, go build it, here are the tests to pass." Like Ralph: he does not overthink, he just does.
+I did a [side-by-side comparison](https://ralphstarter.ai/blog/ralph-starter-vs-manual) of 12 tasks from the same sprint. 6 manual, 6 with ralph-starter. Same project, same type of work. The ralph-starter tasks averaged 12 minutes of my attention vs 45 minutes coding manually. Code quality was comparable.
 
-I know naming your tool after a Simpsons character is not exactly enterprise-ready branding. But honestly? Every time the agent finishes a task I hear "I'm helping!" in my head and it makes me smile. We spend too many hours coding to not have fun with it.
+Now I spend my time on three things: writing clear specs (the input), reviewing PRs (the output), and architecture decisions (the part the AI cannot do). Everything in between, the mechanical translation of spec to code, ralph-starter handles that.
 
-## Try it
+Every PR it produces passes tests, lint, and build. Every one. When I code manually I sometimes skip tests for small changes. The validation loop does not let the agent skip anything and honestly that discipline is better than what I do on my own.
 
-ralph-starter is open source, MIT licensed, and you can start using it in about 30 seconds.
+## About the name
 
-- **GitHub**: [github.com/multivmlabs/ralph-starter](https://github.com/multivmlabs/ralph-starter)
-- **Docs**: [ralphstarter.ai](https://ralphstarter.ai)
-- **npm**: [npmjs.com/package/ralph-starter](https://www.npmjs.com/package/ralph-starter)
+The name comes from the [Ralph Wiggum technique](https://ghuntley.com/ralph/). You give the AI a task and let it keep going until done. No micro-managing. [Full explanation here](https://ralphstarter.ai/blog/ralph-wiggum-technique).
 
-If you use it, I would love to hear what you think. Open an issue, drop a star, or tell me I am crazy on Twitter. All valid.
+## Links
 
-[![npm version](https://img.shields.io/npm/v/ralph-starter.svg?style=flat-square)](https://www.npmjs.com/package/ralph-starter) [![npm downloads](https://img.shields.io/npm/dm/ralph-starter.svg?style=flat-square)](https://www.npmjs.com/package/ralph-starter)
+ralph-starter is open source, MIT licensed.
+
+- [GitHub](https://github.com/multivmlabs/ralph-starter)
+- [Docs](https://ralphstarter.ai)
+- [npm](https://www.npmjs.com/package/ralph-starter)
+
+Related posts:
+- [The Ralph Wiggum technique](https://ralphstarter.ai/blog/ralph-wiggum-technique)
+- [Specs are the new code](https://ralphstarter.ai/blog/specs-are-the-new-code)
+- [I tried 4 AI coding agents on the same task](https://ralphstarter.ai/blog/five-ai-coding-agents)
+- [Prompt caching saved me $47](https://ralphstarter.ai/blog/prompt-caching-saved-me-47-dollars)
+- [ralph-starter vs doing it manually](https://ralphstarter.ai/blog/ralph-starter-vs-manual)
+- [Figma to code in one command](https://ralphstarter.ai/blog/figma-to-code-one-command)
+- [ralph-starter with Linear](https://ralphstarter.ai/blog/ralph-starter-with-linear)
+
+If you try it, open an issue or drop a star. All feedback is welcome.

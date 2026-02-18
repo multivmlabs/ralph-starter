@@ -3,14 +3,15 @@ slug: five-ai-coding-agents
 title: I tried 5 AI coding agents with ralph-starter
 authors: [ruben]
 tags: [ralph-starter, agents, claude-code, cursor, codex, comparison]
-image: /img/blog/ai-agents-comparison.png
+description: I ran the same JWT auth task on Claude Code, Cursor, Codex CLI, and OpenCode. Real times, real costs, real results.
+image: /img/ralph/5.jpg
 ---
 
-ralph-starter works with multiple coding agents. I have actually tried Claude Code, Cursor, Codex CLI, and OpenCode on real tasks over the past few weeks. Here is what I found -- no marketing, just my honest experience.
+ralph-starter works with multiple coding agents. I use Claude Code for basically everything, but I wanted to actually test the others on real tasks instead of just assuming. So I ran the same task on Claude Code, Cursor, Codex CLI, and OpenCode over the past few weeks. Some surprises, some not.
 
 <!-- truncate -->
 
-First thing: ralph-starter auto-detects which agents you have installed. It checks in order: Claude Code, Cursor, Codex, OpenCode. Uses the first one it finds. But you can also be explicit:
+Quick note: ralph-starter auto-detects which agents you have installed. Checks in order: Claude Code, Cursor, Codex, OpenCode. Uses the first one it finds. You can also be explicit:
 
 ```bash
 $ ralph-starter run "add pagination to /api/users" --agent claude-code
@@ -19,11 +20,11 @@ $ ralph-starter run "add pagination to /api/users" --agent claude-code
   Mode: autonomous (--dangerously-skip-permissions)
   Output: stream-json
 
-🔄 Loop 1/3
-  → Writing code with Claude Code...
+Loop 1/3
+  Writing code with Claude Code...
 ```
 
-You can swap agents any time:
+Swapping agents is just a flag:
 
 ```bash
 ralph-starter run "your task" --agent claude-code
@@ -31,57 +32,55 @@ ralph-starter run "your task" --agent cursor
 ralph-starter run "your task" --agent codex
 ```
 
-![Agent comparison](/img/blog/ai-agents-comparison.png)
-
-I ran the same task -- "add JWT auth middleware with tests" -- on each agent. Same project, same spec, same validation pipeline. Here is what happened.
+For this comparison I ran the same task -- "add JWT auth middleware with tests" -- on each agent. Same project, same spec, same validation pipeline. Tried to make it as fair as possible.
 
 ## Claude Code
 
-The one I use daily. Not even close. Fastest for autonomous loops because of [prompt caching](/blog/prompt-caching-saved-me-47-dollars) (90% less on input tokens after the first loop) and stream-json output that lets ralph-starter track progress in real time. Handles complex multi-file changes well. When it needs to create a middleware file, a test file, and update 3 route files -- it just does it.
+My daily driver, and honestly it's not close. Fastest for autonomous loops because of [prompt caching](/blog/prompt-caching-saved-me-47-dollars) -- 90% less on input tokens after the first loop -- and the stream-json output lets ralph-starter track progress in real time. But the real reason I keep coming back: it just handles multi-file changes without flinching. Create a middleware file, write tests for it, update 3 route files, wire it all together. Done. Other agents sometimes get nervous about touching too many files.
 
 ```bash
 $ ralph-starter run "add JWT auth middleware" --agent claude-code --loops 3 --test
 
-✅ Done in 1m 22s | Cost: $0.28 | Loops: 2/3
+Done in 1m 22s | Cost: $0.28 | Loops: 2/3
 ```
 
 `npm i -g @anthropic-ai/claude-code`
 
 ## Cursor
 
-Good when you want IDE context. Strong at understanding project structure because it indexes your workspace. More interactive by nature, so autonomous mode requires a bit more config. Best when you already work in Cursor and want the AI to understand your open files and recent edits.
+Cursor is good if you're already living in the Cursor IDE. It indexes your workspace, so it knows your project structure out of the box. The catch is it's more interactive by nature -- autonomous mode requires some extra config to work smoothly.
 
 ```bash
 $ ralph-starter run "add JWT auth middleware" --agent cursor --loops 3 --test
 
-✅ Done in 2m 48s | Cost: $0.41 | Loops: 3/3
+Done in 2m 48s | Cost: $0.41 | Loops: 3/3
 ```
 
-Took an extra loop, but got there.
+Slower and 46% more expensive than Claude Code on the same task. It needed all 3 loops to finish. Got there eventually, but I wouldn't pick it for batch processing a bunch of issues. If you're already a Cursor user and want to stay in that ecosystem, it works. Otherwise I'd go with Claude Code.
 
 ## Codex CLI
 
-OpenAI's agent. Solid for straightforward code generation. Supports `--auto-approve` for autonomous mode. Less aggressive about multi-file refactors compared to Claude Code but produces clean, conservative code. Good if you prefer the GPT-4 style -- careful, methodical.
+OpenAI's entry. It supports `--auto-approve` for autonomous mode, which is nice. The code it produces is clean and conservative -- it's the "measure twice, cut once" agent. Doesn't try to do too much at once. The flip side is it won't tackle big multi-file refactors the way Claude Code will. It kind of plays it safe, which is fine for straightforward features but frustrating when you need it to be bold.
 
 ```bash
 $ ralph-starter run "add JWT auth middleware" --agent codex --loops 3 --test
 
-✅ Done in 2m 15s | Cost: $0.35 | Loops: 2/3
+Done in 2m 15s | Cost: $0.35 | Loops: 2/3
 ```
 
 `npm i -g codex`
 
 ## OpenCode
 
-Newest option. Supports `--auto` for autonomous mode. Still maturing but shows promise, especially for projects that want to stay framework-agnostic. I have had good results on smaller, focused tasks.
+The newest one, and it supports `--auto` for autonomous mode. I'll be real: it's the least polished of the bunch right now. I've gotten decent results on smaller, focused tasks -- single-file stuff, utility functions, that kind of thing. But the JWT middleware task tripped it up because it needed to coordinate changes across multiple files. It kept getting confused about which file it had already edited. Still early days though, and it's improving fast.
 
 `npm i -g opencode`
 
-## What actually matters more than the agent
+## Here's the thing though
 
-Here is the thing I keep coming back to. More than which agent you pick, what matters is how you configure the loop. The validation pipeline (tests, lint, build) catches mistakes regardless of which agent wrote the code. A weaker agent that iterates 5 times with test feedback produces better code than a strong agent that runs once without validation. That is the whole [Ralph Wiggum technique](/blog/ralph-wiggum-technique) -- the loop is the product, not the agent.
+After running all these comparisons, the honest truth is: the validation pipeline matters way more than which agent you pick. Tests, lint, build -- those catch mistakes regardless of who wrote the code. A weaker agent that iterates 5 times with test feedback produces better code than a strong agent running once with no tests. Every time. The loop is the product, not the agent. That's the whole [Ralph Wiggum technique](/blog/ralph-wiggum-technique).
 
-My config:
+My actual config:
 
 ```yaml
 agent: claude-code
@@ -93,15 +92,15 @@ validation:
   lint: npm run lint
 ```
 
-If one agent does not work for a task, I switch. ralph-starter is agent-agnostic -- the loop executor and validation pipeline work the same regardless of which AI does the coding. That is by design.
+If one agent doesn't work for a task, I just switch. ralph-starter is agent-agnostic on purpose -- the loop executor and validation pipeline work the same regardless of which AI is doing the coding.
 
-My advice? Start with whatever is already on your machine. If you have nothing installed and want the best autonomous experience with [prompt caching](/blog/prompt-caching-saved-me-47-dollars), go with Claude Code. But do not overthink it.
+My honest advice? If you're starting fresh, install Claude Code. It's what I use for 95% of my work, the [prompt caching](/blog/prompt-caching-saved-me-47-dollars) makes it the cheapest option for loops, and it handles multi-file tasks better than anything else I've tried. If you already have something installed, start with that. Don't overthink it.
 
 ```bash
 npx ralph-starter init
 ```
 
-It will detect what you have and set things up. Like Ralph says, *"I picked Nelson!"* -- just pick one and start looping.
+It'll detect what you have and set things up. Pick one and start looping.
 
 ## References
 

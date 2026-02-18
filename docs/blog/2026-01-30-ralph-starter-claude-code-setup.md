@@ -3,6 +3,7 @@ slug: ralph-starter-claude-code-setup
 title: "ralph-starter + Claude Code: the full setup"
 authors: [ruben]
 tags: [ralph-starter, claude-code, setup, tutorial]
+description: Zero to your first automated PR with ralph-starter and Claude Code. Install, init, run, and get a working PR in under 2 minutes.
 image: /img/blog/claude-code-setup.png
 ---
 
@@ -10,7 +11,7 @@ I wanted to write the post I wish existed when I started: how to go from zero to
 
 <!-- truncate -->
 
-Claude Code is the best agent I use with ralph-starter. Not even close. Prompt caching makes loops cheap, stream-json output lets ralph-starter track progress in real time, and it handles multi-file changes without breaking a sweat.
+Claude Code is the best agent I use with ralph-starter. Prompt caching makes loops cheap, stream-json output lets ralph-starter track progress in real time, and it handles multi-file changes without breaking a sweat.
 
 ## Install
 
@@ -49,8 +50,6 @@ $ ralph-starter init
   Run your first task:
     ralph-starter run "your task" --loops 3 --test
 ```
-
-![ralph-starter init output](/img/blog/claude-code-setup.png)
 
 This detects your project type (Node, Python, Rust, Go) and reads `package.json` to find test/build/lint commands. Creates a few files:
 
@@ -121,9 +120,9 @@ Creates branch, runs loops, commits, pushes, opens PR. For multiple issues at on
 ralph-starter auto --source github --project myorg/myrepo --label "auto-ready" --limit 5
 ```
 
-I label issues "auto-ready" when they have clear specs and [run this once or twice a week](/blog/ten-github-issues-went-to-lunch). You would not believe how much time this saves.
+I label issues "auto-ready" when they have clear specs and [run this once or twice a week](/blog/automating-entire-workflows). You would not believe how much time this saves.
 
-## Pro tip
+## One thing that made a big difference
 
 Add specific context in `.claude/CLAUDE.md`. Things like "we use Tailwind", "tests in `__tests__/`", "follow pattern in `src/api/`". The more specific you are, the better the output gets. I have seen first-loop success rate go from maybe 40% to 70% just by adding a few lines of project context.
 

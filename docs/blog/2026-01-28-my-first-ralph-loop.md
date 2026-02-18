@@ -3,6 +3,7 @@ slug: my-first-ralph-loop
 title: "My first ralph loop: what actually happens"
 authors: [ruben]
 tags: [ralph-starter, tutorial, loops, getting-started]
+description: Walk-through of a real ralph-starter loop from start to PR. What happens at each step and why the loop design matters.
 image: /img/blog/first-ralph-loop.png
 ---
 
@@ -19,8 +20,6 @@ ralph-starter run "add dark mode toggle to settings page" --loops 5 --test --lin
 First thing ralph-starter does is detect your coding agent. It prefers Claude Code but works with Cursor, Codex, OpenCode too. Then it reads your `AGENTS.md` to find your test/lint/build commands. No guessing -- it knows how *your* project validates code.
 
 Loop 1 starts. The agent gets the task with full project context, reads your files, creates the components. First pass usually gets the structure right but something breaks. And you know what? That is completely fine. That is the whole point of loops.
-
-![Terminal showing ralph loop iterations](/img/blog/first-ralph-loop.png)
 
 Here is what the real terminal output looked like:
 

@@ -3,6 +3,7 @@ slug: why-i-built-ralph-starter
 title: Why I built ralph-starter
 authors: [ruben]
 tags: [ralph-starter, story, ai-coding, open-source]
+description: I was copy-pasting between ChatGPT and my editor 20 times a day. So I wrote a bash script that did it for me. That script became ralph-starter.
 image: /img/blog/why-i-built-ralph-starter.png
 ---
 
@@ -15,8 +16,6 @@ The AI was doing the hard part. I was just the middleman moving text around. A g
 So one night I wrote a bash script. Nothing fancy -- it pulled the issue body with `gh`, piped it into Claude Code, ran the tests, and if they failed it sent the error back and let Claude try again. I ran it, went to make coffee, came back. There was a working PR sitting there. I had not touched my keyboard once.
 
 That was the moment. I literally said out loud: "why was I doing this by hand?"
-
-![Terminal showing ralph-starter run completing a loop](/img/blog/why-i-built-ralph-starter.png)
 
 That script became ralph-starter.
 

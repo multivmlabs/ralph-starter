@@ -3,46 +3,41 @@ slug: specs-are-the-new-code
 title: Specs are the new code
 authors: [ruben]
 tags: [ralph-starter, specs, workflow, philosophy]
-image: /img/blog/specs-new-code.png
+description: A clear 10-line spec gets you a working PR in 2 loops. A vague one-liner wastes 5 loops and costs 3x more. The spec is the code now.
+image: /img/ralph/3.jpg
 ---
 
-I spend more time writing specs than writing code now. And my output went up, not down. That surprised me.
+I spend more time writing specs than writing code now, and my output went up, not down. That genuinely surprised me.
 
 <!-- truncate -->
 
-When I started using ralph-starter I wrote quick one-liners as tasks. "Add user auth." "Fix the sidebar." You know what happened? Results were terrible. The AI generated something that looked plausible but completely missed the intent. I would look at the PR and think, "that is not what I meant at all."
+When I started using ralph-starter I was writing lazy one-liners. "Add user auth." "Fix the sidebar." Three words and vibes. You can guess what happened. The AI generated something that looked plausible but completely missed what I actually wanted. I would look at the PR and think, "that is not even close to what I meant."
 
-I was blaming the tool. But the problem was me.
+I blamed the tool for like two weeks, but the problem was me.
 
-Then I started writing real specs. Not long documents -- nobody has time for that. Just clear, specific descriptions.
+So I started writing real specs. Not essays -- I do not have time for that. Just clear, specific descriptions of what I actually want.
 
-Bad spec:
+What I used to write:
 
 ```
 Add authentication to the app
 ```
 
-Better spec:
+What I write now:
 
 ```
-Add JWT authentication to the Express API.
+Add JWT auth to the Express API.
 
-1. POST /api/auth/login accepts { email, password }
-2. Validates against the users table
-3. Returns { token, expiresIn } on success
-4. Returns 401 with { error } on failure
-5. Token expires in 24 hours
-
-Protected routes check Authorization: Bearer <token> header.
-Add middleware at src/middleware/auth.ts.
-Add tests for login success, login failure, and protected route access.
+- POST /api/auth/login takes { email, password }, validates against users table
+- Return { token, expiresIn } on success, 401 with { error } on failure
+- Token TTL: 24h
+- Auth middleware goes in src/middleware/auth.ts (check Authorization: Bearer header)
+- Tests: login success, login failure, protected route without token
 ```
 
-![Good spec vs bad spec comparison](/img/blog/specs-new-code.png)
+That second spec is maybe 10 lines and took me 3 minutes to write. But it tells the agent exactly what to build, where to put it, and how to verify it works. ralph-starter turns that into an implementation plan and the agent nails it in 2 to 3 loops.
 
-Second spec is not long. Maybe 10 lines. But it tells the agent exactly what to build, where to put it, and how to verify it. ralph-starter turns that into an implementation plan and the agent executes in 2 to 3 loops.
-
-The difference in output is night and day:
+The difference is ridiculous:
 
 ```bash
 # Bad spec: vague task, agent guesses wrong
@@ -62,21 +57,21 @@ $ ralph-starter run --from github --issue 42 --loops 5 --test --commit
 ✅ Done in 1m 12s | Cost: $0.27 | Tokens: 19,844
 ```
 
-Same feature, same agent. The difference? 67 cents and 2 minutes saved. Better spec means fewer loops. Fewer loops means [less cost](/blog/prompt-caching-saved-me-47-dollars). Better output too.
+Same feature. Same agent. Same model. The only difference was the spec. 67 cents and 2 minutes I did not need to spend. Better spec, fewer loops, [less cost](/blog/prompt-caching-saved-me-47-dollars), better code. It is almost too simple.
 
-This is why integration with GitHub, [Linear](/blog/ralph-starter-with-linear), Notion matters. Your team is already writing specs there. ralph-starter pulls them directly -- no copy-paste.
+And this is exactly why the GitHub, [Linear](/blog/ralph-starter-with-linear), Notion integrations matter so much. You are probably already writing specs there. ralph-starter just pulls them directly. No copy-paste, no "let me summarize this ticket for the AI."
 
 ```bash
 ralph-starter run --from github --project myorg/myrepo --issue 42 --commit --pr
 ```
 
-Quality of the PR is directly proportional to quality of the issue. I have seen this enough times now that I treat it as a law.
+I have run enough tasks at this point that I am pretty confident about this: the quality of the PR is directly proportional to the quality of the issue. Every single time. I have started treating it as a law of nature.
 
-I changed how I write issues. Every ticket now has a clear description of what needs to happen. Not "improve the thing" but "response time of /api/users should be under 200ms." Acceptance criteria as a checklist. Technical context when relevant, like "we use Prisma" or "follow the pattern in `src/api/orders.ts`."
+It completely changed how I write tickets. Every issue now has a clear description of what needs to happen. Not "improve the thing" but "response time of /api/users should be under 200ms." Acceptance criteria as a checklist. Technical context when it matters, like "we use Prisma" or "follow the pattern in `src/api/orders.ts`."
 
-The workflow flipped. Before AI coding I would spend 10% of my time planning and 90% implementing. Now I spend 40% writing specs and 60% reviewing output. Total time is less, quality is higher, and the specs serve as documentation for what was built. Win-win-win.
+My whole workflow flipped. Before AI coding I spent maybe 10% of my time planning and 90% implementing. Now it is 40% writing specs and 60% reviewing output. Total time is less, quality is higher, and here is the bonus I did not expect: the specs double as documentation for what was built and why.
 
-If you use ralph-starter and the output is not good enough, the fix is almost always in the spec. Not in the tool, not in the agent, not in the model. The spec. As Ralph Wiggum would say, *"The doctor said I wouldn't have so many nosebleeds if I kept my finger outta there"* -- sometimes the answer is obvious, we just do not want to hear it.
+So if you are using ralph-starter and the output is not good enough, I will save you some debugging time. The fix is almost always in the spec. Not in the tool, not in the agent, not in the model. The spec.
 
 Want to see the difference good specs make?
 

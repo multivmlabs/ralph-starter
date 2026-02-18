@@ -1,6 +1,10 @@
 import { themes as prismThemes } from 'prism-react-renderer';
 import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const { version } = require('../package.json');
 
 const siteUrl = 'https://ralphstarter.ai';
 
@@ -237,8 +241,8 @@ const config: Config = {
         blog: {
           showReadingTime: true,
           editUrl: 'https://github.com/multivmlabs/ralph-starter/tree/main/docs/',
-          blogSidebarTitle: 'All posts',
-          blogSidebarCount: 'ALL',
+          blogSidebarCount: 0,
+          postsPerPage: 'ALL',
         },
         theme: {
           customCss: './src/css/custom.css',
@@ -354,7 +358,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `<div class="footer__logos"><a href="/" class="footer__logo-link"><img src="/img/favicon-96x96.png" alt="ralph-starter" height="28" /></a><span class="footer__logo-separator">&</span><a href="https://multivmlabs.com" target="_blank" rel="noopener noreferrer" class="footer__logo-link"><img src="/img/multivm-logo.png" alt="MultiVM Labs" height="28" /></a></div><div class="footer__copyright-text">v0.1.1-beta.16 · vibecoded with love ❤️ by <a href="https://github.com/rubenmarcus" target="_blank" rel="noopener noreferrer">rubenmarcus</a></div>`,
+      copyright: `<div class="footer__logos"><a href="/" class="footer__logo-link"><img src="/img/favicon-96x96.png" alt="ralph-starter" height="28" /></a><span class="footer__logo-separator">&</span><a href="https://multivmlabs.com" target="_blank" rel="noopener noreferrer" class="footer__logo-link"><img src="/img/multivm-logo.png" alt="MultiVM Labs" height="28" /></a></div><div class="footer__copyright-text">v${version} · vibecoded with love ❤️ by <a href="https://github.com/rubenmarcus" target="_blank" rel="noopener noreferrer">rubenmarcus</a></div>`,
     },
     prism: {
       theme: prismThemes.dracula,

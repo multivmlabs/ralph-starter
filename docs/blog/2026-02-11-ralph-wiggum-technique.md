@@ -3,18 +3,19 @@ slug: ralph-wiggum-technique
 title: Ralph Wiggum technique explained in 2 minutes
 authors: [ruben]
 tags: [ralph-wiggum, technique, ai-coding, autonomous]
-image: /img/blog/ralph-wiggum-technique.png
+description: The Ralph Wiggum technique is running AI coding agents in loops until done. Created by Geoffrey Huntley, now used by Claude Code and others.
+image: /img/ralph/4.jpg
 ---
 
 The Ralph Wiggum technique is running AI coding agents in autonomous loops until the task is done. You give it a job, walk away, come back to a PR. That is the whole idea.
 
 <!-- truncate -->
 
-People always ask me about the name. Yes, it is from the Simpsons character. Ralph approaches everything with pure, unfiltered confidence and persistence. *"I'm learnding!"* He just... keeps going. And that is exactly what we want the AI to do.
+The technique was created by [Geoffrey Huntley](https://ghuntley.com/), an open source developer in Australia who started experimenting with autonomous AI coding loops in mid-2025. His [original implementation](https://github.com/ghuntley/how-to-ralph-wiggum) was almost disappointingly simple: a bash while loop that feeds the same prompt to Claude over and over until the task is done. It went viral by the end of 2025 and has since been adopted by [Anthropic's Claude Code](https://github.com/anthropics/claude-code/blob/main/plugins/ralph-wiggum/README.md), [Vercel's AI SDK](https://github.com/vercel-labs/ralph-loop-agent), and others.
 
-Instead of treating the AI as a chat partner you go back and forth with -- copy error, paste into chat, get fix, paste back, run tests, repeat -- you treat it as a worker that iterates until done. You step out of the loop entirely.
+People always ask about the name. Yes, it is the Simpsons character. Ralph approaches everything with pure, unfiltered confidence and persistence. *"I'm learnding!"* He just... keeps going. And that is exactly what you want the AI to do.
 
-Let me show you what I mean.
+Instead of treating the AI as a chat partner you go back and forth with, copy error, paste into chat, get fix, paste back, run tests, repeat, you treat it as a worker that iterates until done. You step out of the loop entirely.
 
 Traditional AI coding (the clipboard dance):
 
@@ -39,8 +40,6 @@ You: *reviews PR*
 ```
 
 One input. One output. Everything in between is handled.
-
-![Ralph Wiggum loop diagram](/img/blog/ralph-wiggum-technique.png)
 
 The difference is not just convenience. The AI can iterate *fast* without waiting on a human to relay errors. It reads the error output directly, understands what went wrong, fixes it, re-runs validation. All in seconds. No clipboard involved.
 
@@ -85,7 +84,7 @@ Three things prevent it from going off the rails:
 
 Best tasks for the Ralph Wiggum technique: well-defined inputs and outputs. Add an endpoint, fix a bug that has a failing test, implement a component from a [design spec](/blog/figma-to-code-one-command). Things where "done" is clear.
 
-Worst tasks: vague ones like "make the code better" or "improve performance." The AI has no target to iterate toward. I learned this the hard way when I tried to [batch process 10 issues](/blog/ten-github-issues-went-to-lunch) and the vague ones hit the circuit breaker every time.
+Worst tasks: vague ones like "make the code better" or "improve performance." The AI has no target to iterate toward. I learned this the hard way when I tried to [batch process 10 issues](/blog/automating-entire-workflows) and the vague ones hit the circuit breaker every time.
 
 Good specs, good tests, let the ralph loop handle the rest. That is the technique in one sentence.
 
