@@ -58,6 +58,8 @@
   "packageManager": "pnpm@10.15.1",
   "files": [
     "dist",
+    "!dist/**/*.js.map",
+    "!dist/**/*.d.ts.map",
     "templates",
     "README.md"
   ],

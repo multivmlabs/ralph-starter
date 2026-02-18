@@ -31,23 +31,6 @@ const config: Config = {
     },
   },
 
-  i18n: {
-    defaultLocale: 'en',
-    locales: ['en', 'pt', 'es', 'fr', 'tr', 'de', 'ar', 'zh-Hans', 'ja', 'ko'],
-    localeConfigs: {
-      en: { label: 'English' },
-      pt: { label: 'Portugues', direction: 'ltr' },
-      es: { label: 'Espanol', direction: 'ltr' },
-      fr: { label: 'Francais', direction: 'ltr' },
-      tr: { label: 'Turkce', direction: 'ltr' },
-      de: { label: 'Deutsch', direction: 'ltr' },
-      ar: { label: 'العربية', direction: 'rtl' },
-      'zh-Hans': { label: '简体中文', direction: 'ltr' },
-      ja: { label: '日本語', direction: 'ltr' },
-      ko: { label: '한국어', direction: 'ltr' },
-    },
-  },
-
   // SEO metadata and structured data for AEO
   headTags: [
     {
@@ -368,21 +351,6 @@ const config: Config = {
           items: [
             { label: 'npm', href: 'https://www.npmjs.com/package/ralph-starter' },
             { label: 'Changelog', to: '/docs/community/changelog' },
-          ],
-        },
-        {
-          title: 'Languages',
-          items: [
-            { label: 'English', href: `${siteUrl}/` },
-            { label: 'Portugues', href: `${siteUrl}/pt/` },
-            { label: 'Espanol', href: `${siteUrl}/es/` },
-            { label: 'Francais', href: `${siteUrl}/fr/` },
-            { label: 'Turkce', href: `${siteUrl}/tr/` },
-            { label: 'Deutsch', href: `${siteUrl}/de/` },
-            { label: 'العربية', href: `${siteUrl}/ar/` },
-            { label: '简体中文', href: `${siteUrl}/zh-Hans/` },
-            { label: '日本語', href: `${siteUrl}/ja/` },
-            { label: '한국어', href: `${siteUrl}/ko/` },
           ],
         },
       ],
