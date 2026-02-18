@@ -1,0 +1,28 @@
+{
+  "name": "social-content",
+  "version": "1.0.0",
+  "description": "Remotion-powered social media videos for ralph-starter",
+  "scripts": {
+    "dev": "remotion studio",
+    "render:twitter": "remotion render TwitterThread out/twitter-thread.mp4",
+    "render:linkedin": "remotion render LinkedInCarousel out/linkedin-carousel.mp4",
+    "render:card": "remotion still BlogCard out/blog-card.png",
+    "render:all": "npm run render:twitter && npm run render:linkedin",
+    "build": "remotion render TwitterThread out/twitter-thread.mp4 && remotion render LinkedInCarousel out/linkedin-carousel.mp4"
+  },
+  "keywords": [],
+  "author": "rubenmarcus",
+  "license": "MIT",
+  "dependencies": {
+    "@remotion/cli": "^4.0.424",
+    "@remotion/renderer": "^4.0.424",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "remotion": "^4.0.424"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.9.3"
+  }
+}

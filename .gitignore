@@ -29,3 +29,7 @@ refs/*
 # Internal content (social media drafts, marketing plans)
 docs/SEO_MARKETING_PLAN.md
 content/
+
+# Remotion social content
+social-content/out/
+social-content/node_modules/

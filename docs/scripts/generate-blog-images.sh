@@ -68,6 +68,33 @@ SVGEOF
   echo "  Generated ${filename}.png"
 }
 
+generate_image_with_logo() {
+  local filename="$1"
+  local title="$2"
+  local subtitle="$3"
+  local ralph_img="$4"
+  local logo_img="$5"  # Path to logo (SVG or PNG/JPEG)
+
+  # Generate base image first
+  generate_image "$filename" "$title" "$subtitle" "$ralph_img"
+
+  # Convert logo to PNG if SVG
+  local logo_png="/tmp/blog-logo-${filename}.png"
+  if [[ "$logo_img" == *.svg ]]; then
+    rsvg-convert -h 70 "$logo_img" -o "$logo_png"
+  else
+    magick "$logo_img" -resize x70 -background none "$logo_png"
+  fi
+
+  # Composite logo onto the generated image at top-left
+  magick "${OUT_DIR}/${filename}.png" \
+    \( "$logo_png" -background none \) \
+    -gravity northwest -geometry +80+80 -composite \
+    "${OUT_DIR}/${filename}.png"
+
+  echo "  Added logo to ${filename}.png"
+}
+
 echo "Generating blog images with Ralph characters..."
 
 generate_image "why-i-built-ralph-starter" \
@@ -85,20 +112,22 @@ generate_image "claude-code-setup" \
   "The full setup guide" \
   "${IMG_DIR}/coder.png"
 
-generate_image "figma-to-code" \
+generate_image_with_logo "figma-to-code" \
   "Figma to Code in One Command" \
   "Design specs to production components" \
-  "${RALPH_DIR}/scientist.png"
+  "${RALPH_DIR}/scientist.png" \
+  "${IMG_DIR}/figma-logo.svg"
 
 generate_image "auto-mode-github" \
-  "10 GitHub Issues Went to Lunch" \
-  "Auto mode batch processing in action" \
+  "Automating Entire Workflows" \
+  "From specs to PRs on autopilot" \
   "${RALPH_DIR}/astronaut-fly.png"
 
-generate_image "linear-workflow" \
+generate_image_with_logo "linear-workflow" \
   "ralph-starter with Linear" \
   "From Linear tickets to shipped code" \
-  "${IMG_DIR}/engineer.png"
+  "${IMG_DIR}/engineer.png" \
+  "${IMG_DIR}/linear.jpeg"
 
 generate_image "cost-tracking" \
   "Prompt Caching Saved Me \$47" \
