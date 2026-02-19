@@ -28,13 +28,20 @@ const badgeOptions: BadgeOption[] = [
     id: 'flat',
     label: 'Flat (shields.io)',
     imgSrc:
-      'https://img.shields.io/badge/built_with-ralph--starter-f59e0b?style=flat-square&logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACXBIWXMAAAsTAAALEwEAmpwYAAABHklEQVR4nGNgGAWDATAyMDD8Z2Bg+M/AwPCfkZHxP0iMkZHxP7IAIyPjfwYGhv+srKz/GRkZGf6DACMj438GBob/LCws/0EYxIfxQWIgNkickZGR4T8LC8t/EA0TZ2Rk/A9ig9ggPhMT039GRkaG/0xMTP9BbJg4AwPDfyYmpv9MTEz/QTQTExPIfxgYGBj+MzEx/WdiYvrPxMT0H8YGiTMwMPwHYRA/PDz8f0hIyP+QkJD/ISEh/0NDQ/8HBwf/DwoKAov7+fn99/X1/e/j4/Pfx8fnv4+Pz38fHx+wuJeX139PT8//np6e/z09Pf97e3v/9/Ly+u/l5QUW9/Dw+O/u7v7fzc3tv5ub238XFxewuJOT038nJ6f/Tk5O/x0dHf87ODj8BwBQJIkWMXtBYwAAAABJRU5ErkJggg==',
+      'https://img.shields.io/badge/built_with-ralph--starter-f59e0b?style=flat-square&logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAOCAMAAAAolt3jAAACKFBMVEUAAAAMCw4DAgUQDAUwJAo3KgsvJAodFggAAAQIBwgNCwwDAgEDAwQxJQmGZhIEBAUJCAUWFRYICAgBAQQGBQUDAwURDQaQbQ6KaA7YoxMAAAX/3SvpzmMJCw4HBgcKDBEuSWsJCQkHBwmJ6P8ZJTVFdKkKCQoGBgcICg0ICxAODg0QDQUGBgkSGyYQGCIEAwIHCAoSEBAAAAAIBgUmHQoqIAopIAoOCwcAAAMfGAk9LwtZRAx8Xg+QbQ99Xw9sUg0uIwoAAAIQDwoAAAUyJgluUwx/YA8yJggAAAAAAAYiGgaLbRpzVw0IBwZyVAWehjy9jxAxJQgAAABrUAq/lR3CkhBJNwoAAAEAAACIZw53Wg4AAAAAAAByVw2PbA52WQ2zhxCWcQ5VQAwAABInJh7IlxE2OTMAAAAuSmw2UHArRWYJCw8rRGMwTXFqWCCQbQ8yOjwlP2I4W4c6X40sRmYWIS8ICQsHBwoEBAgHCQ8HBgYAAAAPFR4OFBykew+xhhC/kA/QnA69jw+sghCZkWunlVflrBC7mTWgmXK8mTPAkQ+2iRC3x8ylrKTHmBaon3O6zdekn3zdpg/mrRChlWGUfjnZow/JoSuqnWjDnjL9vg/4uxDdpg26iw7orxD1uA/nrQ3QnA/iqhDxthCvhBG/kBDAkBDFlQ/DkxDjqxD2uQ//wBD4uhDgqhLmrhHiqxKggyi5jxf/wA+hhStOYm9Wa3hUbH1DaJJKsPrXAAAAfnRSTlMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAkvUFc/FRFctOr7/fTLXAYBJpf69nsEBUrg4z9X/fd/B1n9/oYJA5abAQJiwdv91EEccPGJBZf5nxq+0e3ysIXY3pAjCB0ROUUIJSDq3NCgAAAA3UlEQVQI1wHSAC3/AAAAAQACAwQFBgcICQAAAAoLDA0yMzQ1NjcODxARABITODk6Ozw9Pj9AQQgUAEJDREV+f4CBgoNGR0gVAElKS4SFhoeIiYqLTE0WABdOT4yNjo+QkZKTUFFSABhTVJSVlpeYmZqbVVZXAFhZk5ydnp+goaKjpFpbAFxdXl9gpaanqKmqYWIZABobY2Rlq6ytrq+wZhwAAB1naGmxsrO0tba3algeAB9rbG1ub3BxcnN0dSAhACJ2d3h5ensjfH1bJCUmACciKCkqKywALS4vMDEAnlFDNZZ4UAoAAAAASUVORK5CYII=',
   },
 ];
 
+const RALPH_LOGO_BASE64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAA4AAAAOCAMAAAAolt3jAAACKFBMVEUAAAAMCw4DAgUQDAUwJAo3KgsvJAodFggAAAQIBwgNCwwDAgEDAwQxJQmGZhIEBAUJCAUWFRYICAgBAQQGBQUDAwURDQaQbQ6KaA7YoxMAAAX/3SvpzmMJCw4HBgcKDBEuSWsJCQkHBwmJ6P8ZJTVFdKkKCQoGBgcICg0ICxAODg0QDQUGBgkSGyYQGCIEAwIHCAoSEBAAAAAIBgUmHQoqIAopIAoOCwcAAAMfGAk9LwtZRAx8Xg+QbQ99Xw9sUg0uIwoAAAIQDwoAAAUyJgluUwx/YA8yJggAAAAAAAYiGgaLbRpzVw0IBwZyVAWehjy9jxAxJQgAAABrUAq/lR3CkhBJNwoAAAEAAACIZw53Wg4AAAAAAAByVw2PbA52WQ2zhxCWcQ5VQAwAABInJh7IlxE2OTMAAAAuSmw2UHArRWYJCw8rRGMwTXFqWCCQbQ8yOjwlP2I4W4c6X40sRmYWIS8ICQsHBwoEBAgHCQ8HBgYAAAAPFR4OFBykew+xhhC/kA/QnA69jw+sghCZkWunlVflrBC7mTWgmXK8mTPAkQ+2iRC3x8ylrKTHmBaon3O6zdekn3zdpg/mrRChlWGUfjnZow/JoSuqnWjDnjL9vg/4uxDdpg26iw7orxD1uA/nrQ3QnA/iqhDxthCvhBG/kBDAkBDFlQ/DkxDjqxD2uQ//wBD4uhDgqhLmrhHiqxKggyi5jxf/wA+hhStOYm9Wa3hUbH1DaJJKsPrXAAAAfnRSTlMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAkvUFc/FRFctOr7/fTLXAYBJpf69nsEBUrg4z9X/fd/B1n9/oYJA5abAQJiwdv91EEccPGJBZf5nxq+0e3ysIXY3pAjCB0ROUUIJSDq3NCgAAAA3UlEQVQI1wHSAC3/AAAAAQACAwQFBgcICQAAAAoLDA0yMzQ1NjcODxARABITODk6Ozw9Pj9AQQgUAEJDREV+f4CBgoNGR0gVAElKS4SFhoeIiYqLTE0WABdOT4yNjo+QkZKTUFFSABhTVJSVlpeYmZqbVVZXAFhZk5ydnp+goaKjpFpbAFxdXl9gpaanqKmqYWIZABobY2Rlq6ytrq+wZhwAAB1naGmxsrO0tba3algeAB9rbG1ub3BxcnN0dSAhACJ2d3h5ensjfH1bJCUmACciKCkqKywALS4vMDEAnlFDNZZ4UAoAAAAASUVORK5CYII=';
+
+function getShieldsUrl(): string {
+  return `https://img.shields.io/badge/built_with-ralph--starter-f59e0b?style=flat-square&logo=data:image/png;base64,${RALPH_LOGO_BASE64}`;
+}
+
 function getMarkdownSnippet(style: BadgeStyle): string {
   if (style === 'flat') {
-    return `[![built with ralph-starter](https://img.shields.io/badge/built_with-ralph--starter-f59e0b?style=flat-square)](https://github.com/multivmlabs/ralph-starter)`;
+    return `[![built with ralph-starter](${getShieldsUrl()})](https://github.com/multivmlabs/ralph-starter)`;
   }
   const img = style === 'light' ? 'badge-built-with-light' : 'badge-built-with';
   return `[![built with ralph-starter](https://ralphstarter.ai/img/${img}@2x.png)](https://github.com/multivmlabs/ralph-starter)`;
@@ -42,7 +49,7 @@ function getMarkdownSnippet(style: BadgeStyle): string {
 
 function getHtmlSnippet(style: BadgeStyle): string {
   if (style === 'flat') {
-    return `<a href="https://github.com/multivmlabs/ralph-starter"><img src="https://img.shields.io/badge/built_with-ralph--starter-f59e0b?style=flat-square" alt="built with ralph-starter" /></a>`;
+    return `<a href="https://github.com/multivmlabs/ralph-starter"><img src="${getShieldsUrl()}" alt="built with ralph-starter" /></a>`;
   }
   const img = style === 'light' ? 'badge-built-with-light' : 'badge-built-with';
   return `<a href="https://github.com/multivmlabs/ralph-starter"><img src="https://ralphstarter.ai/img/${img}@2x.png" alt="built with ralph-starter" height="28" /></a>`;
