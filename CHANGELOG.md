@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.3.1] - 2026-02-19
+
+### Documentation & Blog
+- SEO-optimized blog posts with enriched content and proper og:image cards
+- Fixed CLI command syntax across all blog posts
+- Humanized AI writing patterns in 14 blog posts
+- Added i18n translations (ES, FR, DE, JA, KO, ZH, PT, NL)
+- Generated branded blog card images (1200x630)
+
+### npm Package
+- Reduced npm package size by excluding source maps and dev files via .npmignore
+
+### Dependencies
+- Bump @biomejs/biome from 2.3.14 to 2.4.0
+- Bump @anthropic-ai/sdk from 0.73.0 to 0.74.0
+- Bump simple-git from 3.30.0 to 3.31.1
+- Bump inquirer from 13.2.2 to 13.2.4
+- Bump github/codeql-action from 4.32.2 to 4.32.3
+
 ## [0.2.1] - 2026-02-12
 
 ### Fixed
