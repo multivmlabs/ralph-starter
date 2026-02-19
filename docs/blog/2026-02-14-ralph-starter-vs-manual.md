@@ -4,7 +4,7 @@ title: ralph-starter vs doing it manually
 authors: [ruben]
 tags: [ralph-starter, comparison, productivity, workflow]
 description: I tracked one full sprint week. 6 tasks manual, 6 with ralph-starter. 45 min vs 12 min per task. $1.87 total for the automated half.
-image: /img/ralph/6.jpg
+image: /img/blog/vs-manual.png
 ---
 
 I tracked one full week of development. Half the tasks with ralph-starter, half by hand. Same sprint, same project, same me, same coffee intake (a lot).
@@ -52,17 +52,17 @@ Average: **12 minutes per task** -- and most of that was waiting while I worked 
 
 ## Quality
 
-Ok here is the part where I have to be honest. Both approaches produced working code. Tests passed, lint passed. The ralph-starter PRs were more verbose in places -- the AI writes more error handling and more comments than I would. Way more. I would have skipped half those try/catch blocks. Is that better practice? Probably. Am I lazy sometimes? Absolutely.
+Both approaches produced working code. Tests passed, lint passed. The ralph-starter PRs were more verbose in places -- the AI writes way more error handling and comments than I would. I would have skipped half those try/catch blocks. Probably better practice, but yeah, I am lazier than the AI.
 
 Nothing needed major rework either way. The AI code was not worse. It was just... more cautious than I am.
 
 ## Where ralph-starter won
 
-**Consistency.** Every. Single. PR. Had tests. Passed lint. Passed build. When I code manually I sometimes skip writing tests for small changes. "It is just a tiny fix, I will add tests later." (I never add tests later.) The validation loop does not let the AI get away with that. I talked about this in the [Ralph Wiggum technique](/blog/ralph-wiggum-technique) post -- the loop enforces discipline that I personally do not have.
+**Consistency.** Every single PR had tests, passed lint, passed build. When I code manually I sometimes skip writing tests for small changes -- "it is just a tiny fix, I will add tests later." (I never add tests later.) The validation loop does not let the AI get away with that. I talked about this in the [Ralph Wiggum technique](/blog/ralph-wiggum-technique) post -- the loop enforces discipline that I personally do not have.
 
-**Throughput.** 6 features in the time I would normally do 2, maybe 3. That is not 2x. That is closer to 3.5x once you factor in all the context switching overhead from doing things manually.
+**Throughput.** 6 features in the time I would normally do 2, maybe 3 -- closer to 3.5x once you factor in all the context switching overhead from doing things manually.
 
-**Cost.** The 6 ralph-starter tasks cost $1.87 total in API spend, six tasks for less than two dollars. I [track costs carefully](/blog/prompt-caching-saved-me-47-dollars) now and this is pretty normal.
+**Cost.** The 6 ralph-starter tasks cost $1.87 total in API spend -- six tasks for less than two dollars. I [track costs carefully](/blog/prompt-caching-saved-me-47-dollars) now and this is pretty typical.
 
 ## Where I won
 

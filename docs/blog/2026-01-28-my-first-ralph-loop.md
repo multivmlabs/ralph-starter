@@ -7,7 +7,7 @@ description: Walk-through of a real ralph-starter loop from start to PR. What ha
 image: /img/blog/first-ralph-loop.png
 ---
 
-People ask me all the time: "what actually happens when you run a ralph loop?" Fair question. It sounds like magic when I say "I type one command and get a PR." So let me walk you through a real one.
+I keep saying "I type one command and get a PR" and people want to know what actually happens in between. So let me walk you through a real one.
 
 <!-- truncate -->
 
@@ -19,7 +19,7 @@ ralph-starter run "add dark mode toggle to settings page" --loops 5 --test --lin
 
 First thing ralph-starter does is detect your coding agent. It prefers Claude Code but works with Cursor, Codex, OpenCode too. Then it reads your `AGENTS.md` to find your test/lint/build commands. No guessing -- it knows how *your* project validates code.
 
-Loop 1 starts. The agent gets the task with full project context, reads your files, creates the components. First pass usually gets the structure right but something breaks. And you know what? That is completely fine. That is the whole point of loops.
+Loop 1 starts. The agent gets the task with full project context, reads your files, creates the components. First pass usually gets the structure right but something breaks -- which is fine, that is the whole point of loops.
 
 Here is what the real terminal output looked like:
 
@@ -48,7 +48,7 @@ $ ralph-starter run "add dark mode toggle to settings page" --loops 5 --test --l
 
 Test failure goes back as context for loop 2. Agent sees the exact error -- `ThemeContext is not exported` -- and fixes it. Loop 2 passes tests but lint complains about an unused import. Loop 3 cleans that up.
 
-Three loops. About 90 seconds. The other 2 loops never run because the task completed early. ralph-starter is smart enough to stop when everything passes. No wasted tokens.
+Three loops, about 90 seconds total. The other 2 loops never ran because the task completed early -- ralph-starter stops as soon as everything passes so you are not wasting tokens.
 
 You also get a cost summary at the end:
 
@@ -61,7 +61,7 @@ Cost Summary:
 
 29 cents for a feature with tests that pass and clean lint. I used to spend 20 minutes doing this exact thing by hand.
 
-There is a circuit breaker too. If the agent fails the same way 3 consecutive times, it stops. Does not keep burning tokens on something that is stuck. As Ralph Wiggum would say, *"I bent my Wookiee"* -- sometimes you just have to stop and try a different approach.
+There is a circuit breaker too -- if the agent fails the same way 3 consecutive times, it stops instead of burning tokens on something that is stuck. As Ralph Wiggum would say, *"I bent my Wookiee"* -- sometimes you just have to stop and try a different approach.
 
 Want to try it yourself?
 
@@ -71,7 +71,7 @@ ralph-starter init
 ralph-starter run "your first task" --loops 3 --test
 ```
 
-That is it. Three commands and you are in the loop. If you want to understand [why I built this in the first place](/blog/why-i-built-ralph-starter), I wrote about that too.
+Three commands and you are in the loop. If you want to understand [why I built this in the first place](/blog/why-i-built-ralph-starter), I wrote about that too.
 
 ## References
 

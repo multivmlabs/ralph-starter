@@ -124,10 +124,15 @@ generate_image "auto-mode-github" \
   "${RALPH_DIR}/astronaut-fly.png"
 
 generate_image_with_logo "linear-workflow" \
-  "ralph-starter with Linear" \
-  "From Linear tickets to shipped code" \
+  "Ship Linear Tasks with AI" \
+  "Daily workflow from tickets to PRs" \
   "${IMG_DIR}/engineer.png" \
   "${IMG_DIR}/linear.jpeg"
+
+generate_image "connect-your-tools" \
+  "From Spec to Code" \
+  "One command pulls specs from GitHub, Linear, Notion" \
+  "${IMG_DIR}/coder.png"
 
 generate_image "cost-tracking" \
   "Prompt Caching Saved Me \$47" \
@@ -154,4 +159,4 @@ generate_image "vs-manual" \
   "One week, 12 tasks, real numbers" \
   "${IMG_DIR}/engineer.png"
 
-echo "Done! Generated 11 blog images in ${OUT_DIR}"
+echo "Done! Generated 12 blog images in ${OUT_DIR}"

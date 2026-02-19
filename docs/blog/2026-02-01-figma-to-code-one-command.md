@@ -46,7 +46,7 @@ $ ralph-starter run --from figma \
 
 What happens under the hood: ralph-starter hits the Figma API, pulls every component and frame, converts the design data into specs, and the coding agent implements each one. 87 cents for a 12-screen dashboard scaffold. I checked the number twice.
 
-Now -- is it pixel-perfect? No. The agent works from structural data, not screenshots. But the component breakdown and layout are right, so you are tweaking CSS values instead of writing everything from scratch. I spent maybe 2 hours polishing what would have taken me 2 full days. That is a trade I will make every time.
+It is not pixel-perfect -- the agent works from structural data, not screenshots. But the component breakdown and layout are right, so you end up tweaking CSS values instead of writing everything from scratch. I spent maybe 2 hours polishing what would have taken me 2 full days.
 
 ## The 5 modes (yes, there are 5)
 

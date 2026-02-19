@@ -62,7 +62,7 @@ If you already do TDD, this is basically what you've been training for. Write yo
 ralph-starter run "make the failing tests pass" --test --loops 5
 ```
 
-Each failing test becomes a requirement. When they all pass, the task is done. It's weirdly satisfying to watch.
+Each failing test becomes a requirement, and when they all pass, the task is done.
 
 ## Setting it up
 
@@ -108,7 +108,7 @@ Expected status code 201 for POST /api/users
 Received status code 400 with body: {"error": "email is required"}
 ```
 
-The first one? The agent basically has to guess. The second one tells it exactly what's missing. More information in your test output = fewer loops = less money. It's that simple.
+The first one forces the agent to guess. The second one tells it exactly what is missing. More information in your test output means fewer loops and less money.
 
 **Type checking is worth adding too.** It catches a totally different class of bugs. I add it as another validator:
 
@@ -119,7 +119,7 @@ validation:
   typecheck: "pnpm tsc --noEmit"
 ```
 
-Every validator runs after every loop, and the agent doesn't move on until all of them pass. It's like having a really patient code reviewer that never gets tired.
+Every validator runs after every loop, and the agent does not move on until all of them pass.
 
 ## When to skip auto-commit
 

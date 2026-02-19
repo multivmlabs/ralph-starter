@@ -28,7 +28,7 @@ const integrations: Integration[] = [
     setupSteps: [
       'Generate a Figma Personal Access Token',
       'ralph-starter config set figma.token your_token',
-      'ralph-starter run --figma "file-url"',
+      'ralph-starter run --from figma --project "file-url"',
     ],
     docsLink: '/docs/sources/figma',
     externalLink: 'https://www.figma.com/developers/api',
@@ -46,7 +46,7 @@ const integrations: Integration[] = [
     setupSteps: [
       'Generate a GitHub Personal Access Token',
       'ralph-starter config set github.token your_token',
-      'ralph-starter run --github "owner/repo#123"',
+      'ralph-starter run --from github --project owner/repo --issue 123',
     ],
     docsLink: '/docs/sources/github',
     externalLink: 'https://github.com/settings/tokens',
@@ -64,7 +64,7 @@ const integrations: Integration[] = [
     setupSteps: [
       'Generate a Linear API key from settings',
       'ralph-starter config set linear.apiKey your_key',
-      'ralph-starter run --linear "ISSUE-123"',
+      'ralph-starter run --from linear --project ENG --issue ENG-123',
     ],
     docsLink: '/docs/sources/linear',
     externalLink: 'https://linear.app/settings/api',
@@ -82,7 +82,7 @@ const integrations: Integration[] = [
     setupSteps: [
       'Create a Notion integration',
       'ralph-starter config set notion.token your_token',
-      'ralph-starter run --notion "page-id"',
+      'ralph-starter run --from notion --project "page-id"',
     ],
     docsLink: '/docs/sources/notion',
     externalLink: 'https://www.notion.so/my-integrations',

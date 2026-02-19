@@ -4,7 +4,7 @@ title: Specs are the new code
 authors: [ruben]
 tags: [ralph-starter, specs, workflow, philosophy]
 description: A clear 10-line spec gets you a working PR in 2 loops. A vague one-liner wastes 5 loops and costs 3x more. The spec is the code now.
-image: /img/ralph/3.jpg
+image: /img/blog/specs-new-code.png
 ---
 
 I spend more time writing specs than writing code now, and my output went up, not down. That genuinely surprised me.
@@ -57,7 +57,7 @@ $ ralph-starter run --from github --issue 42 --loops 5 --test --commit
 ✅ Done in 1m 12s | Cost: $0.27 | Tokens: 19,844
 ```
 
-Same feature. Same agent. Same model. The only difference was the spec. 67 cents and 2 minutes I did not need to spend. Better spec, fewer loops, [less cost](/blog/prompt-caching-saved-me-47-dollars), better code. It is almost too simple.
+Same feature. Same agent. Same model. The only difference was the spec. 67 cents and 2 minutes I did not need to spend. Better spec, fewer loops, [less cost](/blog/prompt-caching-saved-me-47-dollars), better code.
 
 And this is exactly why the GitHub, [Linear](/blog/ralph-starter-with-linear), Notion integrations matter so much. You are probably already writing specs there. ralph-starter just pulls them directly. No copy-paste, no "let me summarize this ticket for the AI."
 
@@ -65,13 +65,13 @@ And this is exactly why the GitHub, [Linear](/blog/ralph-starter-with-linear), N
 ralph-starter run --from github --project myorg/myrepo --issue 42 --commit --pr
 ```
 
-I have run enough tasks at this point that I am pretty confident about this: the quality of the PR is directly proportional to the quality of the issue. Every single time. I have started treating it as a law of nature.
+After running hundreds of tasks, I am pretty confident about this: the quality of the PR is directly proportional to the quality of the issue. I have started treating it as a law of nature.
 
 It completely changed how I write tickets. Every issue now has a clear description of what needs to happen. Not "improve the thing" but "response time of /api/users should be under 200ms." Acceptance criteria as a checklist. Technical context when it matters, like "we use Prisma" or "follow the pattern in `src/api/orders.ts`."
 
 My whole workflow flipped. Before AI coding I spent maybe 10% of my time planning and 90% implementing. Now it is 40% writing specs and 60% reviewing output. Total time is less, quality is higher, and here is the bonus I did not expect: the specs double as documentation for what was built and why.
 
-So if you are using ralph-starter and the output is not good enough, I will save you some debugging time. The fix is almost always in the spec. Not in the tool, not in the agent, not in the model. The spec.
+So if you are using ralph-starter and the output is not good enough, the fix is almost always in the spec -- not in the tool, not in the agent, not in the model.
 
 Want to see the difference good specs make?
 

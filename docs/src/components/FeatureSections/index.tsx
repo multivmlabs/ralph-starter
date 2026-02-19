@@ -32,7 +32,7 @@ const features: Feature[] = [
     link: '/docs/sources/overview',
     linkText: 'View integrations →',
     terminal: {
-      command: 'ralph-starter run --github "owner/repo#123"',
+      command: 'ralph-starter run --from github --project owner/repo --issue 123',
       output: [
         '→ Fetching GitHub issue #123...',
         '✓ Found: "Add user authentication"',

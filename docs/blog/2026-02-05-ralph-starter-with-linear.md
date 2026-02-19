@@ -1,10 +1,10 @@
 ---
 slug: ralph-starter-with-linear
-title: How I use ralph-starter with Linear every day
+title: How I ship tasks from Linear every day with AI
 authors: [ruben]
 tags: [ralph-starter, linear, workflow, daily-use]
 description: My daily workflow with ralph-starter and Linear. Morning standup, label tickets ralph-ready, batch process while I work on the hard stuff.
-image: /img/ralph/3.jpg
+image: /img/blog/linear-workflow.png
 ---
 
 Linear is where my team plans work. ralph-starter is where it gets built. I have been running this combo every single day for weeks now, and I want to show you exactly what my workflow looks like.
@@ -63,9 +63,9 @@ $ ralph-starter auto --source linear --project ENG --label "ralph-ready" --limit
   Processing...
 ```
 
-What Linear gives you that GitHub does not (at least not as cleanly) is structured data. Every ticket has priority (urgent, high, medium, low), status, labels. ralph-starter uses priority for task ordering -- urgent tickets get processed first. Smart, right?
+What Linear gives you that GitHub does not (at least not as cleanly) is structured data. Every ticket has priority (urgent, high, medium, low), status, labels -- and ralph-starter uses priority for task ordering, so urgent tickets get processed first.
 
-My typical day looks like this: morning standup, I see 3 or 4 tickets assigned to me. I label the straightforward ones "ralph-ready" and kick off auto mode. While that runs, I work on the complex ticket that actually needs my brain. By the time I finish the hard work, ralph-starter has PRs waiting for my review. I wrote about this batch workflow in more detail in [I gave ralph-starter 10 GitHub issues and went to lunch](/blog/automating-entire-workflows) -- same idea, different source.
+My typical day looks like this: morning standup, I see 3 or 4 tickets assigned to me. I label the straightforward ones "ralph-ready" and kick off auto mode. While that runs, I work on the complex ticket that actually needs my brain. By the time I finish the hard work, ralph-starter has PRs waiting for my review. I wrote about this batch workflow in more detail in [automating entire workflows](/blog/automating-entire-workflows) -- same idea, different source.
 
 One thing that works really well is writing acceptance criteria as a checklist in Linear:
 
@@ -81,7 +81,7 @@ ralph-starter extracts those checkboxes from the ticket body and uses them as co
 
 The tickets that work best are the ones with clear inputs and outputs. "Add this endpoint", "Fix this test", "Update this component to match the new design." The ones that need a human are where the approach is not obvious, where you need to ask "should we even build this?"
 
-The AI does not fail when the instructions are clear. It struggles when the spec is vague.
+Clear instructions work, vague ones don't -- same as with a human developer, really.
 
 Want to connect your Linear workspace?
 
@@ -94,7 +94,7 @@ ralph-starter run --from linear --project YOUR-PROJECT --issue YOUR-ISSUE --comm
 
 ## References
 
-- [I gave ralph-starter 10 issues and went to lunch](/blog/automating-entire-workflows)
+- [Automating entire workflows](/blog/automating-entire-workflows)
 - [Specs are the new code](/blog/specs-are-the-new-code)
 - [ralph-starter + Claude Code setup](/blog/ralph-starter-claude-code-setup)
 - [Linear integration docs](/docs/sources/linear)

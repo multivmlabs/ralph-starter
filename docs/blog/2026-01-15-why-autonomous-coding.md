@@ -17,7 +17,7 @@ You know the drill. Open ChatGPT, describe what you want, get some code back, pa
 
 And every round trip you lose a little bit of context. The model half-forgets what it suggested two messages ago. You lose track of which version you pasted where. Meanwhile you're the one running tests, reading stack traces, deciding what to try next.
 
-I realized at some point that the AI was doing the easy part -- generating code -- and I was doing everything else. I was basically a clipboard manager with opinions.
+At some point I realized the AI was doing the easy part -- generating code -- and I was doing everything else. Basically a clipboard manager with opinions.
 
 ## What if the agent just... kept going?
 
@@ -47,19 +47,19 @@ Loop 4: Cleaned up lint issues
   → Committed: feat: add JWT authentication
 ```
 
-Four loops, zero copy-pasting, zero babysitting. I reviewed the diff after and it was clean. I literally made coffee during loop 2.
+Four loops, zero copy-pasting, zero babysitting. I reviewed the diff after and it was clean -- I made coffee during loop 2.
 
 ## Why this works better than chatting
 
 The big difference is context. In a chat, the model kind of forgets what it tried two messages ago. In a loop, the agent sees everything -- its own previous attempts, the full test output, the whole history. It doesn't start over each time.
 
-And errors become free instructions, which is the part that really clicked for me. When `TypeError: Cannot read properties of undefined` shows up in the test output, the agent gets that exact string. You don't have to describe the problem. It reads the stack trace and acts on it. That's the stuff I was doing manually before, and honestly the agent is better at it than me because it doesn't skip lines.
+And errors become free instructions, which is the part that really clicked for me. When `TypeError: Cannot read properties of undefined` shows up in the test output, the agent gets that exact string -- you don't have to describe the problem. It reads the stack trace and acts on it. That is the stuff I was doing manually before, and honestly the agent is better at it than me because it does not skip lines.
 
 A chat session might take 15-20 messages to land on working code. A loop usually finishes in 3-5 iterations because each one does real work, validates it, and course-corrects. You're paying for results, not conversation.
 
 ## Where it actually works (and where it doesn't)
 
-I should be honest -- this isn't magic. It works really well when you have:
+This is not magic though. It works really well when you have:
 
 - **A clear spec.** "Add password reset flow per the design in issue #42" works great. "Make the auth better" does not.
 - **Tests.** Even crappy ones. Tests give the agent a finish line. Without them it's just vibes.
@@ -74,7 +74,7 @@ Where it falls apart: vague requirements with no tests, greenfield projects with
 One more thing that made a huge difference. Instead of writing a prompt from scratch, you can point it at an actual GitHub issue:
 
 ```bash
-ralph-starter run --github "myorg/api#42" --loops 5 --test --commit
+ralph-starter run --from github --project myorg/api --issue 42 --loops 5 --test --commit
 ```
 
 This fetches the full issue body, comments, linked context -- all of it. The agent gets the same spec your team wrote for a human developer. Except it doesn't skim. It reads the whole thing, every comment, every acceptance criterion. Honestly it's more thorough than I am.

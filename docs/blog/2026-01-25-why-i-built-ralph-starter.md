@@ -39,7 +39,7 @@ $ ralph-starter run --from github --project myorg/myrepo --issue 42 --commit --p
 ✅ Done in 2m 34s | Cost: $0.08 | Tokens: 12,847
 ```
 
-Your specs already live somewhere. GitHub, Linear, Notion, Figma. So why are you copying them manually into a chat window? Ever asked yourself that?
+Your specs already live somewhere -- GitHub, Linear, Notion, Figma. There is no reason to copy them manually into a chat window.
 
 One command. Fetches the spec, makes a branch, runs the AI in loops with your tests as the guardrails, commits, opens a PR. You review it like any other PR from your team. No ceremony.
 
@@ -49,7 +49,7 @@ The name comes from the [Ralph Wiggum technique](/blog/ralph-wiggum-technique). 
 
 ralph-starter is open source because AI coding tooling is evolving so fast that the community can push it further than I could alone. And honestly, I want to see what people build with it.
 
-Ready to stop being a clipboard manager?
+If you want to try it:
 
 ```bash
 npx ralph-starter init

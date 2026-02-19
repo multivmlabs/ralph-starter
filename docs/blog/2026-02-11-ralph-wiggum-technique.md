@@ -4,7 +4,7 @@ title: Ralph Wiggum technique explained in 2 minutes
 authors: [ruben]
 tags: [ralph-wiggum, technique, ai-coding, autonomous]
 description: The Ralph Wiggum technique is running AI coding agents in loops until done. Created by Geoffrey Huntley, now used by Claude Code and others.
-image: /img/ralph/4.jpg
+image: /img/blog/ralph-wiggum-technique.png
 ---
 
 The Ralph Wiggum technique is running AI coding agents in autonomous loops until the task is done. You give it a job, walk away, come back to a PR. That is the whole idea.
@@ -68,15 +68,15 @@ $ ralph-starter run "add user registration with email/password" --loops 5 --test
 ✅ Done in 1m 44s | Cost: $0.34 | Tokens: 26,190
 ```
 
-Three loops. Under 2 minutes. 34 cents. The agent saw the bcrypt error, fixed it, saw the lint warning, fixed that too. I did not touch anything.
+Three loops, under 2 minutes, 34 cents. The agent saw the bcrypt error, fixed it, saw the lint warning, fixed that too -- I did not touch anything.
 
 The loop executor runs the coding agent, checks the result against your test suite, lint, and build. If anything fails, the failure becomes context for the next loop. The agent sees the exact error message and fixes it. Just like Ralph Wiggum -- *"I bent my Wookiee"* -- it acknowledges the problem and keeps going.
 
 Three things prevent it from going off the rails:
 
-**Circuit breaker** trips after 3 consecutive identical failures or 5 of the same error. Does not keep burning tokens on something that is stuck. I have seen this save me money when a task genuinely needed a different approach.
+**Circuit breaker** trips after 3 consecutive identical failures or 5 of the same error, so it does not keep burning tokens on something that is stuck. I have seen this save me money when a task genuinely needed a different approach.
 
-**Completion detector** verifies that files actually changed before accepting "I'm done" from the agent. Prevents false completions where the AI says it finished but did not actually write anything. Ask me how I know this is needed.
+**Completion detector** verifies that files actually changed before accepting "I'm done" from the agent. Without this, the AI occasionally claims it finished without actually writing anything -- learned that one the hard way.
 
 **Cost tracker** runs in real time so you see what you are spending per iteration. Transparency matters when you are [running lots of loops](/blog/prompt-caching-saved-me-47-dollars).
 

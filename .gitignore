@@ -26,10 +26,7 @@ projects/
 refs/
 refs/*
 
-# Internal content (social media drafts, marketing plans)
+# Internal content (social media drafts, marketing plans, articles)
 docs/SEO_MARKETING_PLAN.md
+docs/articles/
 content/
-
-# Remotion social content
-social-content/out/
-social-content/node_modules/

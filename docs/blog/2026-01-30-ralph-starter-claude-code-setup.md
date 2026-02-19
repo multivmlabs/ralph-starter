@@ -30,7 +30,7 @@ $ ralph-starter --version
 ralph-starter 0.6.2
 ```
 
-Both work? Good. Let's go.
+If both work, you are ready.
 
 ## Init
 
@@ -71,7 +71,7 @@ validation:
 
 ## First task
 
-Here is where it gets fun. Pick something small for your first run:
+Pick something small for your first run:
 
 ```bash
 $ ralph-starter run "add a health check endpoint at /api/health" --loops 3 --test --commit
@@ -93,7 +93,7 @@ After loop 1 your context gets cached. Loops 2, 3, 4 reuse that cache at 90% les
 
 ## Auto PRs from GitHub
 
-This is where I got really hooked. You can go straight from a GitHub issue to a PR:
+You can also go straight from a GitHub issue to a PR:
 
 ```bash
 $ gh auth login
@@ -120,7 +120,7 @@ Creates branch, runs loops, commits, pushes, opens PR. For multiple issues at on
 ralph-starter auto --source github --project myorg/myrepo --label "auto-ready" --limit 5
 ```
 
-I label issues "auto-ready" when they have clear specs and [run this once or twice a week](/blog/automating-entire-workflows). You would not believe how much time this saves.
+I label issues "auto-ready" when they have clear specs and [run this once or twice a week](/blog/automating-entire-workflows).
 
 ## One thing that made a big difference
 

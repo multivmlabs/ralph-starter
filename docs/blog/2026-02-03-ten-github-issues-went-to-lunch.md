@@ -124,23 +124,22 @@ Loop completed!
 
 8 minutes. 69 cents. A full landing page with React components, Tailwind styling, and responsive layout. I did not open the editor at all.
 
-## Token costs and how to keep them low
+## What it actually costs
 
-This is something people always ask me about. Here are my real numbers.
+I personally use the Claude Max Plan, so my per-task cost is effectively zero on top of the monthly subscription. But ralph-starter tracks token usage either way, and for users on pay-per-token plans the numbers are worth knowing.
 
-I tracked my entire January. 187 tasks completed. $22.41 total. Average of **$0.12 per task**.
+On the Anthropic API, a typical task runs **$0.10 to $0.40**. The reason it stays low is prompt caching. The first loop sends the full context at $3.00 per million input tokens. Loops 2, 3, 4 reuse the cached portion at $0.30 per million — 90% less. Most tasks finish in 2 to 3 loops, so the bulk of the input is already cached after the first one. I wrote the detailed breakdown with exact numbers [here](/blog/prompt-caching-saved-me-47-dollars).
 
-The reason it is cheap is prompt caching. When using Claude Code, the first loop sends the full context at $3.00 per million input tokens. But loops 2, 3, 4 reuse the cached tokens at $0.30 per million. That is 90% less.
+You are not locked into Claude either. ralph-starter supports **OpenRouter**, which gives you access to cheaper models like **Kimi K2**, **MiniMax**, **DeepSeek**, and others. Some of these cost a fraction of what Claude or GPT-4 charge per token, and they work well for straightforward tasks. You can mix and match — use Claude Code for complex multi-file changes and a cheaper model for simple fixes.
 
-Before each run, ralph-starter shows you an estimate so you know what to expect. After each run it shows the actual cost breakdown: tokens in, tokens out, cache hits, cost per iteration. No surprises. You always know what you are spending.
+Before each run, ralph-starter shows you an estimate so you know what to expect, and after each run it shows the actual cost breakdown: tokens in, tokens out, cache hits, cost per iteration.
 
-Most tasks finish in 2 to 3 loops. After the first loop, most of the input is already cached. I wrote the detailed breakdown with exact numbers [here](/blog/prompt-caching-saved-me-47-dollars).
-
-A few things that help keep costs down:
+A few things that help keep costs down regardless of which model you use:
 - **Good specs** mean fewer loops. Clear acceptance criteria = agent knows when it is done.
-- **Prompt caching** saves 90% on input tokens after the first loop.
+- **Prompt caching** saves 90% on input tokens after the first loop (on models that support it).
 - **Circuit breaker** stops tasks that are stuck, so you do not burn money on something unsolvable.
 - **Skills** teach the agent patterns so it gets things right faster (fewer iterations = less cost).
+- **OpenRouter** lets you pick the cheapest model that can handle each task.
 
 ## Batch mode: 10 issues, 8 PRs
 
@@ -204,7 +203,7 @@ I did a [side-by-side comparison](/blog/ralph-starter-vs-manual) of 12 tasks fro
 
 Now I spend my time on three things: writing clear specs (the input), reviewing PRs (the output), and architecture decisions (the part the AI cannot do). Everything in between, the mechanical translation of spec to code, ralph-starter handles that.
 
-Every PR it produces passes tests, lint, and build. Every one. When I code manually I sometimes skip tests for small changes. The validation loop does not let the agent skip anything and honestly that discipline is better than what I do on my own.
+Every PR it produces passes tests, lint, and build. When I code manually I sometimes skip tests for small changes -- the validation loop does not let the agent skip anything, and honestly that discipline is better than what I do on my own.
 
 ## About the name
 

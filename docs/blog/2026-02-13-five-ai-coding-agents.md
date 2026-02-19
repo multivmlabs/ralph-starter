@@ -4,7 +4,7 @@ title: I tried 5 AI coding agents with ralph-starter
 authors: [ruben]
 tags: [ralph-starter, agents, claude-code, cursor, codex, comparison]
 description: I ran the same JWT auth task on Claude Code, Cursor, Codex CLI, and OpenCode. Real times, real costs, real results.
-image: /img/ralph/5.jpg
+image: /img/blog/ai-agents-comparison.png
 ---
 
 ralph-starter works with multiple coding agents. I use Claude Code for basically everything, but I wanted to actually test the others on real tasks instead of just assuming. So I ran the same task on Claude Code, Cursor, Codex CLI, and OpenCode over the past few weeks. Some surprises, some not.
@@ -76,9 +76,9 @@ The newest one, and it supports `--auto` for autonomous mode. I'll be real: it's
 
 `npm i -g opencode`
 
-## Here's the thing though
+## What actually matters
 
-After running all these comparisons, the honest truth is: the validation pipeline matters way more than which agent you pick. Tests, lint, build -- those catch mistakes regardless of who wrote the code. A weaker agent that iterates 5 times with test feedback produces better code than a strong agent running once with no tests. Every time. The loop is the product, not the agent. That's the whole [Ralph Wiggum technique](/blog/ralph-wiggum-technique).
+After running all these comparisons, the validation pipeline matters way more than which agent you pick. Tests, lint, build -- those catch mistakes regardless of who wrote the code. A weaker agent that iterates 5 times with test feedback produces better code than a strong agent running once with no tests. The loop is the product, not the agent. That is the whole [Ralph Wiggum technique](/blog/ralph-wiggum-technique).
 
 My actual config:
 
