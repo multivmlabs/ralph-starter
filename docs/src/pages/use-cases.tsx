@@ -26,7 +26,7 @@ const useCases: UseCase[] = [
       'Components are generated with proper TypeScript types',
       'Styling is applied using your preferred CSS solution',
     ],
-    command: 'ralph-starter run --figma "https://figma.com/file/..."',
+    command: 'ralph-starter run --from figma --project "https://figma.com/file/..."',
     docsLink: '/docs/sources/figma',
   },
   {
@@ -40,7 +40,7 @@ const useCases: UseCase[] = [
       'AI analyzes requirements and plans implementation',
       'Code is generated, tested, and optionally committed',
     ],
-    command: 'ralph-starter run --github "owner/repo#123"',
+    command: 'ralph-starter run --from github --project owner/repo --issue 123',
     docsLink: '/docs/sources/github',
   },
   {
@@ -54,7 +54,7 @@ const useCases: UseCase[] = [
       'ralph-starter reads ticket details and sub-issues',
       'Implementation follows your project patterns',
     ],
-    command: 'ralph-starter run --linear "ISSUE-123"',
+    command: 'ralph-starter run --from linear --project ENG --issue ENG-123',
     docsLink: '/docs/sources/linear',
   },
   {
@@ -68,7 +68,7 @@ const useCases: UseCase[] = [
       'ralph-starter parses the structured content',
       'Features are built according to your specification',
     ],
-    command: 'ralph-starter run --notion "page-id"',
+    command: 'ralph-starter run --from notion --project "page-id"',
     docsLink: '/docs/sources/notion',
   },
 ];

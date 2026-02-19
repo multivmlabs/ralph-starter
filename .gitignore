@@ -25,3 +25,8 @@ projects/
 
 refs/
 refs/*
+
+# Internal content (social media drafts, marketing plans, articles)
+docs/SEO_MARKETING_PLAN.md
+docs/articles/
+content/

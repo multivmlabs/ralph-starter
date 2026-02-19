@@ -1,6 +1,10 @@
 import { themes as prismThemes } from 'prism-react-renderer';
 import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const { version } = require('../package.json');
 
 const siteUrl = 'https://ralphstarter.ai';
 
@@ -27,12 +31,8 @@ const config: Config = {
   markdown: {
     hooks: {
       onBrokenMarkdownLinks: 'warn',
+      onBrokenMarkdownImages: 'warn',
     },
-  },
-
-  i18n: {
-    defaultLocale: 'en',
-    locales: ['en'],
   },
 
   // SEO metadata and structured data for AEO
@@ -238,7 +238,12 @@ const config: Config = {
           editUrl: 'https://github.com/multivmlabs/ralph-starter/tree/main/docs/',
           routeBasePath: 'docs',
         },
-        blog: false, // Disabled for now
+        blog: {
+          showReadingTime: true,
+          editUrl: 'https://github.com/multivmlabs/ralph-starter/tree/main/docs/',
+          blogSidebarCount: 0,
+          postsPerPage: 'ALL',
+        },
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -308,6 +313,11 @@ const config: Config = {
           position: 'left',
         },
         {
+          to: '/blog',
+          label: 'Blog',
+          position: 'left',
+        },
+        {
           type: 'html',
           position: 'right',
           value: '<a href="https://www.npmjs.com/package/ralph-starter" target="_blank" rel="noopener noreferrer" class="navbar__badge-link"><img src="https://img.shields.io/npm/dm/ralph-starter?style=for-the-badge&colorA=08080A&colorB=28282E&label=downloads&logo=npm&logoColor=CB3837" alt="npm downloads" height="28" /></a>',
@@ -328,6 +338,7 @@ const config: Config = {
             { label: 'Getting Started', to: '/docs/intro' },
             { label: 'CLI Reference', to: '/docs/cli/run' },
             { label: 'Integrations', to: '/docs/sources/overview' },
+            { label: 'Blog', to: '/blog' },
           ],
         },
         {
@@ -347,7 +358,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `<div class="footer__logos"><a href="/" class="footer__logo-link"><img src="/img/favicon-96x96.png" alt="ralph-starter" height="28" /></a><span class="footer__logo-separator">&</span><a href="https://multivmlabs.com" target="_blank" rel="noopener noreferrer" class="footer__logo-link"><img src="/img/multivm-logo.png" alt="MultiVM Labs" height="28" /></a></div><div class="footer__copyright-text">v0.1.1-beta.16 · vibecoded with love ❤️ by <a href="https://github.com/rubenmarcus" target="_blank" rel="noopener noreferrer">rubenmarcus</a></div>`,
+      copyright: `<div class="footer__logos"><a href="/" class="footer__logo-link"><img src="/img/favicon-96x96.png" alt="ralph-starter" height="28" /></a><span class="footer__logo-separator">&</span><a href="https://multivmlabs.com" target="_blank" rel="noopener noreferrer" class="footer__logo-link"><img src="/img/multivm-logo.png" alt="MultiVM Labs" height="28" /></a></div><div class="footer__copyright-text">v${version} · vibecoded with love ❤️ by <a href="https://github.com/rubenmarcus" target="_blank" rel="noopener noreferrer">rubenmarcus</a></div>`,
     },
     prism: {
       theme: prismThemes.dracula,

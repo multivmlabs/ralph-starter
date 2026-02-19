@@ -1,174 +1,142 @@
 ---
 slug: validation-driven-development
-title: "Validation-Driven Development: Let Your Tests Guide the AI"
-authors: [ralph]
+title: Let your tests guide the AI
+authors: [ruben]
 tags: [testing, validation, quality, best-practices]
+description: AI-generated code that looks perfect can blow up at runtime. Adding tests to the loop lets the agent catch and fix its own mistakes.
+image: /img/blog/specs-new-code.png
 ---
 
-# Validation-Driven Development: Let Your Tests Guide the AI
-
-AI can write code fast. But can it write *correct* code? The answer is yes—if you let your validation pipeline guide it.
+The first time I let an AI agent write code without running tests, it produced something that looked perfect. Clean code, nice comments, the works. Blew up at runtime. The second time, I added `--test` and the agent caught its own mistake and fixed it in the next loop. That's when I realized: the tests aren't just for me anymore. They're for the agent.
 
 <!-- truncate -->
 
-## The Quality Problem
+## How this actually works
 
-AI-generated code has a reputation: it looks right but breaks in subtle ways. Missing edge cases. Type errors. Failed tests. The usual response is manual review and iteration.
-
-But what if the AI could iterate itself?
-
-## Validation-Driven Loops
-
-ralph-starter runs your validation suite after every coding loop:
+So when you pass `--test` to ralph-starter, every loop ends with your test suite running. If something fails, the error output goes straight back into the agent's context. It reads the failure, figures out what it got wrong, and tries again. Basically your tests become the agent's to-do list.
 
 ```bash
-ralph-starter run "add payment processing" \
+ralph-starter run "add Stripe webhook handler" \
   --test \
   --lint \
-  --build \
   --loops 5
 ```
 
-Here's what happens:
+Here's what that actually looked like on a Stripe webhook handler I built last week:
 
 ```
-Loop 1: Implementing payment processing...
-  → Running tests... 2 failed
-  → Analyzing failures...
+Loop 1: Implementing webhook handler...
+  → Running tests...
+  FAIL src/webhooks/stripe.test.ts
+    x should verify webhook signature (8ms)
+      Error: No signatures found matching the expected signature for payload
 
-Loop 2: Fixing test failures...
-  → Running tests... passed
-  → Running linter... 3 issues
-  → Analyzing issues...
+  → 1 test failed. Feeding errors back to agent.
 
-Loop 3: Fixing lint issues...
+Loop 2: Fixing signature verification...
+  → Added raw body parsing middleware for webhook route
+  → Running tests...
+  PASS src/webhooks/stripe.test.ts
+    ✓ should verify webhook signature (12ms)
+    ✓ should handle checkout.session.completed (5ms)
+    ✓ should return 400 for unknown events (3ms)
+  → Running linter... 1 issue
+    src/webhooks/stripe.ts:14:7 - 'event' is defined but never used
+
+Loop 3: Removing unused variable...
   → Running tests... passed
   → Running linter... passed
-  → Running build... success
 
-✨ Completed in 3 loops
+Done in 3 loops.
 ```
 
-The AI doesn't just generate code—it iterates until validation passes.
+The thing that blew my mind: the agent saw `No signatures found matching the expected signature for payload` and just... knew it needed raw body parsing. I didn't tell it that. The test output was specific enough. That's the Stripe webhook gotcha that trips up every developer the first time, and the agent figured it out from the error message alone. Took me like 20 minutes of Googling when I first hit it myself.
 
-## Configure Your Validators
+## Your tests are basically the spec
 
-### Built-in Commands
+This flips the whole workflow on its head. Instead of describing what you want in a prompt and hoping the output is correct, you write tests that define correct behavior and let the agent figure out the implementation.
+
+If you already do TDD, this is basically what you've been training for. Write your tests first, then:
+
+```bash
+ralph-starter run "make the failing tests pass" --test --loops 5
+```
+
+Each failing test becomes a requirement, and when they all pass, the task is done.
+
+## Setting it up
+
+In your config file, just tell ralph-starter what to run:
 
 ```yaml
 # ralph.config.yaml
 validation:
-  test: "npm test"
-  lint: "npm run lint"
-  build: "npm run build"
+  test: "pnpm test"
+  lint: "pnpm lint"
+  build: "pnpm build"
 ```
 
-### Custom Validators
+Or pass them as flags:
+
+```bash
+ralph-starter run "fix the auth bug" \
+  --test "pytest -x" \
+  --lint "ruff check ."
+```
+
+That `-x` flag on pytest is a pro tip, by the way. It stops at the first failure, so the agent gets one focused error instead of a wall of 47 failures. Way more useful.
+
+## What I've learned about good validation setups
+
+**Fast tests matter a lot.** The agent runs your suite on every loop. If your tests take 10 minutes, a 5-loop run takes close to an hour. If they take 10 seconds, you're done in a few minutes. I learned this the hard way on a project with a 7-minute test suite. Now I usually point the agent at a subset:
+
+```bash
+ralph-starter run "fix payment processing" \
+  --test "pnpm test -- --testPathPattern=payment"
+```
+
+**Specific error messages make a huge difference.** Compare these two test failures:
+
+```
+# Bad: agent has to guess what went wrong
+AssertionError: expected false to be true
+```
+
+```
+# Good: agent knows exactly what to fix
+Expected status code 201 for POST /api/users
+Received status code 400 with body: {"error": "email is required"}
+```
+
+The first one forces the agent to guess. The second one tells it exactly what is missing. More information in your test output means fewer loops and less money.
+
+**Type checking is worth adding too.** It catches a totally different class of bugs. I add it as another validator:
 
 ```yaml
 validation:
-  test: "pytest -x"
-  lint: "ruff check ."
-  typecheck: "mypy ."
-  security: "bandit -r src/"
+  test: "pnpm test"
+  lint: "pnpm lint"
+  typecheck: "pnpm tsc --noEmit"
 ```
 
-### Per-Project Overrides
+Every validator runs after every loop, and the agent does not move on until all of them pass.
+
+## When to skip auto-commit
+
+I'll be honest, I don't always trust the agent enough to commit automatically. When I'm trying a new type of task, I run without `--commit` first so I can look at the diff:
 
 ```bash
-# Override for a single run
-ralph-starter run "fix the bug" \
-  --test "npm test -- --coverage" \
-  --lint "eslint --fix ."
-```
+ralph-starter run "add rate limiting" --test --lint --loops 5
 
-## Error Recovery
-
-When validation fails, ralph-starter:
-
-1. **Captures the error output**
-2. **Analyzes what went wrong**
-3. **Generates a fix in the next loop**
-4. **Re-runs validation**
-
-```
-Loop 2: Running tests...
-  FAIL src/payment.test.ts
-    ✕ should handle declined cards (15ms)
-      Expected: "DECLINED"
-      Received: undefined
-
-Loop 3: Fixing test failure...
-  → Added error handling for declined cards
-  → Running tests... passed
-```
-
-## Best Practices
-
-### 1. Start with Good Tests
-
-The better your test coverage, the better ralph-starter performs. Tests act as a specification the AI must satisfy.
-
-### 2. Use Strict Linting
-
-Strict linting catches issues early. Enable type checking, unused variable detection, and style enforcement.
-
-### 3. Set Appropriate Loop Limits
-
-```bash
-# Simple fixes: 2-3 loops
-ralph-starter run "fix typo in header" --loops 2
-
-# Complex features: 5-7 loops
-ralph-starter run "add OAuth integration" --loops 7
-
-# Exploratory: 10+ loops
-ralph-starter run "refactor auth system" --loops 10
-```
-
-### 4. Review the Diffs
-
-Even with validation, review the changes:
-
-```bash
-# Don't auto-commit—review first
-ralph-starter run "add feature" --test --lint
-
-# Check what changed
+# Review what the agent did
 git diff
 
-# Then commit manually
-git add . && git commit -m "feat: add feature"
+# Commit if it looks good
+git add -A && git commit -m "feat: add rate limiting"
 ```
 
-## The Feedback Loop
-
-Validation-driven development creates a tight feedback loop:
-
-```
-Spec → Generate → Validate → Fix → Validate → Ship
-```
-
-Each iteration improves the code. The AI learns from your test suite what "correct" means for your project.
-
-## Metrics That Matter
-
-Track your validation-driven development:
-
-```bash
-ralph-starter run "task" --verbose
-```
-
-```
-Summary:
-  Loops: 4
-  Test runs: 4 (2 failed, 2 passed)
-  Lint runs: 3 (1 failed, 2 passed)
-  Build runs: 2 (0 failed, 2 passed)
-  Total cost: $0.34
-  Time: 2m 15s
-```
+Once I trust the pattern for a given type of task, I add `--commit` and let it ship. That trust builds over time. Took me maybe a week before I stopped reviewing every diff.
 
 ---
 
-Ready to let your tests guide the AI? [Configure validation](/advanced/validation).
+Details on all the validation options are in the [validation config docs](/docs/advanced/validation).

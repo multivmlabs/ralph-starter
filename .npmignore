@@ -1,0 +1,9 @@
+# Source maps (not needed for CLI tool consumers)
+dist/**/*.js.map
+dist/**/*.d.ts.map
+
+# Dev/repo files
+docs/
+projects/
+.github/
+*.test.*
