@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
-## [0.3.1] - undefined
+## [0.3.1] - 2026-02-19
 
 ### Documentation & Blog
 - SEO-optimized blog posts with enriched content and proper og:image cards
