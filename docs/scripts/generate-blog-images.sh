@@ -97,66 +97,78 @@ generate_image_with_logo() {
 
 echo "Generating blog images with Ralph characters..."
 
+# Titles and subtitles must match the blog post frontmatter (title + description)
+
+generate_image "why-autonomous-coding" \
+  "Why autonomous AI coding loops work" \
+  "The loop itself was the problem, not the AI" \
+  "${IMG_DIR}/coder.png"
+
 generate_image "why-i-built-ralph-starter" \
-  "Why I Built ralph-starter" \
-  "The story behind autonomous AI coding loops" \
+  "Why I built ralph-starter" \
+  "I was copy-pasting between ChatGPT and my editor" \
   "${IMG_DIR}/coder.png"
 
 generate_image "first-ralph-loop" \
-  "My First Ralph Loop" \
-  "What happens when AI codes on repeat" \
+  "My first ralph loop" \
+  "What actually happens from start to PR" \
   "${IMG_DIR}/engineer.png"
+
+generate_image "validation-driven-dev" \
+  "Let your tests guide the AI" \
+  "Tests in the loop catch and fix mistakes" \
+  "${RALPH_DIR}/scientist.png"
 
 generate_image "claude-code-setup" \
   "ralph-starter + Claude Code" \
-  "The full setup guide" \
+  "Zero to your first automated PR" \
   "${IMG_DIR}/coder.png"
 
 generate_image_with_logo "figma-to-code" \
-  "Figma to Code in One Command" \
-  "Design specs to production components" \
+  "Figma to code in one command" \
+  "12-screen dashboard, 87 cents total" \
   "${RALPH_DIR}/scientist.png" \
   "${IMG_DIR}/figma-logo.svg"
 
 generate_image "auto-mode-github" \
-  "Automating Entire Workflows" \
+  "Automating entire workflows" \
   "From specs to PRs on autopilot" \
   "${RALPH_DIR}/astronaut-fly.png"
 
 generate_image_with_logo "linear-workflow" \
-  "Ship Linear Tasks with AI" \
-  "Daily workflow from tickets to PRs" \
+  "Ship Linear tasks with AI" \
+  "My daily workflow from tickets to PRs" \
   "${IMG_DIR}/engineer.png" \
   "${IMG_DIR}/linear.jpeg"
 
 generate_image "connect-your-tools" \
-  "From Spec to Code" \
-  "One command pulls specs from GitHub, Linear, Notion" \
+  "From spec to code in one command" \
+  "Pulls specs from GitHub, Linear, Notion" \
   "${IMG_DIR}/coder.png"
 
 generate_image "cost-tracking" \
-  "Prompt Caching Saved Me \$47" \
-  "Real cost breakdown of AI coding loops" \
+  "Prompt caching saved me \$47" \
+  "90% off input tokens after the first loop" \
   "${RALPH_DIR}/ralphwiggum.png"
 
 generate_image "specs-new-code" \
-  "Specs Are the New Code" \
-  "Why writing specs beats writing code" \
+  "Specs are the new code" \
+  "A clear spec gets you a working PR in 2 loops" \
   "${RALPH_DIR}/scientist.png"
 
 generate_image "ralph-wiggum-technique" \
-  "The Ralph Wiggum Technique" \
-  "Dumb loops, smart results" \
+  "The Ralph Wiggum technique" \
+  "AI coding agents in loops until done" \
   "${RALPH_DIR}/ralphwiggum.png"
 
 generate_image "ai-agents-comparison" \
-  "Five AI Coding Agents Compared" \
+  "5 AI coding agents compared" \
   "Claude Code, Cursor, Codex, OpenCode and more" \
   "${RALPH_DIR}/scientist.png"
 
 generate_image "vs-manual" \
-  "ralph-starter vs Manual" \
-  "One week, 12 tasks, real numbers" \
+  "ralph-starter vs manual" \
+  "6 tasks manual, 6 with ralph-starter" \
   "${IMG_DIR}/engineer.png"
 
-echo "Done! Generated 12 blog images in ${OUT_DIR}"
+echo "Done! Generated 14 blog images in ${OUT_DIR}"

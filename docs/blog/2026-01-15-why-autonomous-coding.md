@@ -4,7 +4,7 @@ title: Why autonomous AI coding loops work
 authors: [ruben]
 tags: [ai, coding, automation]
 description: I spent months copy-pasting between ChatGPT and my editor before I realized the loop itself was the problem, not the AI.
-image: /img/blog/ralph-wiggum-technique.png
+image: /img/blog/why-autonomous-coding.png
 ---
 
 I spent months copy-pasting code between ChatGPT and my editor before I realized I was the bottleneck.

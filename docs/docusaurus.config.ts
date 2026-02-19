@@ -325,7 +325,7 @@ const config: Config = {
         {
           type: 'html',
           position: 'right',
-          value: '<a href="https://github.com/multivmlabs/ralph-starter" target="_blank" rel="noopener noreferrer" class="navbar__badge-link"><img src="https://img.shields.io/github/stars/multivmlabs/ralph-starter?style=for-the-badge&colorA=08080A&colorB=28282E&label=stars&logo=github&logoColor=white" alt="GitHub stars" height="28" /></a>',
+          value: '<a href="https://github.com/multivmlabs/ralph-starter" target="_blank" rel="noopener noreferrer" class="navbar__badge-link"><img src="https://img.shields.io/github/stars/multivmlabs/ralph-starter?style=for-the-badge&logo=github&logoColor=white&label=stars&color=28282E" alt="GitHub stars" height="28" /></a>',
         },
       ],
     },
@@ -358,7 +358,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `<div class="footer__logos"><a href="/" class="footer__logo-link"><img src="/img/favicon-96x96.png" alt="ralph-starter" height="28" /></a><span class="footer__logo-separator">&</span><a href="https://multivmlabs.com" target="_blank" rel="noopener noreferrer" class="footer__logo-link"><img src="/img/multivm-logo.png" alt="MultiVM Labs" height="28" /></a></div><div class="footer__copyright-text">v${version} · vibecoded with love ❤️ by <a href="https://github.com/rubenmarcus" target="_blank" rel="noopener noreferrer">rubenmarcus</a></div>`,
+      copyright: `<div class="footer__logos"><a href="/" class="footer__logo-link"><img src="/img/favicon-96x96.png" alt="ralph-starter" height="28" /></a><span class="footer__logo-separator">&</span><a href="https://multivmlabs.com" target="_blank" rel="noopener noreferrer" class="footer__logo-link"><img src="/img/multivm-logo.png" alt="MultiVM Labs" height="28" /></a></div><div class="footer__badge"><a href="/badge" class="footer__badge-link"><img src="/img/badge-built-with.png" srcset="/img/badge-built-with@2x.png 2x" alt="built with ralph-starter" height="28" /></a></div><div class="footer__copyright-text">v${version} · vibecoded with love ❤️ by <a href="https://github.com/rubenmarcus" target="_blank" rel="noopener noreferrer">rubenmarcus</a></div>`,
     },
     prism: {
       theme: prismThemes.dracula,

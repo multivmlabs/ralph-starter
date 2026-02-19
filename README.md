@@ -3,6 +3,10 @@
 </p>
 
 <p align="center">
+  <a href="https://ralphstarter.ai/badge"><img src="https://ralphstarter.ai/img/badge-built-with@2x.png" alt="built with ralph-starter" height="28"></a>
+</p>
+
+<p align="center">
   <a href="https://www.npmjs.com/package/ralph-starter"><img src="https://img.shields.io/npm/v/ralph-starter.svg?style=flat-square" alt="npm version"></a>
   <a href="https://www.npmjs.com/package/ralph-starter"><img src="https://img.shields.io/npm/dm/ralph-starter.svg?style=flat-square" alt="npm downloads"></a>
   <a href="https://github.com/multivmlabs/ralph-starter/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/ralph-starter.svg?style=flat-square" alt="license"></a>
@@ -733,6 +737,18 @@ Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 - **Project templates**: [ralph-templates](https://github.com/multivmlabs/ralph-templates)
 
 For creating custom integrations, agents, or using the programmatic API, see the [Developer Extension Guide](https://ralphstarter.ai/docs/guides/extending-ralph-starter).
+
+## Badge
+
+Using ralph-starter? Add the badge to your README:
+
+[![built with ralph-starter](https://ralphstarter.ai/img/badge-built-with@2x.png)](https://github.com/multivmlabs/ralph-starter)
+
+```markdown
+[![built with ralph-starter](https://ralphstarter.ai/img/badge-built-with@2x.png)](https://github.com/multivmlabs/ralph-starter)
+```
+
+More styles available at [ralphstarter.ai/badge](https://ralphstarter.ai/badge).
 
 ## License
 

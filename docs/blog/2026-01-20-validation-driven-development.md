@@ -4,7 +4,7 @@ title: Let your tests guide the AI
 authors: [ruben]
 tags: [testing, validation, quality, best-practices]
 description: AI-generated code that looks perfect can blow up at runtime. Adding tests to the loop lets the agent catch and fix its own mistakes.
-image: /img/blog/specs-new-code.png
+image: /img/blog/validation-driven-dev.png
 ---
 
 The first time I let an AI agent write code without running tests, it produced something that looked perfect. Clean code, nice comments, the works. Blew up at runtime. The second time, I added `--test` and the agent caught its own mistake and fixed it in the next loop. That's when I realized: the tests aren't just for me anymore. They're for the agent.
