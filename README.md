@@ -734,6 +734,18 @@ Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 For creating custom integrations, agents, or using the programmatic API, see the [Developer Extension Guide](https://ralphstarter.ai/docs/guides/extending-ralph-starter).
 
+## Badge
+
+Using ralph-starter? Add the badge to your README:
+
+[![built with ralph-starter](https://ralphstarter.ai/img/badge-built-with@2x.png)](https://github.com/multivmlabs/ralph-starter)
+
+```markdown
+[![built with ralph-starter](https://ralphstarter.ai/img/badge-built-with@2x.png)](https://github.com/multivmlabs/ralph-starter)
+```
+
+More styles available at [ralphstarter.ai/badge](https://ralphstarter.ai/badge).
+
 ## License
 
 MIT

@@ -432,6 +432,22 @@ body::before {
   color: var(--quantum-steel);
 }
 
+.footer__badge {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-md);
+}
+
+.footer__badge-link {
+  display: inline-flex;
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+}
+
+.footer__badge-link:hover {
+  opacity: 1;
+}
+
 .footer__copyright-text {
   margin-top: 0;
 }
