@@ -325,7 +325,7 @@ const config: Config = {
         {
           type: 'html',
           position: 'right',
-          value: '<a href="https://github.com/multivmlabs/ralph-starter" target="_blank" rel="noopener noreferrer" class="navbar__badge-link"><img src="https://img.shields.io/github/stars/multivmlabs/ralph-starter?style=for-the-badge&colorA=08080A&colorB=28282E&label=stars&logo=github&logoColor=white" alt="GitHub stars" height="28" /></a>',
+          value: '<a href="https://github.com/multivmlabs/ralph-starter" target="_blank" rel="noopener noreferrer" class="navbar__badge-link"><img src="/img/badge-built-with.png" srcset="/img/badge-built-with@2x.png 2x" alt="built with ralph-starter" height="28" /></a>',
         },
       ],
     },
