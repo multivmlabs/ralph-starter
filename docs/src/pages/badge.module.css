@@ -37,11 +37,6 @@
   width: auto;
 }
 
-.badgeImgFlat {
-  height: auto;
-  width: auto;
-}
-
 .options {
   display: flex;
   flex-direction: column;
