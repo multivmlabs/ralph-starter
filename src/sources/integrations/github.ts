@@ -141,6 +141,8 @@ export class GitHubSource extends IntegrationSource {
       args.push('--limit', '20');
     }
 
+    args.push('--sort', 'created', '--order', 'asc');
+
     const result = await execa('gh', args);
     const issues = JSON.parse(result.stdout) as GitHubIssue[];
 
@@ -160,6 +162,8 @@ export class GitHubSource extends IntegrationSource {
 
     params.set('state', options?.status || 'open');
     params.set('per_page', String(options?.limit || 20));
+    params.set('sort', 'created');
+    params.set('direction', 'asc');
 
     if (options?.label) {
       params.set('labels', options.label);
