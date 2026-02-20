@@ -10,6 +10,11 @@ import { execa } from 'execa';
 
 const mockExeca = vi.mocked(execa);
 
+/** Wrap issues in search API response format */
+function searchResponse(items: unknown[]) {
+  return JSON.stringify({ items });
+}
+
 describe('GitHubSource', () => {
   let source: GitHubSource;
 
@@ -63,7 +68,7 @@ describe('GitHubSource', () => {
         ];
 
         mockExeca.mockResolvedValueOnce({
-          stdout: JSON.stringify(mockIssues),
+          stdout: searchResponse(mockIssues),
           exitCode: 0,
         } as any);
 
@@ -76,60 +81,60 @@ describe('GitHubSource', () => {
 
       it('should parse full GitHub URLs', async () => {
         mockExeca.mockResolvedValueOnce({
-          stdout: '[]',
+          stdout: searchResponse([]),
           exitCode: 0,
         } as any);
 
         await source.fetch('https://github.com/facebook/react');
 
-        expect(mockExeca).toHaveBeenLastCalledWith(
-          'gh',
-          expect.arrayContaining(['-R', 'facebook/react'])
-        );
+        expect(mockExeca).toHaveBeenLastCalledWith('gh', [
+          'api',
+          expect.stringContaining('repo%3Afacebook%2Freact'),
+        ]);
       });
 
       it('should apply label filter', async () => {
         mockExeca.mockResolvedValueOnce({
-          stdout: '[]',
+          stdout: searchResponse([]),
           exitCode: 0,
         } as any);
 
         await source.fetch('owner/repo', { label: 'bug' });
 
-        expect(mockExeca).toHaveBeenLastCalledWith(
-          'gh',
-          expect.arrayContaining(['--label', 'bug'])
-        );
+        expect(mockExeca).toHaveBeenLastCalledWith('gh', ['api', expect.stringContaining('label')]);
       });
 
       it('should apply status filter', async () => {
         mockExeca.mockResolvedValueOnce({
-          stdout: '[]',
+          stdout: searchResponse([]),
           exitCode: 0,
         } as any);
 
         await source.fetch('owner/repo', { status: 'closed' });
 
-        expect(mockExeca).toHaveBeenLastCalledWith(
-          'gh',
-          expect.arrayContaining(['--state', 'closed'])
-        );
+        expect(mockExeca).toHaveBeenLastCalledWith('gh', [
+          'api',
+          expect.stringContaining('state%3Aclosed'),
+        ]);
       });
 
       it('should apply limit', async () => {
         mockExeca.mockResolvedValueOnce({
-          stdout: '[]',
+          stdout: searchResponse([]),
           exitCode: 0,
         } as any);
 
         await source.fetch('owner/repo', { limit: 5 });
 
-        expect(mockExeca).toHaveBeenLastCalledWith('gh', expect.arrayContaining(['--limit', '5']));
+        expect(mockExeca).toHaveBeenLastCalledWith('gh', [
+          'api',
+          expect.stringContaining('per_page=5'),
+        ]);
       });
 
       it('should handle empty issues response', async () => {
         mockExeca.mockResolvedValueOnce({
-          stdout: '[]',
+          stdout: searchResponse([]),
           exitCode: 0,
         } as any);
 
@@ -146,7 +151,7 @@ describe('GitHubSource', () => {
         ];
 
         mockExeca.mockResolvedValueOnce({
-          stdout: JSON.stringify(mockIssues),
+          stdout: searchResponse(mockIssues),
           exitCode: 0,
         } as any);
 
@@ -169,7 +174,7 @@ describe('GitHubSource', () => {
         ];
 
         mockExeca.mockResolvedValueOnce({
-          stdout: JSON.stringify(mockIssues),
+          stdout: searchResponse(mockIssues),
           exitCode: 0,
         } as any);
 
@@ -182,7 +187,7 @@ describe('GitHubSource', () => {
         const mockIssues = [{ number: 1, title: 'No body', state: 'open', labels: [] }];
 
         mockExeca.mockResolvedValueOnce({
-          stdout: JSON.stringify(mockIssues),
+          stdout: searchResponse(mockIssues),
           exitCode: 0,
         } as any);
 

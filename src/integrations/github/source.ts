@@ -86,36 +86,23 @@ export class GitHubIntegration extends BaseIntegration {
   ): Promise<IntegrationResult> {
     const { execa } = await import('execa');
 
-    const args = [
-      'issue',
-      'list',
-      '-R',
-      `${owner}/${repo}`,
-      '--json',
-      'number,title,body,labels,state',
-    ];
-
-    // Add filters
+    // Use search API so is:issue excludes PRs server-side before sort and per_page limit
+    const qualifiers = [`repo:${owner}/${repo}`, 'is:issue', `state:${options?.status || 'open'}`];
     if (options?.label) {
-      args.push('--label', options.label);
+      qualifiers.push(`label:"${options.label}"`);
     }
 
-    if (options?.status) {
-      args.push('--state', options.status);
-    } else {
-      args.push('--state', 'open');
-    }
+    const params = new URLSearchParams();
+    params.set('q', qualifiers.join(' '));
+    params.set('sort', 'created');
+    params.set('order', 'asc');
+    params.set('per_page', String(options?.limit || 20));
 
-    if (options?.limit) {
-      args.push('--limit', String(options.limit));
-    } else {
-      args.push('--limit', '20');
-    }
+    const endpoint = `search/issues?${params.toString()}`;
+    const result = await execa('gh', ['api', endpoint]);
+    const response = JSON.parse(result.stdout) as { items: GitHubIssue[] };
 
-    const result = await execa('gh', args);
-    const issues = JSON.parse(result.stdout) as GitHubIssue[];
-
-    return this.formatIssues(issues, owner, repo);
+    return this.formatIssues(response.items, owner, repo);
   }
 
   private async fetchViaApi(
@@ -125,17 +112,19 @@ export class GitHubIntegration extends BaseIntegration {
   ): Promise<IntegrationResult> {
     const token = await this.getApiKey('token');
 
-    let url = `https://api.github.com/repos/${owner}/${repo}/issues?`;
-    const params = new URLSearchParams();
-
-    params.set('state', options?.status || 'open');
-    params.set('per_page', String(options?.limit || 20));
-
+    // Use search API so is:issue excludes PRs server-side before sort and per_page limit
+    const qualifiers = [`repo:${owner}/${repo}`, 'is:issue', `state:${options?.status || 'open'}`];
     if (options?.label) {
-      params.set('labels', options.label);
+      qualifiers.push(`label:"${options.label}"`);
     }
 
-    url += params.toString();
+    const params = new URLSearchParams();
+    params.set('q', qualifiers.join(' '));
+    params.set('sort', 'created');
+    params.set('order', 'asc');
+    params.set('per_page', String(options?.limit || 20));
+
+    const url = `https://api.github.com/search/issues?${params.toString()}`;
 
     const response = await fetch(url, {
       headers: {
@@ -150,14 +139,11 @@ export class GitHubIntegration extends BaseIntegration {
       if (response.status === 401) {
         this.error('Invalid GitHub token. Run: ralph-starter config set github.token <value>');
       }
-      if (response.status === 404) {
-        this.error(`Repository not found: ${owner}/${repo}`);
-      }
       this.error(`GitHub API error: ${response.status} ${response.statusText}`);
     }
 
-    const issues = (await response.json()) as GitHubIssue[];
-    return this.formatIssues(issues, owner, repo);
+    const data = (await response.json()) as { items: GitHubIssue[] };
+    return this.formatIssues(data.items, owner, repo);
   }
 
   private formatIssues(issues: GitHubIssue[], owner: string, repo: string): IntegrationResult {
