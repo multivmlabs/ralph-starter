@@ -16,6 +16,7 @@ import { runCommand } from './commands/run.js';
 import { setupCommand } from './commands/setup.js';
 import { skillCommand } from './commands/skill.js';
 import { sourceCommand } from './commands/source.js';
+import { taskCommand } from './commands/task.js';
 import { templateCommand } from './commands/template.js';
 import { startMcpServer } from './mcp/server.js';
 import { formatPresetsHelp, getPresetNames } from './presets/index.js';
@@ -61,7 +62,7 @@ program
   .option('--docker', 'Run in Docker sandbox (coming soon)')
   .option('--prd <file>', 'Read tasks from a PRD markdown file')
   .option('--max-iterations <n>', 'Maximum loop iterations (auto-calculated if not specified)')
-  .option('--agent <name>', 'Specify agent (claude-code, cursor, codex, opencode)')
+  .option('--agent <name>', 'Specify agent (claude-code, cursor, codex, opencode, openclaw)')
   .option('--from <source>', 'Fetch spec from source (file, url, github, todoist, linear, notion)')
   .option('--project <name>', 'Project/repo name for --from integrations')
   .option('--label <name>', 'Label filter for --from integrations')
@@ -275,6 +276,24 @@ program
     });
   });
 
+// ralph-starter task - Manage tasks across GitHub and Linear
+program
+  .command('task [action] [args...]')
+  .description('Manage tasks across GitHub and Linear (list, create, update, close, comment)')
+  .option('--source <source>', 'Source: github, linear, or all (default: all)')
+  .option('--project <name>', 'Project filter (owner/repo for GitHub, team name for Linear)')
+  .option('--label <name>', 'Filter by label')
+  .option('--status <status>', 'Filter by status or set status on update')
+  .option('--limit <n>', 'Max tasks to fetch (default: 50)', '50')
+  .option('--title <title>', 'Task title (for create)')
+  .option('--body <body>', 'Task description (for create)')
+  .option('--priority <p>', 'Priority: P0, P1, P2, P3')
+  .option('--comment <text>', 'Comment text (for close/update)')
+  .option('--assignee <name>', 'Assign to team member (GitHub username or Linear display name)')
+  .action(async (action: string | undefined, args: string[], options) => {
+    await taskCommand(action, args, options);
+  });
+
 // ralph-starter pause - Pause a running session
 program
   .command('pause')
@@ -324,7 +343,7 @@ program
   .option('--pr', 'Create a pull request when done')
   .option('--validate', 'Run tests/lint/build after each iteration')
   .option('--max-iterations <n>', 'Maximum loop iterations')
-  .option('--agent <name>', 'Specify agent (claude-code, cursor, codex, opencode)')
+  .option('--agent <name>', 'Specify agent (claude-code, cursor, codex, opencode, openclaw)')
   .action(async (action: string | undefined, args: string[], options) => {
     await templateCommand(action, args, options);
   });

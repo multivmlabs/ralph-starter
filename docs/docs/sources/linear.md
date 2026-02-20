@@ -136,6 +136,31 @@ Create these labels in Linear:
 2. Add comments with build progress
 3. Close issues when build succeeds
 
+## Task Management
+
+Beyond fetching specs, you can create, update, close, and assign Linear issues from the CLI:
+
+```bash
+# List issues from Linear
+ralph-starter task list --source linear
+
+# Create an issue on a specific team
+ralph-starter task create --title "Add dark mode" --source linear --priority P1
+
+# Assign an issue (resolves display name to user ID automatically)
+ralph-starter task update ENG-42 --assignee ruben
+
+# Update status
+ralph-starter task update ENG-42 --status "In Progress"
+
+# Close an issue
+ralph-starter task close ENG-42 --comment "Shipped in v1.2"
+```
+
+Assignee resolution is case-insensitive and matches against display name, full name, and email prefix. If no match is found, ralph-starter shows available team members.
+
+See [`ralph-starter task`](/docs/cli/task) for full details.
+
 ## Tips
 
 1. **Write detailed issues** - Linear's rich markdown support is perfect for detailed specs

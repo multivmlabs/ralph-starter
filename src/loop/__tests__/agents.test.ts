@@ -86,11 +86,12 @@ describe('agents', () => {
         .mockResolvedValueOnce({ stdout: '1.0.0', exitCode: 0 } as any) // claude-code
         .mockRejectedValueOnce(new Error('not found')) // cursor
         .mockRejectedValueOnce(new Error('not found')) // codex
-        .mockRejectedValueOnce(new Error('not found')); // opencode
+        .mockRejectedValueOnce(new Error('not found')) // opencode
+        .mockRejectedValueOnce(new Error('not found')); // openclaw
 
       const agents = await detectAvailableAgents();
 
-      expect(agents).toHaveLength(4);
+      expect(agents).toHaveLength(5);
       expect(agents.find((a) => a.type === 'claude-code')?.available).toBe(true);
       expect(agents.find((a) => a.type === 'cursor')?.available).toBe(false);
     });

@@ -175,6 +175,26 @@ Verify your authentication:
 ralph-starter source test github
 ```
 
+## Task Management
+
+Beyond fetching specs, you can create, update, and close GitHub issues directly from the CLI:
+
+```bash
+# List open issues
+ralph-starter task list --source github --project owner/repo
+
+# Create an issue
+ralph-starter task create --title "Add dark mode" --project owner/repo --assignee octocat
+
+# Update an issue
+ralph-starter task update #42 --assignee octocat --project owner/repo
+
+# Close an issue
+ralph-starter task close #42 --comment "Fixed in PR #100" --project owner/repo
+```
+
+See [`ralph-starter task`](/docs/cli/task) for full details.
+
 ## Tips
 
 1. **Use labels effectively** - Create a "ready-to-build" or "ralph" label for issues that are well-specified

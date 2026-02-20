@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import chalk from 'chalk';
 import { execa } from 'execa';
 
-export type AgentType = 'claude-code' | 'cursor' | 'codex' | 'opencode' | 'unknown';
+export type AgentType = 'claude-code' | 'cursor' | 'codex' | 'opencode' | 'openclaw' | 'unknown';
 
 export interface Agent {
   type: AgentType;
@@ -47,6 +47,11 @@ const AGENTS: Record<AgentType, { name: string; command: string; checkCmd: strin
     command: 'opencode',
     checkCmd: ['opencode', '--version'],
   },
+  openclaw: {
+    name: 'OpenClaw',
+    command: 'openclaw',
+    checkCmd: ['openclaw', '--version'],
+  },
   unknown: {
     name: 'Unknown',
     command: '',
@@ -89,7 +94,7 @@ export async function detectBestAgent(): Promise<Agent | null> {
   if (available.length === 0) return null;
 
   // Prefer Claude Code, then others
-  const preferred = ['claude-code', 'cursor', 'codex', 'opencode'];
+  const preferred = ['claude-code', 'cursor', 'codex', 'opencode', 'openclaw'];
   for (const type of preferred) {
     const agent = available.find((a) => a.type === type);
     if (agent) return agent;
@@ -136,6 +141,13 @@ export async function runAgent(
       args.push('-p', options.task);
       if (options.auto) {
         args.push('--auto');
+      }
+      break;
+
+    case 'openclaw':
+      args.push('agent', '--message', options.task);
+      if (options.timeoutMs) {
+        args.push('--timeout', String(Math.floor(options.timeoutMs / 1000)));
       }
       break;
 
