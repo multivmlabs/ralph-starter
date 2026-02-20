@@ -77,6 +77,10 @@ async function fetchGitHubTasks(options: BatchFetchOptions): Promise<BatchTask[]
     options.status || 'open',
     '--limit',
     String(options.limit || 10),
+    '--sort',
+    'created',
+    '--order',
+    'asc',
   ];
 
   if (options.label) {
