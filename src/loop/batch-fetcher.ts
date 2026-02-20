@@ -66,31 +66,31 @@ async function fetchGitHubTasks(options: BatchFetchOptions): Promise<BatchTask[]
     throw new Error('Project (owner/repo) is required for GitHub');
   }
 
-  // Use gh api directly so sort=created&direction=asc is applied server-side before per_page limit
-  const params = new URLSearchParams();
-  params.set('state', options.status || 'open');
-  params.set('sort', 'created');
-  params.set('direction', 'asc');
-  params.set('per_page', String(options.limit || 10));
+  // Use search API so is:issue excludes PRs server-side before sort and per_page limit
+  const qualifiers = [`repo:${options.project}`, 'is:issue', `state:${options.status || 'open'}`];
   if (options.label) {
-    params.set('labels', options.label);
+    qualifiers.push(`label:"${options.label}"`);
   }
 
-  const endpoint = `repos/${options.project}/issues?${params.toString()}`;
+  const params = new URLSearchParams();
+  params.set('q', qualifiers.join(' '));
+  params.set('sort', 'created');
+  params.set('order', 'asc');
+  params.set('per_page', String(options.limit || 10));
+
+  const endpoint = `search/issues?${params.toString()}`;
   const result = await execa('gh', ['api', endpoint]);
-  const items = JSON.parse(result.stdout) as Array<{
-    number: number;
-    title: string;
-    body?: string;
-    labels?: Array<{ name: string }>;
-    html_url: string;
-    pull_request?: unknown;
-  }>;
+  const response = JSON.parse(result.stdout) as {
+    items: Array<{
+      number: number;
+      title: string;
+      body?: string;
+      labels?: Array<{ name: string }>;
+      html_url: string;
+    }>;
+  };
 
-  // gh api /issues returns PRs too — filter them out
-  const issues = items.filter((item) => !item.pull_request);
-
-  return issues.map((issue) => ({
+  return response.items.map((issue) => ({
     id: String(issue.number),
     title: issue.title,
     description: issue.body || '',
