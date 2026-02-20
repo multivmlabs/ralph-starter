@@ -86,37 +86,22 @@ export class GitHubIntegration extends BaseIntegration {
   ): Promise<IntegrationResult> {
     const { execa } = await import('execa');
 
-    const args = [
-      'issue',
-      'list',
-      '-R',
-      `${owner}/${repo}`,
-      '--json',
-      'number,title,body,labels,state',
-    ];
-
-    // Add filters
+    // Use gh api directly so sort=created&direction=asc is applied server-side before per_page limit
+    const params = new URLSearchParams();
+    params.set('state', options?.status || 'open');
+    params.set('sort', 'created');
+    params.set('direction', 'asc');
+    params.set('per_page', String(options?.limit || 20));
     if (options?.label) {
-      args.push('--label', options.label);
+      params.set('labels', options.label);
     }
 
-    if (options?.status) {
-      args.push('--state', options.status);
-    } else {
-      args.push('--state', 'open');
-    }
+    const endpoint = `repos/${owner}/${repo}/issues?${params.toString()}`;
+    const result = await execa('gh', ['api', endpoint]);
+    const items = JSON.parse(result.stdout) as Array<GitHubIssue & { pull_request?: unknown }>;
 
-    if (options?.limit) {
-      args.push('--limit', String(options.limit));
-    } else {
-      args.push('--limit', '20');
-    }
-
-    const result = await execa('gh', args);
-    const issues = JSON.parse(result.stdout) as GitHubIssue[];
-
-    // Sort by issue number ascending (oldest first) since gh CLI doesn't support --sort
-    issues.sort((a, b) => a.number - b.number);
+    // gh api /issues returns PRs too — filter them out
+    const issues = items.filter((item) => !item.pull_request);
 
     return this.formatIssues(issues, owner, repo);
   }

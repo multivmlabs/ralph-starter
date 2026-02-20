@@ -66,41 +66,36 @@ async function fetchGitHubTasks(options: BatchFetchOptions): Promise<BatchTask[]
     throw new Error('Project (owner/repo) is required for GitHub');
   }
 
-  const args = [
-    'issue',
-    'list',
-    '-R',
-    options.project,
-    '--json',
-    'number,title,body,labels,state,url',
-    '--state',
-    options.status || 'open',
-    '--limit',
-    String(options.limit || 10),
-  ];
-
+  // Use gh api directly so sort=created&direction=asc is applied server-side before per_page limit
+  const params = new URLSearchParams();
+  params.set('state', options.status || 'open');
+  params.set('sort', 'created');
+  params.set('direction', 'asc');
+  params.set('per_page', String(options.limit || 10));
   if (options.label) {
-    args.push('--label', options.label);
+    params.set('labels', options.label);
   }
 
-  const result = await execa('gh', args);
-  const issues = JSON.parse(result.stdout) as Array<{
+  const endpoint = `repos/${options.project}/issues?${params.toString()}`;
+  const result = await execa('gh', ['api', endpoint]);
+  const items = JSON.parse(result.stdout) as Array<{
     number: number;
     title: string;
     body?: string;
     labels?: Array<{ name: string }>;
-    url: string;
+    html_url: string;
+    pull_request?: unknown;
   }>;
 
-  // Sort by issue number ascending (oldest first) since gh CLI doesn't support --sort
-  issues.sort((a, b) => a.number - b.number);
+  // gh api /issues returns PRs too — filter them out
+  const issues = items.filter((item) => !item.pull_request);
 
   return issues.map((issue) => ({
     id: String(issue.number),
     title: issue.title,
     description: issue.body || '',
     source: 'github' as const,
-    url: issue.url,
+    url: issue.html_url,
     labels: issue.labels?.map((l) => l.name),
     project: options.project,
   }));

@@ -82,10 +82,10 @@ describe('GitHubSource', () => {
 
         await source.fetch('https://github.com/facebook/react');
 
-        expect(mockExeca).toHaveBeenLastCalledWith(
-          'gh',
-          expect.arrayContaining(['-R', 'facebook/react'])
-        );
+        expect(mockExeca).toHaveBeenLastCalledWith('gh', [
+          'api',
+          expect.stringContaining('repos/facebook/react/issues?'),
+        ]);
       });
 
       it('should apply label filter', async () => {
@@ -96,10 +96,10 @@ describe('GitHubSource', () => {
 
         await source.fetch('owner/repo', { label: 'bug' });
 
-        expect(mockExeca).toHaveBeenLastCalledWith(
-          'gh',
-          expect.arrayContaining(['--label', 'bug'])
-        );
+        expect(mockExeca).toHaveBeenLastCalledWith('gh', [
+          'api',
+          expect.stringContaining('labels=bug'),
+        ]);
       });
 
       it('should apply status filter', async () => {
@@ -110,10 +110,10 @@ describe('GitHubSource', () => {
 
         await source.fetch('owner/repo', { status: 'closed' });
 
-        expect(mockExeca).toHaveBeenLastCalledWith(
-          'gh',
-          expect.arrayContaining(['--state', 'closed'])
-        );
+        expect(mockExeca).toHaveBeenLastCalledWith('gh', [
+          'api',
+          expect.stringContaining('state=closed'),
+        ]);
       });
 
       it('should apply limit', async () => {
@@ -124,7 +124,10 @@ describe('GitHubSource', () => {
 
         await source.fetch('owner/repo', { limit: 5 });
 
-        expect(mockExeca).toHaveBeenLastCalledWith('gh', expect.arrayContaining(['--limit', '5']));
+        expect(mockExeca).toHaveBeenLastCalledWith('gh', [
+          'api',
+          expect.stringContaining('per_page=5'),
+        ]);
       });
 
       it('should handle empty issues response', async () => {
