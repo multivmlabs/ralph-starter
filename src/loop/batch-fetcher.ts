@@ -77,10 +77,6 @@ async function fetchGitHubTasks(options: BatchFetchOptions): Promise<BatchTask[]
     options.status || 'open',
     '--limit',
     String(options.limit || 10),
-    '--sort',
-    'created',
-    '--order',
-    'asc',
   ];
 
   if (options.label) {
@@ -95,6 +91,9 @@ async function fetchGitHubTasks(options: BatchFetchOptions): Promise<BatchTask[]
     labels?: Array<{ name: string }>;
     url: string;
   }>;
+
+  // Sort by issue number ascending (oldest first) since gh CLI doesn't support --sort
+  issues.sort((a, b) => a.number - b.number);
 
   return issues.map((issue) => ({
     id: String(issue.number),

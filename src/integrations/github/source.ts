@@ -112,10 +112,11 @@ export class GitHubIntegration extends BaseIntegration {
       args.push('--limit', '20');
     }
 
-    args.push('--sort', 'created', '--order', 'asc');
-
     const result = await execa('gh', args);
     const issues = JSON.parse(result.stdout) as GitHubIssue[];
+
+    // Sort by issue number ascending (oldest first) since gh CLI doesn't support --sort
+    issues.sort((a, b) => a.number - b.number);
 
     return this.formatIssues(issues, owner, repo);
   }
