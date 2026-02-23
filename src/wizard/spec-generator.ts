@@ -50,17 +50,23 @@ export function generateSpec(answers: WizardAnswers): string {
 
     // Technical setup notes (prevents common pitfalls like CSS cascade conflicts)
     if (answers.techStack.styling === 'tailwind') {
-      sections.push('### Setup Notes');
+      sections.push('### Tailwind CSS v4 Setup Notes');
       sections.push('');
+      sections.push('- Use `@import "tailwindcss"` — do NOT use v3 `@tailwind` directives');
       sections.push(
-        '- Use Tailwind CSS v4 with `@import "tailwindcss"` — do NOT use v3 `@tailwind` directives'
+        '- For Vite projects: use `@tailwindcss/vite` plugin. For non-Vite: use `@tailwindcss/postcss`'
       );
       sections.push(
-        '- Do NOT add manual CSS resets — Tailwind v4 preflight handles `box-sizing`, margin/padding resets'
+        '- Define custom colors/fonts with `@theme inline { --color-brand: #HEX; --font-display: "Font", serif; }` — this auto-generates ALL utility variants (bg-brand, text-brand/50, from-brand, ring-brand, fill-brand, etc.)'
       );
       sections.push(
-        '- Custom CSS must be wrapped in `@layer base { }` or `@layer components { }` to avoid overriding Tailwind utilities'
+        '- NEVER manually define utility classes like `.bg-brand { background-color: ... }` — use `@theme inline` instead'
       );
+      sections.push(
+        '- Use `bg-color/opacity` syntax (e.g. `bg-brand/80`) — `bg-opacity-*` was removed in v4'
+      );
+      sections.push('- Do NOT add manual CSS resets — Tailwind v4 Preflight handles resets');
+      sections.push('- For animations: use `tw-animate-css` (NOT `tailwindcss-animate`)');
       if (answers.techStack.uiLibrary) {
         sections.push(
           `- Use ${formatTech(answers.techStack.uiLibrary)} components — install and add components as needed`

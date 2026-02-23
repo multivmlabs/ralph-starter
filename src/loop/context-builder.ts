@@ -233,10 +233,16 @@ ${skipPlanInstructions ? '- Follow the completion instructions in the task below
 
 Technology gotchas (CRITICAL — follow these exactly):
 - Tailwind CSS v4 (current version): The setup has changed significantly from v3.
-  * Install: \`npm install tailwindcss @tailwindcss/postcss postcss\`
-  * postcss.config.js must use: \`plugins: { '@tailwindcss/postcss': {} }\` (NOT \`tailwindcss\`)
+  * For Vite projects: use \`@tailwindcss/vite\` plugin (NOT PostCSS). For non-Vite: use \`@tailwindcss/postcss\` with \`plugins: { '@tailwindcss/postcss': {} }\`
   * CSS file must use: \`@import "tailwindcss";\` (NOT \`@tailwind base/components/utilities\` — those are v3 directives)
   * Do NOT create tailwind.config.js — Tailwind v4 uses CSS-based configuration
+  * CUSTOM COLORS/FONTS: Use \`@theme inline { }\` in your CSS to define design tokens. Example:
+    \`@theme inline { --color-brand: #C8943E; --color-cream: #FDF6EC; --font-display: 'DM Serif Display', serif; }\`
+    This auto-generates ALL utility variants (bg-brand, text-brand/50, from-brand, ring-brand, fill-brand, etc.)
+    NEVER manually define utility classes like \`.bg-brand { background-color: ... }\` — that breaks opacity modifiers and gradient utilities
+  * Use \`bg-brand/80\` syntax for opacity (NOT \`bg-opacity-80\` — removed in v4)
+  * For animations: use \`tw-animate-css\` (NOT \`tailwindcss-animate\`)
+  * Do NOT add manual CSS resets (\`* { margin: 0 }\`) — Tailwind's Preflight handles this
 - JSX: Never put unescaped quotes inside attribute strings. For SVG backgrounds or data URLs, use a CSS file or encodeURIComponent().
 - Do NOT run \`npm run build\` or \`npm run dev\` manually — the loop handles validation automatically (lint between tasks, full build at the end).
 
