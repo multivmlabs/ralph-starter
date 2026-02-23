@@ -88,7 +88,7 @@ export async function getDefaultBranch(cwd: string): Promise<string> {
     const branches = await git.branchLocal();
     if (branches.all.includes('main')) return 'main';
     if (branches.all.includes('master')) return 'master';
-    return 'main'; // Final fallback
+    return 'main'; // Final fallback — most new repos default to 'main'
   }
 }
 
