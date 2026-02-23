@@ -4,6 +4,8 @@
  * Executes batch tasks sequentially with git automation.
  */
 
+import { existsSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
 import chalk from 'chalk';
 import {
   createBranch,
@@ -101,6 +103,12 @@ export async function executeTaskBatch(options: TaskExecutionOptions): Promise<T
     };
 
     try {
+      // Clean .ralph/ directory between tasks to avoid stale context
+      const ralphDir = join(cwd, '.ralph');
+      if (existsSync(ralphDir)) {
+        rmSync(ralphDir, { recursive: true, force: true });
+      }
+
       // Notify start
       onTaskStart?.(task, i);
 
@@ -135,6 +143,7 @@ export async function executeTaskBatch(options: TaskExecutionOptions): Promise<T
         maxIterations: maxIterations ?? 15,
         trackProgress: true,
         trackCost: true,
+        skipPlanInstructions: true, // Avoid conflict: task-executor tells agent to ignore IMPLEMENTATION_PLAN.md
       };
 
       const loopResult = await runLoop(loopOptions);
