@@ -2,12 +2,11 @@
 
 Context for Claude Code when working on ralph-starter.
 
-## IMPORTANT: Package Manager
+## Package Manager (ralph-starter development only)
 
-**ALWAYS use `pnpm`, NEVER use `npm` or `yarn`.**
+**Use `pnpm` when developing ralph-starter itself.** This project enforces pnpm via `packageManager` field and preinstall script.
 
-This project enforces pnpm via `packageManager` field and preinstall script.
-Using npm or yarn will fail.
+**Important:** When ralph-starter orchestrates agents in user projects, respect the user's package manager (npm, yarn, pnpm, bun, etc.). The codebase has `detectPackageManager()` in `src/utils/package-manager.ts` for this — never override the user's choice.
 
 ## What is ralph-starter?
 
