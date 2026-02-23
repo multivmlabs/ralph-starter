@@ -489,9 +489,11 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     : null;
 
   // Detect validation commands if validation is enabled
-  // In auto mode, skip test commands — only run build/lint to avoid loops on pre-existing test failures
+  // In batch-auto mode, skip test commands — only run build/lint to avoid loops on pre-existing test failures
+  // Note: fixCommand also sets auto=true but always sets fixMode, so we use that to distinguish
   const allValidationCommands = options.validate ? detectValidationCommands(options.cwd) : [];
-  const validationCommands = options.auto
+  const isBatchAuto = options.auto && !options.fixMode;
+  const validationCommands = isBatchAuto
     ? allValidationCommands.filter((cmd) => cmd.name !== 'test')
     : allValidationCommands;
 
