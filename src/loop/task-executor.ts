@@ -9,6 +9,7 @@ import {
   createBranch,
   createPullRequest,
   getCurrentBranch,
+  getDefaultBranch,
   gitCommit,
   gitPush,
   hasUncommittedChanges,
@@ -91,6 +92,7 @@ export async function executeTaskBatch(options: TaskExecutionOptions): Promise<T
 
   const results: TaskResult[] = [];
   const originalBranch = await getCurrentBranch(cwd);
+  const defaultBranch = await getDefaultBranch(cwd);
   let previousBranch = originalBranch; // Track for cascading PRs
 
   for (let i = 0; i < tasks.length; i++) {
@@ -154,11 +156,16 @@ export async function executeTaskBatch(options: TaskExecutionOptions): Promise<T
 
           if (pr) {
             // Create PR with cascading base:
-            // First PR targets original branch (main)
+            // First PR targets the default branch (main/master)
             // Subsequent PRs target the previous auto branch
-            const prBase = i === 0 ? originalBranch : previousBranch;
+            const prBase = i === 0 ? defaultBranch : previousBranch;
+            // Strip existing conventional commit prefix to avoid duplication (e.g. "feat: feat:")
+            const cleanTitle = task.title.replace(
+              /^(feat|fix|chore|docs|refactor|test|style|ci|perf|build):\s*/i,
+              ''
+            );
             const prUrl = await createPullRequest(cwd, {
-              title: `feat: ${task.title}`,
+              title: `feat: ${cleanTitle}`,
               body: buildPrBody(task, result, prBase),
               base: prBase,
             });

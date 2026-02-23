@@ -75,6 +75,23 @@ export async function getCurrentBranch(cwd: string): Promise<string> {
   return branch.trim();
 }
 
+export async function getDefaultBranch(cwd: string): Promise<string> {
+  try {
+    const { stdout } = await execa('git', ['symbolic-ref', 'refs/remotes/origin/HEAD', '--short'], {
+      cwd,
+    });
+    // Returns e.g. "origin/main" — strip the "origin/" prefix
+    return stdout.trim().replace(/^origin\//, '');
+  } catch {
+    // Fallback: check if main or master exists
+    const git: SimpleGit = simpleGit({ baseDir: cwd });
+    const branches = await git.branchLocal();
+    if (branches.all.includes('main')) return 'main';
+    if (branches.all.includes('master')) return 'master';
+    return 'main'; // Final fallback
+  }
+}
+
 export async function createBranch(cwd: string, branchName: string): Promise<void> {
   const git: SimpleGit = simpleGit({ baseDir: cwd });
   await git.checkoutLocalBranch(branchName);
