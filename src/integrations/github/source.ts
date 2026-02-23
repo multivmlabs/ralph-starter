@@ -318,6 +318,11 @@ export class GitHubIntegration extends BaseIntegration implements WritableIntegr
       await execa('gh', ['issue', 'edit', id, '-R', project, '--add-assignee', input.assignee]);
     }
 
+    if (input.status) {
+      const stateFlag = input.status.toLowerCase() === 'closed' ? 'closed' : 'open';
+      await execa('gh', ['issue', 'edit', id, '-R', project, '--state', stateFlag]);
+    }
+
     if (input.comment) {
       await execa('gh', ['issue', 'comment', id, '-R', project, '--body', input.comment]);
     }

@@ -20,6 +20,7 @@ interface LinearIssue {
   id: string;
   identifier: string;
   title: string;
+  url: string;
   description: string | null;
   priority: number;
   priorityLabel: string | null;
@@ -154,6 +155,7 @@ export class LinearIntegration extends BaseIntegration implements WritableIntegr
             id
             identifier
             title
+            url
             description
             priority
             priorityLabel
@@ -345,7 +347,7 @@ export class LinearIntegration extends BaseIntegration implements WritableIntegr
       id: issue.id,
       identifier: issue.identifier,
       title: issue.title,
-      url: `https://linear.app/issue/${issue.identifier}`,
+      url: issue.url,
       status: issue.state?.name || 'Unknown',
       source: 'linear' as const,
       priority: issue.priority,
