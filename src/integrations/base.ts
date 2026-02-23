@@ -113,6 +113,77 @@ export interface Integration {
   getInfo(): Promise<IntegrationInfo>;
 }
 
+// ============================================
+// Writable Integration (bidirectional task management)
+// ============================================
+
+/**
+ * Input for creating a task on GitHub/Linear
+ */
+export interface TaskCreateInput {
+  title: string;
+  description?: string;
+  labels?: string[];
+  /** Priority: 1=Urgent, 2=High, 3=Medium, 4=Low */
+  priority?: number;
+  assignee?: string;
+  project?: string;
+}
+
+/**
+ * Input for updating a task
+ */
+export interface TaskUpdateInput {
+  status?: string;
+  comment?: string;
+  labels?: string[];
+  priority?: number;
+  assignee?: string;
+}
+
+/**
+ * Reference to a task on any platform
+ */
+export interface TaskReference {
+  id: string;
+  /** Display identifier: "#123" (GitHub) or "RAL-42" (Linear) */
+  identifier: string;
+  title: string;
+  url: string;
+  status: string;
+  source: 'github' | 'linear';
+  priority?: number;
+  labels?: string[];
+}
+
+/**
+ * Writable Integration Interface
+ * Extends Integration with task management (create, update, close, comment)
+ */
+export interface WritableIntegration extends Integration {
+  createTask(input: TaskCreateInput, options?: IntegrationOptions): Promise<TaskReference>;
+  updateTask(
+    id: string,
+    input: TaskUpdateInput,
+    options?: IntegrationOptions
+  ): Promise<TaskReference>;
+  closeTask(id: string, comment?: string, options?: IntegrationOptions): Promise<void>;
+  addComment(id: string, body: string, options?: IntegrationOptions): Promise<void>;
+  listTasks(options?: IntegrationOptions): Promise<TaskReference[]>;
+  readonly supportsWrite: true;
+}
+
+/**
+ * Type guard: check if an integration supports write operations
+ */
+export function isWritableIntegration(
+  integration: Integration
+): integration is WritableIntegration {
+  return (
+    'supportsWrite' in integration && (integration as WritableIntegration).supportsWrite === true
+  );
+}
+
 /**
  * Base class for integrations
  * Provides common functionality

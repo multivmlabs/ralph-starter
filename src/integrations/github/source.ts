@@ -10,6 +10,10 @@ import {
   BaseIntegration,
   type IntegrationOptions,
   type IntegrationResult,
+  type TaskCreateInput,
+  type TaskReference,
+  type TaskUpdateInput,
+  type WritableIntegration,
 } from '../base.js';
 
 interface GitHubIssue {
@@ -20,7 +24,8 @@ interface GitHubIssue {
   labels?: Array<string | { name: string }>;
 }
 
-export class GitHubIntegration extends BaseIntegration {
+export class GitHubIntegration extends BaseIntegration implements WritableIntegration {
+  readonly supportsWrite = true as const;
   name = 'github';
   displayName = 'GitHub';
   description = 'Fetch issues from GitHub repositories';
@@ -192,6 +197,166 @@ export class GitHubIntegration extends BaseIntegration {
         issues: issues.length,
       },
     };
+  }
+
+  // ============================================
+  // WritableIntegration methods
+  // ============================================
+
+  async listTasks(options?: IntegrationOptions): Promise<TaskReference[]> {
+    const project = options?.project;
+    if (!project) {
+      this.error('Project (owner/repo) is required for listing GitHub tasks');
+    }
+
+    const { execa } = await import('execa');
+    const args = [
+      'issue',
+      'list',
+      '-R',
+      project,
+      '--json',
+      'number,title,state,url,labels',
+      '--state',
+      options?.status || 'open',
+      '--limit',
+      String(options?.limit || 50),
+    ];
+    if (options?.label) args.push('--label', options.label);
+
+    const result = await execa('gh', args);
+    const issues = JSON.parse(result.stdout) as Array<{
+      number: number;
+      title: string;
+      state: string;
+      url: string;
+      labels?: Array<{ name: string }>;
+    }>;
+
+    return issues.map((issue) => ({
+      id: String(issue.number),
+      identifier: `#${issue.number}`,
+      title: issue.title,
+      url: issue.url,
+      status: issue.state,
+      source: 'github' as const,
+      labels: issue.labels?.map((l) => l.name),
+    }));
+  }
+
+  async createTask(input: TaskCreateInput, options?: IntegrationOptions): Promise<TaskReference> {
+    const project = input.project || options?.project;
+    if (!project) {
+      this.error('Project (owner/repo) is required for creating GitHub issues');
+    }
+
+    const { execa } = await import('execa');
+    const args = ['issue', 'create', '-R', project, '--title', input.title];
+
+    if (input.description) args.push('--body', input.description);
+    if (input.labels && input.labels.length > 0) {
+      args.push('--label', input.labels.join(','));
+    }
+    if (input.assignee) args.push('--assignee', input.assignee);
+
+    const result = await execa('gh', args);
+    // gh issue create outputs the URL of the new issue
+    const url = result.stdout.trim();
+    const numberMatch = url.match(/\/issues\/(\d+)$/);
+    const number = numberMatch ? numberMatch[1] : '0';
+
+    return {
+      id: number,
+      identifier: `#${number}`,
+      title: input.title,
+      url,
+      status: 'open',
+      source: 'github',
+      labels: input.labels,
+    };
+  }
+
+  async updateTask(
+    id: string,
+    input: TaskUpdateInput,
+    options?: IntegrationOptions
+  ): Promise<TaskReference> {
+    const project = options?.project;
+    if (!project) {
+      this.error('Project (owner/repo) is required for updating GitHub issues');
+    }
+
+    const { execa } = await import('execa');
+
+    if (input.labels && input.labels.length > 0) {
+      await execa('gh', [
+        'issue',
+        'edit',
+        id,
+        '-R',
+        project,
+        '--add-label',
+        input.labels.join(','),
+      ]);
+    }
+
+    if (input.assignee) {
+      await execa('gh', ['issue', 'edit', id, '-R', project, '--add-assignee', input.assignee]);
+    }
+
+    if (input.status) {
+      const stateFlag = input.status.toLowerCase() === 'closed' ? 'closed' : 'open';
+      await execa('gh', ['issue', 'edit', id, '-R', project, '--state', stateFlag]);
+    }
+
+    if (input.comment) {
+      await execa('gh', ['issue', 'comment', id, '-R', project, '--body', input.comment]);
+    }
+
+    // Fetch updated issue to return current state
+    const result = await execa('gh', [
+      'issue',
+      'view',
+      id,
+      '-R',
+      project,
+      '--json',
+      'number,title,state,url,labels',
+    ]);
+    const issue = JSON.parse(result.stdout);
+
+    return {
+      id: String(issue.number),
+      identifier: `#${issue.number}`,
+      title: issue.title,
+      url: issue.url,
+      status: issue.state,
+      source: 'github',
+      labels: issue.labels?.map((l: { name: string }) => l.name),
+    };
+  }
+
+  async closeTask(id: string, comment?: string, options?: IntegrationOptions): Promise<void> {
+    const project = options?.project;
+    if (!project) {
+      this.error('Project (owner/repo) is required for closing GitHub issues');
+    }
+
+    const { execa } = await import('execa');
+    const args = ['issue', 'close', id, '-R', project];
+    if (comment) args.push('--comment', comment);
+
+    await execa('gh', args);
+  }
+
+  async addComment(id: string, body: string, options?: IntegrationOptions): Promise<void> {
+    const project = options?.project;
+    if (!project) {
+      this.error('Project (owner/repo) is required for commenting on GitHub issues');
+    }
+
+    const { execa } = await import('execa');
+    await execa('gh', ['issue', 'comment', id, '-R', project, '--body', body]);
   }
 
   getHelp(): string {

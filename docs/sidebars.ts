@@ -46,6 +46,7 @@ const sidebars: SidebarsConfig = {
         'cli/config',
         'cli/source',
         'cli/auto',
+        'cli/task',
         'cli/auth',
         'cli/setup',
         'cli/check',
