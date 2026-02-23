@@ -277,6 +277,7 @@ export async function runCommand(
 
   // Handle --from source
   let sourceSpec: string | null = null;
+  let sourceTitle: string | undefined;
   let sourceIssueRef: IssueRef | undefined;
   if (options.from) {
     spinner.start('Fetching spec from source...');
@@ -298,6 +299,7 @@ export async function runCommand(
 
       spinner.succeed(`Fetched spec from ${result.source}`);
       sourceSpec = result.content;
+      sourceTitle = result.title;
 
       // Extract issue reference from metadata for PR linking
       if (
@@ -641,6 +643,7 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
     validate: options.validate ?? preset?.validate,
     validationWarmup,
     sourceType: options.from?.toLowerCase(),
+    taskTitle: sourceTitle || (task ? task.slice(0, 80) : undefined),
     // New options
     completionPromise: options.completionPromise ?? preset?.completionPromise,
     requireExitSignal: options.requireExitSignal,
