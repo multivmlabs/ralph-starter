@@ -643,7 +643,7 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
     validate: options.validate ?? preset?.validate,
     validationWarmup,
     sourceType: options.from?.toLowerCase(),
-    taskTitle: sourceTitle || (task ? task.slice(0, 80) : undefined),
+    taskTitle: sourceTitle || (finalTask ? finalTask.slice(0, 80) : undefined),
     // New options
     completionPromise: options.completionPromise ?? preset?.completionPromise,
     requireExitSignal: options.requireExitSignal,
