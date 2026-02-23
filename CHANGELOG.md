@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.3.3] - 2026-02-23
+
+### Fixed
+- auto mode gets stuck in validation loop on pre-existing test failures (#245)
+- prevent PR targeting same branch and duplicated prefix (#244)
+- show task title instead of agent name in loop header (#242)
+
 ## [0.3.1] - 2026-02-19
 
 ### Documentation & Blog
