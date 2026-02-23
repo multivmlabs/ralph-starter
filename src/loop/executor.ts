@@ -241,6 +241,7 @@ export interface LoopOptions {
   maxSkills?: number; // Cap skills included in prompt (default: 5)
   skipPlanInstructions?: boolean; // Skip IMPLEMENTATION_PLAN.md rules in preamble (fix --design)
   fixMode?: 'design' | 'scan' | 'custom'; // Display mode for fix command headers
+  taskTitle?: string; // Human-readable task title (from issue/spec) for display
 }
 
 export interface LoopResult {
@@ -745,13 +746,26 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       );
     } else {
       const modeLabel =
-        options.fixMode === 'design'
-          ? 'Design Fix'
-          : options.fixMode
-            ? 'Fix'
-            : `Running ${options.agent.name}`;
-      const fallbackLine = `  ${sourceIcon} Loop ${i}/${maxIterations} │ ${modeLabel}`;
-      headerLines.push(chalk.white.bold(truncateToFit(fallbackLine, innerWidth)));
+        options.fixMode === 'design' ? 'Design Fix' : options.fixMode ? 'Fix' : undefined;
+      const displayTitle = modeLabel || options.taskTitle || undefined;
+      if (displayTitle) {
+        const prefix = `  ${sourceIcon} Task ${i}/${maxIterations} │ `;
+        const available = innerWidth - prefix.length;
+        if (available > 0) {
+          const title = truncateToFit(displayTitle, Math.max(8, available));
+          headerLines.push(`${prefix}${chalk.white.bold(title)}`);
+        } else {
+          headerLines.push(chalk.white.bold(truncateToFit(`${prefix}${displayTitle}`, innerWidth)));
+        }
+        headerLines.push(
+          chalk.dim(
+            truncateToFit(`  ${options.agent.name} │ Iter ${i}/${maxIterations}`, innerWidth)
+          )
+        );
+      } else {
+        const fallbackLine = `  ${sourceIcon} Task ${i}/${maxIterations} │ ${options.agent.name}`;
+        headerLines.push(chalk.white.bold(truncateToFit(fallbackLine, innerWidth)));
+      }
     }
     console.log();
     console.log(drawBox(headerLines, { color: chalk.cyan, width: boxWidth }));
