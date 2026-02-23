@@ -31,7 +31,6 @@ pnpm typecheck    # Type-check without emitting
 - `src/` - TypeScript source code (see directory overview below)
 - `docs/` - Docusaurus documentation site
 - `dist/` - Compiled output
-- `content/` - Content files
 - `specs/` - Spec files for development
 
 ## Key Concepts
@@ -44,7 +43,7 @@ pnpm typecheck    # Type-check without emitting
 - Todoist: Tasks and projects
 
 **Agents** - AI coding assistants ralph-starter orchestrates:
-- Claude Code, Cursor, Codex CLI, OpenCode
+- Claude Code, Cursor, OpenCode, OpenAI Codex, GitHub Copilot, Gemini CLI, Amp, Openclaw
 
 **Loop Executor** - Runs agents in autonomous loops until task completion. Each iteration: build context → spawn agent → collect output → run validation (lint/build) → commit → repeat or exit.
 
