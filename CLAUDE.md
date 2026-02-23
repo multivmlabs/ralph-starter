@@ -2,11 +2,14 @@
 
 Context for Claude Code when working on ralph-starter.
 
+
 ## Package Manager
 
 This repo uses **pnpm** for development. The `packageManager` field and a preinstall script enforce this.
 
 Note: ralph-starter itself supports any package manager in user projects via `detectPackageManager()` in `src/utils/package-manager.ts`. Do not hardcode pnpm in agent prompts or user-facing code.
+
+
 
 ## What is ralph-starter?
 
