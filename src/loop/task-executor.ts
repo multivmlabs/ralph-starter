@@ -4,6 +4,8 @@
  * Executes batch tasks sequentially with git automation.
  */
 
+import { existsSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
 import chalk from 'chalk';
 import {
   createBranch,
@@ -103,6 +105,17 @@ export async function executeTaskBatch(options: TaskExecutionOptions): Promise<T
     };
 
     try {
+      // Clean transient .ralph/ files between tasks to avoid stale context
+      // Preserve durable config (config.yaml) written by ralph-starter init
+      const ralphDir = join(cwd, '.ralph');
+      if (existsSync(ralphDir)) {
+        const transientFiles = ['context.md', 'progress.md', 'acceptance-criteria.md', 'plan.md'];
+        for (const file of transientFiles) {
+          const fp = join(ralphDir, file);
+          if (existsSync(fp)) rmSync(fp);
+        }
+      }
+
       // Notify start
       onTaskStart?.(task, i);
 
@@ -137,6 +150,7 @@ export async function executeTaskBatch(options: TaskExecutionOptions): Promise<T
         maxIterations: maxIterations ?? 15,
         trackProgress: true,
         trackCost: true,
+        skipPlanInstructions: true, // Avoid conflict: task-executor tells agent to ignore IMPLEMENTATION_PLAN.md
       };
 
       const loopResult = await runLoop(loopOptions);

@@ -489,7 +489,13 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     : null;
 
   // Detect validation commands if validation is enabled
-  const validationCommands = options.validate ? detectValidationCommands(options.cwd) : [];
+  // In batch-auto mode, skip test commands — only run build/lint to avoid loops on pre-existing test failures
+  // Note: fixCommand also sets auto=true but always sets fixMode, so we use that to distinguish
+  const allValidationCommands = options.validate ? detectValidationCommands(options.cwd) : [];
+  const isBatchAuto = options.auto && !options.fixMode;
+  const validationCommands = isBatchAuto
+    ? allValidationCommands.filter((cmd) => cmd.name !== 'test')
+    : allValidationCommands;
 
   // Always-on build validation (not gated by --validate flag)
   // Re-detected inside the loop for greenfield projects where package.json appears mid-loop
