@@ -730,6 +730,13 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     const headerLines: string[] = [];
     const boxWidth = Math.min(60, getTerminalWidth() - 4);
     const innerWidth = boxWidth - 2;
+    const modelShort = options.model
+      ? ` (${options.model.replace('claude-', '').replace('gpt-', '')})`
+      : '';
+    const costSoFar = costTracker
+      ? ` │ ${formatCost(costTracker.getStats().totalCost.totalCost)}`
+      : '';
+    const subtitleSuffix = `${modelShort}${costSoFar}`;
     if (currentTask && totalTasks > 0) {
       const taskNum = completedTasks + 1;
       const cleanName = cleanTaskName(currentTask.name);
@@ -742,7 +749,12 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
         headerLines.push(truncateToFit(`${prefix}${cleanName}`, innerWidth));
       }
       headerLines.push(
-        chalk.dim(truncateToFit(`  ${options.agent.name} │ Iter ${i}/${maxIterations}`, innerWidth))
+        chalk.dim(
+          truncateToFit(
+            `  ${options.agent.name}${subtitleSuffix} │ Iter ${i}/${maxIterations}`,
+            innerWidth
+          )
+        )
       );
     } else {
       const modeLabel =
@@ -759,11 +771,14 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
         }
         headerLines.push(
           chalk.dim(
-            truncateToFit(`  ${options.agent.name} │ Iter ${i}/${maxIterations}`, innerWidth)
+            truncateToFit(
+              `  ${options.agent.name}${subtitleSuffix} │ Iter ${i}/${maxIterations}`,
+              innerWidth
+            )
           )
         );
       } else {
-        const fallbackLine = `  ${sourceIcon} Task ${i}/${maxIterations} │ ${options.agent.name}`;
+        const fallbackLine = `  ${sourceIcon} Task ${i}/${maxIterations} │ ${options.agent.name}${subtitleSuffix}`;
         headerLines.push(chalk.white.bold(truncateToFit(fallbackLine, innerWidth)));
       }
     }
@@ -1338,9 +1353,10 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       ? ` │ ${formatCost(costTracker.getStats().totalCost.totalCost)}`
       : '';
     const taskLabel = completedTasks > 0 ? ` │ Tasks: ${completedTasks}/${totalTasks}` : '';
+    const modelLabel = options.model ? ` │ ${options.model}` : '';
     console.log(
       drawSeparator(
-        `Iter ${i}/${maxIterations}${taskLabel}${costLabel} │ ${elapsedMin}m ${elapsedSec}s`
+        `Iter ${i}/${maxIterations}${taskLabel}${modelLabel}${costLabel} │ ${elapsedMin}m ${elapsedSec}s`
       )
     );
   }
