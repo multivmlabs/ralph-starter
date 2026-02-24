@@ -263,7 +263,7 @@ function buildTaskPrompt(task: BatchTask): string {
 /**
  * Build commit message for the task
  */
-function buildCommitMessage(task: BatchTask): string {
+export function buildCommitMessage(task: BatchTask): string {
   // Determine commit type from labels or title
   let type = 'feat';
   const lowerTitle = task.title.toLowerCase();
@@ -293,7 +293,7 @@ function buildCommitMessage(task: BatchTask): string {
 /**
  * Build PR body
  */
-function buildPrBody(task: BatchTask, result: TaskResult, prBase: string): string {
+export function buildPrBody(task: BatchTask, result: TaskResult, prBase: string): string {
   const lines: string[] = [];
 
   lines.push('## Summary');
