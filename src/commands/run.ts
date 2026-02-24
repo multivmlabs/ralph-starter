@@ -221,6 +221,7 @@ export interface RunCommandOptions {
   circuitBreakerErrors?: number;
   contextBudget?: number;
   validationWarmup?: number;
+  maxCost?: number;
   // Figma options
   figmaMode?: 'spec' | 'tokens' | 'components' | 'assets' | 'content';
   figmaFramework?: 'react' | 'vue' | 'svelte' | 'astro' | 'nextjs' | 'nuxt' | 'html';
@@ -653,6 +654,7 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
     model: agent.type === 'claude-code' ? 'claude-3-sonnet' : 'default',
     checkFileCompletion: true, // Always check for file-based completion
     contextBudget: options.contextBudget ? Number(options.contextBudget) : undefined,
+    maxCost: options.maxCost,
     circuitBreaker: preset?.circuitBreaker
       ? {
           maxConsecutiveFailures:
