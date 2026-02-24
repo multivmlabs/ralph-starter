@@ -20,6 +20,7 @@ import { formatPresetsHelp, getPreset, type PresetConfig } from '../presets/inde
 import { autoInstallSkillsFromTask } from '../skills/auto-install.js';
 import { getSourceDefaults } from '../sources/config.js';
 import { fetchFromSource } from '../sources/index.js';
+import type { SourceOptions } from '../sources/types.js';
 import { detectPackageManager, formatRunCommand, getRunCommand } from '../utils/package-manager.js';
 import { showWelcome } from '../wizard/ui.js';
 
@@ -290,16 +291,46 @@ export async function runCommand(
         console.log(chalk.dim(`  Using default repo: ${projectId}`));
       }
 
-      const result = await fetchFromSource(options.from, projectId, {
+      const fetchOptions: SourceOptions = {
         label: options.label,
         status: options.status,
         limit: options.limit,
         issue: options.issue,
-      });
+        figmaMode: options.figmaMode,
+        figmaFramework: options.figmaFramework,
+        figmaFormat: options.figmaFormat,
+        figmaNodes: options.figmaNodes,
+        figmaScale: options.figmaScale,
+        figmaTarget: options.figmaTarget,
+        figmaPreview: options.figmaPreview,
+        figmaMapping: options.figmaMapping,
+      };
+
+      const result = await fetchFromSource(options.from, projectId, fetchOptions);
 
       spinner.succeed(`Fetched spec from ${result.source}`);
       sourceSpec = result.content;
       sourceTitle = result.title;
+
+      // Auto-inject design tokens when fetching Figma spec (default mode)
+      if (
+        options.from.toLowerCase() === 'figma' &&
+        (!options.figmaMode || options.figmaMode === 'spec')
+      ) {
+        try {
+          const tokensResult = await fetchFromSource(options.from, projectId, {
+            ...fetchOptions,
+            figmaMode: 'tokens',
+            figmaFormat: options.figmaFormat || 'css',
+          });
+          if (tokensResult.content) {
+            sourceSpec = `## Design Tokens\n\n${tokensResult.content}\n\n---\n\n${sourceSpec}`;
+            console.log(chalk.dim('  Auto-injected design tokens into spec'));
+          }
+        } catch {
+          // Tokens fetch failed — proceed with spec only
+        }
+      }
 
       // Extract issue reference from metadata for PR linking
       if (
@@ -327,6 +358,22 @@ export async function runCommand(
       const specPath = join(specsDir, specFilename);
       writeFileSync(specPath, sourceSpec);
       console.log(chalk.dim(`  Written to: ${specPath}`));
+
+      // Cap spec size for agent context (full spec remains on disk in specs/)
+      const MAX_SPEC_SIZE = 15_000;
+      if (sourceSpec.length > MAX_SPEC_SIZE) {
+        console.log(
+          chalk.yellow(
+            `  Spec is large (${(sourceSpec.length / 1024).toFixed(1)}KB). Trimming to ${(MAX_SPEC_SIZE / 1024).toFixed(0)}KB for agent context.`
+          )
+        );
+        const truncated = sourceSpec.slice(0, MAX_SPEC_SIZE);
+        const lastSection = truncated.lastIndexOf('\n## ');
+        sourceSpec =
+          lastSection > MAX_SPEC_SIZE * 0.7
+            ? `${truncated.slice(0, lastSection)}\n\n[Spec truncated — see specs/ directory for full design specification]`
+            : `${truncated}\n\n[Spec truncated — see specs/ directory for full design specification]`;
+      }
 
       // Prompt for project location when fetching from integration sources
       // Skip if --auto or --output-dir was provided
