@@ -281,6 +281,8 @@ export async function runCommand(
   let sourceSpec: string | null = null;
   let sourceTitle: string | undefined;
   let sourceIssueRef: IssueRef | undefined;
+  let figmaImagesDownloaded: boolean | undefined;
+  let figmaFontSubstitutions: Array<{ original: string; substitute: string }> | undefined;
   if (options.from) {
     spinner.start('Fetching spec from source...');
     try {
@@ -331,6 +333,200 @@ export async function runCommand(
         } catch {
           // Tokens fetch failed — proceed with spec only
         }
+
+        // Auto-inject content structure (semantic text roles) for Figma spec
+        try {
+          const contentResult = await fetchFromSource(options.from, projectId, {
+            ...fetchOptions,
+            figmaMode: 'content',
+          });
+          if (contentResult.content) {
+            // Extract only the navigation and heading summary (compact version)
+            const contentLines = contentResult.content.split('\n');
+            const summaryLines: string[] = [];
+            let inSection = false;
+            for (const line of contentLines) {
+              // Include navigation, heading, and summary sections — skip full body text
+              if (
+                line.startsWith('## Navigation') ||
+                line.startsWith('## Summary') ||
+                line.startsWith('## Information Architecture')
+              ) {
+                inSection = true;
+                summaryLines.push(line);
+              } else if (line.startsWith('## ') && inSection) {
+                inSection = false;
+              } else if (inSection) {
+                summaryLines.push(line);
+              }
+            }
+            if (summaryLines.length > 0) {
+              const contentSection = `## Content Structure\n\n${summaryLines.join('\n')}`;
+              sourceSpec = `${contentSection}\n\n---\n\n${sourceSpec}`;
+              console.log(chalk.dim('  Auto-injected content structure into spec'));
+            }
+          }
+        } catch {
+          // Content extraction failed — proceed without
+        }
+
+        // Font substitution warnings
+        const fontChecks = result.metadata?.fontChecks as
+          | Array<{ fontFamily: string; isGoogleFont: boolean; suggestedAlternative?: string }>
+          | undefined;
+        if (fontChecks) {
+          const nonGoogleFonts = fontChecks.filter((f) => !f.isGoogleFont);
+          if (nonGoogleFonts.length > 0) {
+            for (const font of nonGoogleFonts) {
+              if (font.suggestedAlternative) {
+                console.log(
+                  chalk.yellow(
+                    `  Font "${font.fontFamily}" \u2192 Google Fonts alternative "${font.suggestedAlternative}" \u2014 verify design fidelity`
+                  )
+                );
+              } else {
+                console.log(
+                  chalk.yellow(
+                    `  Font "${font.fontFamily}" is not available on Google Fonts \u2014 agent will choose a similar font`
+                  )
+                );
+              }
+            }
+            // Inject font substitution table into spec
+            const { buildFontSubstitutionMarkdown } = await import(
+              '../integrations/figma/parsers/font-checker.js'
+            );
+            const fontSection = buildFontSubstitutionMarkdown(nonGoogleFonts);
+            if (fontSection) {
+              sourceSpec = `${fontSection}\n---\n\n${sourceSpec}`;
+            }
+            // Build substitutions array for loop options
+            figmaFontSubstitutions = nonGoogleFonts
+              .filter((f) => f.suggestedAlternative)
+              .map((f) => ({
+                original: f.fontFamily,
+                substitute: f.suggestedAlternative!,
+              }));
+          }
+        }
+
+        // Auto-download images from Figma
+        const imageFillUrls = result.metadata?.imageFillUrls as Record<string, string> | undefined;
+        if (imageFillUrls && Object.keys(imageFillUrls).length > 0) {
+          try {
+            const imagesDir = join(cwd, 'public', 'images');
+            if (!existsSync(imagesDir)) {
+              mkdirSync(imagesDir, { recursive: true });
+            }
+
+            const downloads = Object.entries(imageFillUrls).filter(
+              ([, url]) => url != null && url !== ''
+            );
+            if (downloads.length > 0) {
+              const BATCH_SIZE = 5;
+              let downloaded = 0;
+              for (let idx = 0; idx < downloads.length; idx += BATCH_SIZE) {
+                const batch = downloads.slice(idx, idx + BATCH_SIZE);
+                const results = await Promise.allSettled(
+                  batch.map(async ([ref, url]) => {
+                    const response = await fetch(url);
+                    if (!response.ok) return false;
+                    const buffer = Buffer.from(await response.arrayBuffer());
+                    writeFileSync(join(imagesDir, `${ref}.png`), buffer);
+                    return true;
+                  })
+                );
+                downloaded += results.filter((r) => r.status === 'fulfilled' && r.value).length;
+              }
+
+              if (downloaded > 0) {
+                console.log(chalk.dim(`  Downloaded ${downloaded} image(s) to public/images/`));
+                figmaImagesDownloaded = true;
+              }
+            }
+          } catch {
+            console.log(chalk.dim('  Image download skipped \u2014 will use placehold.co'));
+          }
+        }
+
+        // Download frame screenshots for multimodal visual reference (with 30s timeout)
+        const frameScreenshots = result.metadata?.frameScreenshots as
+          | Record<string, string | null>
+          | undefined;
+        if (frameScreenshots) {
+          const validScreenshots = Object.entries(frameScreenshots).filter(
+            ([, url]) => url != null && url !== ''
+          );
+          if (validScreenshots.length > 0) {
+            try {
+              const screenshotsDir = join(cwd, 'public', 'images', 'screenshots');
+              if (!existsSync(screenshotsDir)) {
+                mkdirSync(screenshotsDir, { recursive: true });
+              }
+              let ssDownloaded = 0;
+              const ssTimeout = AbortSignal.timeout(30_000);
+              const ssResults = await Promise.allSettled(
+                validScreenshots.map(async ([nodeId, url]) => {
+                  const response = await fetch(url!, { signal: ssTimeout });
+                  if (!response.ok) return false;
+                  const buffer = Buffer.from(await response.arrayBuffer());
+                  const filename = `frame-${nodeId.replace(/:/g, '-')}.png`;
+                  writeFileSync(join(screenshotsDir, filename), buffer);
+                  return true;
+                })
+              );
+              ssDownloaded = ssResults.filter((r) => r.status === 'fulfilled' && r.value).length;
+              if (ssDownloaded > 0) {
+                console.log(
+                  chalk.dim(
+                    `  Downloaded ${ssDownloaded} frame screenshot(s) to public/images/screenshots/`
+                  )
+                );
+              }
+            } catch {
+              // Screenshot download failed — non-critical
+            }
+          }
+        }
+
+        // Download icon SVGs from Figma
+        const iconSvgUrls = result.metadata?.iconSvgUrls as Record<string, string> | undefined;
+        if (iconSvgUrls && Object.keys(iconSvgUrls).length > 0) {
+          try {
+            const iconNodes = result.metadata?.iconNodes as
+              | Array<{ nodeId: string; filename: string }>
+              | undefined;
+            if (iconNodes) {
+              const iconsDir = join(cwd, 'public', 'images', 'icons');
+              if (!existsSync(iconsDir)) {
+                mkdirSync(iconsDir, { recursive: true });
+              }
+              let iconDownloaded = 0;
+              const iconTimeout = AbortSignal.timeout(30_000);
+              const iconResults = await Promise.allSettled(
+                iconNodes.map(async (icon) => {
+                  const url = iconSvgUrls[icon.nodeId];
+                  if (!url) return false;
+                  const response = await fetch(url, { signal: iconTimeout });
+                  if (!response.ok) return false;
+                  const svg = await response.text();
+                  writeFileSync(join(iconsDir, icon.filename), svg);
+                  return true;
+                })
+              );
+              iconDownloaded = iconResults.filter(
+                (r) => r.status === 'fulfilled' && r.value
+              ).length;
+              if (iconDownloaded > 0) {
+                console.log(
+                  chalk.dim(`  Downloaded ${iconDownloaded} icon(s) as SVG to public/images/icons/`)
+                );
+              }
+            }
+          } catch {
+            // Icon download failed — non-critical
+          }
+        }
       }
 
       // Extract issue reference from metadata for PR linking
@@ -361,7 +557,8 @@ export async function runCommand(
       console.log(chalk.dim(`  Written to: ${specPath}`));
 
       // Cap spec size for agent context (full spec remains on disk in specs/)
-      const MAX_SPEC_SIZE = 15_000;
+      // Figma specs include richer visual data (fills, gradients, strokes) — allow more room
+      const MAX_SPEC_SIZE = options.from?.toLowerCase() === 'figma' ? 25_000 : 15_000;
       if (sourceSpec.length > MAX_SPEC_SIZE) {
         console.log(
           chalk.yellow(
@@ -378,7 +575,7 @@ export async function runCommand(
 
       // Prompt for project location when fetching from integration sources
       // Skip if --auto or --output-dir was provided
-      const integrationSources = ['github', 'linear', 'notion', 'todoist'];
+      const integrationSources = ['github', 'linear', 'notion', 'figma'];
       const isIntegrationSource = integrationSources.includes(options.from?.toLowerCase() || '');
 
       if (isIntegrationSource && !options.auto && !options.outputDir) {
@@ -515,14 +712,37 @@ export async function runCommand(
   // Get task if not provided
   let finalTask = task;
 
-  // If we fetched from a source, use that as the task
-  if (sourceSpec && !finalTask) {
+  // If we fetched from a source, combine spec with task
+  if (sourceSpec) {
     // Extract tasks from spec and create implementation plan
     const extractedPlan = extractTasksFromSpec(sourceSpec);
     if (extractedPlan) {
       writeFileSync(implementationPlanPath, extractedPlan);
       console.log(chalk.cyan('Created IMPLEMENTATION_PLAN.md from spec'));
+    }
 
+    if (finalTask) {
+      // User provided both a task and a source spec — combine them
+      finalTask = `Study the following specification carefully:
+
+${sourceSpec}
+
+## User Instructions
+
+${finalTask}
+
+## Implementation Tracking
+
+${
+  extractedPlan
+    ? `An IMPLEMENTATION_PLAN.md file has been created with tasks extracted from this spec.
+As you complete each task, mark it done by changing [ ] to [x] in IMPLEMENTATION_PLAN.md.`
+    : `Create an IMPLEMENTATION_PLAN.md file with tasks broken down from the spec above.
+As you complete each task, mark it done by changing [ ] to [x] in IMPLEMENTATION_PLAN.md.`
+}
+Focus on ONE task at a time. Don't assume functionality is not already implemented — search the codebase first.
+Implement completely — no placeholders or stubs.`;
+    } else if (extractedPlan) {
       finalTask = `Study the following specification carefully:
 
 ${sourceSpec}
@@ -715,6 +935,8 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
             maxSameErrorCount: options.circuitBreakerErrors ?? 5,
           }
         : undefined,
+    figmaImagesDownloaded: figmaImagesDownloaded ?? undefined,
+    figmaFontSubstitutions: figmaFontSubstitutions ?? undefined,
   };
 
   const result = await runLoop(loopOptions);

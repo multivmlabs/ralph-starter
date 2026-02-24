@@ -25,8 +25,12 @@ import {
 } from './parsers/content-extractor.js';
 import { nodesToSpec } from './parsers/design-spec.js';
 import { extractTokensFromFile, formatTokens } from './parsers/design-tokens.js';
+import { checkFonts, collectFontFamilies } from './parsers/font-checker.js';
+import { collectIconNodes } from './parsers/icon-collector.js';
+import { collectImageRefs } from './parsers/image-collector.js';
 import type {
   FigmaFile,
+  FigmaImageFillsResponse,
   FigmaImagesResponse,
   FigmaIntegrationOptions,
   FigmaNode,
@@ -99,7 +103,77 @@ export class FigmaIntegration extends BaseIntegration {
       nodes = file.document.children || [];
     }
 
-    const content = nodesToSpec(nodes, fileName);
+    // Check font availability
+    const fontFamilies = collectFontFamilies(nodes);
+    const fontChecks = checkFonts(fontFamilies);
+
+    // Build font substitutions map for spec annotations
+    const fontSubstitutions = new Map<string, string>();
+    for (const check of fontChecks) {
+      if (!check.isGoogleFont && check.suggestedAlternative) {
+        fontSubstitutions.set(check.fontFamily, check.suggestedAlternative);
+      }
+    }
+
+    // Collect image references from nodes
+    const imageRefs = collectImageRefs(nodes);
+
+    // Fetch image fill download URLs
+    let imageFillUrls: Record<string, string> = {};
+    if (imageRefs.length > 0) {
+      try {
+        imageFillUrls = await this.fetchImageFillUrls(fileKey, token);
+      } catch {
+        // Image fill URL fetch failed — proceed without images
+      }
+    }
+
+    // Render top-level frames as PNG screenshots for multimodal context
+    let frameScreenshots: Record<string, string | null> = {};
+    const topFrameIds = this.collectTopLevelFrameIds(nodes, 5);
+    if (topFrameIds.length > 0) {
+      try {
+        const screenshotResponse = await this.apiRequest<FigmaImagesResponse>(
+          token,
+          `/images/${fileKey}?ids=${formatNodeIds(topFrameIds)}&format=png&scale=2`
+        );
+        if (!screenshotResponse.err) {
+          frameScreenshots = screenshotResponse.images;
+        }
+      } catch {
+        // Screenshot rendering failed — proceed without
+      }
+    }
+
+    // Collect icon-like nodes for SVG export
+    const iconNodes = collectIconNodes(nodes, 30);
+    let iconSvgUrls: Record<string, string> = {};
+    const exportedIcons = new Map<string, string>();
+    if (iconNodes.length > 0) {
+      try {
+        const iconIds = iconNodes.map((ic) => ic.nodeId);
+        const svgResponse = await this.apiRequest<FigmaImagesResponse>(
+          token,
+          `/images/${fileKey}?ids=${formatNodeIds(iconIds)}&format=svg`
+        );
+        if (!svgResponse.err && svgResponse.images) {
+          iconSvgUrls = svgResponse.images as Record<string, string>;
+          for (const icon of iconNodes) {
+            if (iconSvgUrls[icon.nodeId]) {
+              exportedIcons.set(icon.nodeId, icon.filename);
+            }
+          }
+        }
+      } catch {
+        // Icon SVG export failed — proceed without
+      }
+    }
+
+    const content = nodesToSpec(nodes, fileName, {
+      fontSubstitutions,
+      imageFillUrls,
+      exportedIcons,
+    });
 
     return {
       content,
@@ -110,6 +184,13 @@ export class FigmaIntegration extends BaseIntegration {
         mode: 'spec',
         fileKey,
         nodeCount: nodes.length,
+        fontChecks,
+        imageRefs,
+        imageFillUrls,
+        imageCount: imageRefs.length,
+        frameScreenshots,
+        iconNodes,
+        iconSvgUrls,
       },
     };
   }
@@ -331,6 +412,44 @@ ${formatted}
         assets: validAssets,
       },
     };
+  }
+
+  /**
+   * Fetch download URLs for all image fills in a Figma file.
+   * Uses the /files/{key}/images endpoint which returns URLs for all imageRef values.
+   */
+  private async fetchImageFillUrls(
+    fileKey: string,
+    token: string
+  ): Promise<Record<string, string>> {
+    const response = await this.apiRequest<FigmaImageFillsResponse>(
+      token,
+      `/files/${fileKey}/images`
+    );
+    return response.meta?.images || {};
+  }
+
+  /**
+   * Collect top-level frame IDs for rendering as screenshots.
+   * Returns direct FRAME children of CANVAS nodes (max `limit`).
+   */
+  private collectTopLevelFrameIds(nodes: FigmaNode[], limit: number): string[] {
+    const frameIds: string[] = [];
+    for (const node of nodes) {
+      if (node.type === 'CANVAS' && node.children) {
+        for (const child of node.children) {
+          if (child.type === 'FRAME' && child.visible !== false) {
+            frameIds.push(child.id);
+            if (frameIds.length >= limit) return frameIds;
+          }
+        }
+      } else if (node.type === 'FRAME' && node.visible !== false) {
+        // When specific nodes were requested, they may already be frames
+        frameIds.push(node.id);
+        if (frameIds.length >= limit) return frameIds;
+      }
+    }
+    return frameIds;
   }
 
   /**

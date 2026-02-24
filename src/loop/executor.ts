@@ -242,6 +242,8 @@ export interface LoopOptions {
   skipPlanInstructions?: boolean; // Skip IMPLEMENTATION_PLAN.md rules in preamble (fix --design)
   fixMode?: 'design' | 'scan' | 'custom'; // Display mode for fix command headers
   taskTitle?: string; // Human-readable task title (from issue/spec) for display
+  figmaImagesDownloaded?: boolean; // Whether Figma images were downloaded to public/images/
+  figmaFontSubstitutions?: Array<{ original: string; substitute: string }>; // Font substitutions applied
 }
 
 export interface LoopResult {
@@ -817,6 +819,8 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       skipPlanInstructions: options.skipPlanInstructions,
       iterationLog,
       sourceType: options.sourceType,
+      figmaImagesDownloaded: options.figmaImagesDownloaded,
+      figmaFontSubstitutions: options.figmaFontSubstitutions,
     });
     const iterationTask = builtContext.prompt;
 

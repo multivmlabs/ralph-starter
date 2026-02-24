@@ -32,11 +32,15 @@ export interface FigmaNode {
   strokes?: Paint[];
   strokeWeight?: number;
   strokeAlign?: 'INSIDE' | 'OUTSIDE' | 'CENTER';
+  individualStrokeWeights?: { top: number; right: number; bottom: number; left: number };
+  strokeDashes?: number[];
   effects?: Effect[];
   cornerRadius?: number;
   rectangleCornerRadii?: [number, number, number, number];
   blendMode?: BlendMode;
   opacity?: number;
+  rotation?: number;
+  isMask?: boolean;
   layoutMode?: 'NONE' | 'HORIZONTAL' | 'VERTICAL';
   itemSpacing?: number;
   paddingLeft?: number;
@@ -46,6 +50,32 @@ export interface FigmaNode {
   primaryAxisAlignItems?: 'MIN' | 'CENTER' | 'MAX' | 'SPACE_BETWEEN';
   counterAxisAlignItems?: 'MIN' | 'CENTER' | 'MAX' | 'BASELINE';
   layoutGrow?: number;
+  // Auto-layout sizing (how this node sizes itself in its parent)
+  layoutSizingHorizontal?: 'FIXED' | 'HUG' | 'FILL';
+  layoutSizingVertical?: 'FIXED' | 'HUG' | 'FILL';
+  // Flex wrap for auto-layout containers
+  layoutWrap?: 'NO_WRAP' | 'WRAP';
+  // Whether this child is flow-positioned or absolutely-positioned in parent
+  layoutPositioning?: 'AUTO' | 'ABSOLUTE';
+  // Row gap for wrapped auto-layout (gap between rows)
+  counterAxisSpacing?: number;
+  // Self-alignment override in parent's cross-axis
+  layoutAlign?: 'INHERIT' | 'STRETCH' | 'MIN' | 'CENTER' | 'MAX';
+  // Responsive size constraints
+  minWidth?: number;
+  maxWidth?: number;
+  minHeight?: number;
+  maxHeight?: number;
+  // Overflow clipping
+  clipsContent?: boolean;
+  // Scroll/sticky behavior
+  scrollBehavior?: 'SCROLLS' | 'FIXED' | 'STICKY_SCROLLS';
+  // Scroll direction for scrollable containers
+  overflowDirection?:
+    | 'NONE'
+    | 'HORIZONTAL_SCROLLING'
+    | 'VERTICAL_SCROLLING'
+    | 'HORIZONTAL_AND_VERTICAL_SCROLLING';
   componentPropertyDefinitions?: Record<string, ComponentPropertyDefinition>;
   componentPropertyReferences?: Record<string, string>;
   // Text-specific
@@ -122,6 +152,24 @@ export interface Paint {
   gradientStops?: GradientStop[];
   scaleMode?: 'FILL' | 'FIT' | 'TILE' | 'STRETCH';
   imageRef?: string;
+  /** 2×3 affine transform for image crop/position within the fill: [[a, b, tx], [c, d, ty]] */
+  imageTransform?: Transform;
+  /** Image rotation in degrees */
+  rotation?: number;
+  /** Image adjustment filters (exposure, contrast, saturation, etc.) */
+  filters?: ImageFilters;
+  /** Scale factor for TILE mode */
+  scalingFactor?: number;
+}
+
+export interface ImageFilters {
+  exposure?: number;
+  contrast?: number;
+  saturation?: number;
+  temperature?: number;
+  tint?: number;
+  highlights?: number;
+  shadows?: number;
 }
 
 export interface RGBA {
@@ -165,6 +213,8 @@ export interface Effect {
   blendMode?: BlendMode;
   offset?: Vector;
   spread?: number;
+  /** Blur variant: NORMAL (uniform) or PROGRESSIVE (directional gradient blur) */
+  blurType?: 'NORMAL' | 'PROGRESSIVE';
 }
 
 export interface TypeStyle {
@@ -187,6 +237,10 @@ export interface TypeStyle {
   lineHeightPercent?: number;
   lineHeightPercentFontSize?: number;
   lineHeightUnit?: 'PIXELS' | 'FONT_SIZE_%' | 'INTRINSIC_%';
+  fontStyle?: string;
+  textTruncation?: 'DISABLED' | 'ENDING';
+  maxLines?: number;
+  hyperlink?: { type: 'URL' | 'NODE'; url?: string; nodeID?: string };
 }
 
 export interface ComponentPropertyDefinition {
@@ -247,6 +301,12 @@ export interface FigmaNodesResponse {
 export interface FigmaImagesResponse {
   images: Record<string, string | null>;
   err: string | null;
+}
+
+export interface FigmaImageFillsResponse {
+  meta: {
+    images: Record<string, string>;
+  };
 }
 
 export interface FigmaStylesResponse {

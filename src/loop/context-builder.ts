@@ -37,6 +37,10 @@ export interface ContextBuildOptions {
   iterationLog?: string;
   /** Source integration type (github, linear, figma, notion, file) for source-specific prompts */
   sourceType?: string;
+  /** Whether Figma images were downloaded to public/images/ */
+  figmaImagesDownloaded?: boolean;
+  /** Font substitutions applied (original → Google Fonts alternative) */
+  figmaFontSubstitutions?: Array<{ original: string; substitute: string }>;
 }
 
 export interface BuiltContext {
@@ -257,14 +261,45 @@ ${
   opts.sourceType === 'figma'
     ? `
 Figma-to-code guidelines (CRITICAL — your spec comes from a Figma design file):
-- AUTO-LAYOUT → FLEXBOX/GRID: "horizontal" = \`display: flex; flex-direction: row\`. "Vertical" = \`flex-direction: column\`. "Wrap" = \`flex-wrap: wrap\`. Use gap for item spacing.
-- COLORS: If the spec includes a "Design Tokens" section with CSS variables, put them in \`@theme inline { }\` and use Tailwind utilities (e.g. \`bg-primary\`, \`text-accent/80\`). If not, extract colors from the spec and create the @theme block yourself.
-- TYPOGRAPHY: Use the EXACT font names from the spec. Add Google Fonts import if needed. Do NOT substitute with generic fonts.
-- CONSTRAINTS: "Fill container" = \`width: 100%\` or \`flex: 1\`. "Fixed" = exact px value. "Hug contents" = \`width: fit-content\`.
-- SPACING: Apply padding/margin exactly as specified in the spec (top right bottom left notation).
+- AUTO-LAYOUT → FLEXBOX/GRID: "horizontal" = \`display: flex; flex-direction: row\`. "Vertical" = \`flex-direction: column\`. "Wrap" = \`flex-wrap: wrap\`. Use \`gap\` for item spacing. Never use margin for gap spacing in flex containers.
+- COLORS: Match colors EXACTLY as specified — copy hex/rgba values from design tokens verbatim. For opacity, use the exact value (e.g. \`/80\` not \`/75\`). If the spec includes a "Design Tokens" section with CSS variables, put them in \`@theme inline { }\` and use Tailwind utilities (e.g. \`bg-primary\`, \`text-accent/80\`). If not, extract colors from the spec and create the @theme block yourself.
+- TYPOGRAPHY: ${opts.figmaFontSubstitutions?.length ? 'The spec includes a "Font Substitutions" section — use the substitute Google Fonts listed there. Import them via Google Fonts `<link>` tag.' : 'Use the EXACT font names from the spec. Add Google Fonts `<link>` import in the HTML head. Do NOT substitute with generic fonts.'} Apply exact font-size, font-weight, line-height, and letter-spacing values from the spec — do NOT round or approximate these values.
+- SIZING: The spec shows explicit sizing modes per element: "fill container" = \`flex: 1\` (or \`width: 100%\` for block elements). "Hug contents" = \`width: fit-content\`. "Fixed" = exact px dimensions. These are more reliable than constraints — always use them when present.
+- WRAP: When the spec shows "Wrap: flex-wrap: wrap", add \`flex-wrap: wrap\`. Use the "Row gap" value for \`row-gap\` in wrapped layouts.
+- ABSOLUTE CHILDREN: Elements marked "Positioning: absolute" are absolutely positioned within their auto-layout parent. Use \`position: absolute\` with coordinates from the spec.
+- OVERFLOW: "Overflow: hidden" = \`overflow: hidden\`. "Scrollable" = \`overflow-x: auto\` or \`overflow-y: auto\` as indicated.
+- STICKY/FIXED: "Scroll behavior: position: sticky" = \`position: sticky; top: 0\`. "position: fixed" = \`position: fixed\`.
+- SIZE CONSTRAINTS: Apply \`min-width\`/\`max-width\`/\`min-height\`/\`max-height\` EXACTLY as shown in the spec for responsive behavior.
+- SPACING: Apply padding and margin EXACTLY as specified (top right bottom left notation). Do not simplify shorthand if values differ per side. Match gap values exactly.
+- BORDER RADIUS: Use exact border-radius values from the spec (e.g., 12px means \`rounded-[12px]\` in Tailwind, not \`rounded-xl\`). For per-corner radii, apply each corner value individually.
+- BORDERS: When the spec shows individual border sides (border-top, border-right, etc.), apply them individually — do NOT combine into shorthand \`border\`. For dashed borders, use \`border-style: dashed\`.
+- SHADOWS: Reproduce box-shadow values exactly (x, y, blur, spread, color) from the design tokens. Do not substitute with generic Tailwind shadow utilities unless they match the exact spec values.
+- EFFECTS: Implement ALL visible effects (blur, shadow, opacity). For \`backdrop-filter: blur()\`, apply exact values. Do not skip subtle effects like background blur or low-opacity overlays.
+- ROTATION: Apply \`transform: rotate(Xdeg)\` exactly as specified. Set \`transform-origin\` if the element is positioned.
+- IMAGE FILTERS: When the spec includes a "Filters" line (e.g. \`filter: brightness(1.10) contrast(0.90)\`), apply it to the image element exactly.
 - RESPONSIVE: The Figma spec shows a single breakpoint. Add responsive breakpoints: stack columns on mobile, adjust font sizes, add appropriate padding.
-- IMAGES: Use placeholder images from https://placehold.co with exact dimensions from the spec (e.g. \`https://placehold.co/400x300\`).
-- FIDELITY: Match the design EXACTLY — don't add extra elements, animations, or decorations not in the spec.
+${
+  opts.figmaImagesDownloaded
+    ? `- IMAGES: Design images have been downloaded to \`public/images/\`. Use the local file paths referenced in the spec (e.g. \`/images/abc123.png\`). For any missing images, fall back to \`https://placehold.co\` with exact dimensions.
+- IMAGE IMPLEMENTATION: The spec marks each image with its Figma element name, scale mode, and CSS hints. Follow these rules:
+  * "Image (Background)" or "Image (Hero Background)" = container with content on top. Use \`position: relative\` on container, then either:
+    - CSS \`background-image\` + \`background-size: cover\`, OR
+    - \`<img>\` with \`position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0\` + content with \`position: relative; z-index: 1\`
+  * Scale mode FILL = \`object-fit: cover\` (crop to fill). FIT = \`object-fit: contain\`. STRETCH = \`object-fit: fill\`
+  * For hero sections ("Hero Background"): the image MUST fill the entire section. Use \`min-height\` from the spec or \`100vh\`. Never let the image leave gaps.
+  * Match the image to the correct element by checking the "Element:" name in the spec
+- IMAGE CROPPING: When the spec includes a "Crop position" line (e.g. \`object-position: 30% 20%\` or \`background-position: 30% 20%\`), you MUST apply it. This controls which part of the image is visible when cropped by \`object-fit: cover\`. Without it, CSS defaults to centering which may show the wrong region of the image.
+- ICONS: Icon SVGs have been downloaded to \`public/images/icons/\`. The spec marks each icon with an "Icon (SVG)" section. Use \`<img src="/images/icons/filename.svg">\` or inline the SVG for color control. Size icons to match the spec dimensions.`
+    : '- IMAGES: Use placeholder images from https://placehold.co with exact dimensions from the spec (e.g. `https://placehold.co/400x300`). Match the aspect ratio exactly.\n- ICONS: If the spec references icon SVGs in `/images/icons/`, use those paths. Otherwise, use a popular icon library (Lucide, Heroicons) to match the icon intent described in the spec.'
+}
+- POSITIONING: The spec includes (x, y) positions for each element. Use these for:
+  * Elements that overlap or layer on top of each other (use \`position: absolute\` + \`top/left\` or \`inset\`)
+  * Verifying element order and spacing within flex/grid containers
+  * The spec includes \`z-index\` comments for overlapping siblings — apply them as CSS z-index values
+- NAVIGATION: If the design has a fixed header/nav bar, implement it with \`position: fixed; top: 0; width: 100%; z-index: 50\` and add \`scroll-padding-top\` on \`<html>\` equal to the nav height so anchor links don't hide content behind the nav. For scroll-linked navigation (active section highlighting), use \`IntersectionObserver\` to detect which section is in view.
+- FIDELITY: Match the design EXACTLY — pixel-perfect implementation is the goal. Do not add extra elements, animations, hover effects, or decorations not described in the spec. Do not "improve" the design. The Figma spec is the single source of truth.
+- LAYER ORDER: The spec includes z-index comments (back/middle/front) for overlapping elements. Implement stacking with CSS z-index. Later elements in the spec = higher z-index = rendered on top.
+- SCREENSHOTS: Frame screenshots are in \`public/images/screenshots/\` — use them as visual reference to verify your implementation matches the design.
 `
     : ''
 }`;
