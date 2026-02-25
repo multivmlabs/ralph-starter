@@ -35,6 +35,8 @@ export interface ContextBuildOptions {
   skipPlanInstructions?: boolean;
   /** Iteration log content from .ralph/iteration-log.md (previous iteration summaries) */
   iterationLog?: string;
+  /** Source integration type (github, linear, figma, notion, file) for source-specific prompts */
+  sourceType?: string;
 }
 
 export interface BuiltContext {
@@ -251,7 +253,21 @@ Design quality (IMPORTANT):
 - If no spec exists, choose ONE clear design direction (bold/minimal/retro/editorial/playful) and commit to it
 - Use a specific color palette with max 3-4 colors, not rainbow gradients
 - Avoid generic AI aesthetics: no purple-blue gradient backgrounds/text, no glass morphism/neumorphism, no Inter/Roboto defaults — pick distinctive typography (e.g. DM Sans, Playfair Display, Space Mono)
-`;
+${
+  opts.sourceType === 'figma'
+    ? `
+Figma-to-code guidelines (CRITICAL — your spec comes from a Figma design file):
+- AUTO-LAYOUT → FLEXBOX/GRID: "horizontal" = \`display: flex; flex-direction: row\`. "Vertical" = \`flex-direction: column\`. "Wrap" = \`flex-wrap: wrap\`. Use gap for item spacing.
+- COLORS: If the spec includes a "Design Tokens" section with CSS variables, put them in \`@theme inline { }\` and use Tailwind utilities (e.g. \`bg-primary\`, \`text-accent/80\`). If not, extract colors from the spec and create the @theme block yourself.
+- TYPOGRAPHY: Use the EXACT font names from the spec. Add Google Fonts import if needed. Do NOT substitute with generic fonts.
+- CONSTRAINTS: "Fill container" = \`width: 100%\` or \`flex: 1\`. "Fixed" = exact px value. "Hug contents" = \`width: fit-content\`.
+- SPACING: Apply padding/margin exactly as specified in the spec (top right bottom left notation).
+- RESPONSIVE: The Figma spec shows a single breakpoint. Add responsive breakpoints: stack columns on mobile, adjust font sizes, add appropriate padding.
+- IMAGES: Use placeholder images from https://placehold.co with exact dimensions from the spec (e.g. \`https://placehold.co/400x300\`).
+- FIDELITY: Match the design EXACTLY — don't add extra elements, animations, or decorations not in the spec.
+`
+    : ''
+}`;
 
   // Inject iteration log for iterations 2+ (gives agent memory of what happened before)
   const iterationLogSection =

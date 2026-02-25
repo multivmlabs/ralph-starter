@@ -816,6 +816,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       specSummary,
       skipPlanInstructions: options.skipPlanInstructions,
       iterationLog,
+      sourceType: options.sourceType,
     });
     const iterationTask = builtContext.prompt;
 
