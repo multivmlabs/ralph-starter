@@ -10,6 +10,10 @@
  * - assets: Export icons and images (SVG, PNG, PDF)
  */
 
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import {
   type AuthMethod,
   BaseIntegration,
@@ -17,17 +21,18 @@ import {
   type IntegrationResult,
 } from '../base.js';
 import { figmaNodeToComponent, getFileExtension } from './parsers/component-code.js';
+import { extractContent, formatContentAsMarkdown } from './parsers/content-extractor.js';
 import {
-  type ExtractedContent,
-  extractContent,
-  formatContentAsJson,
-  formatContentAsMarkdown,
-} from './parsers/content-extractor.js';
-import { nodesToSpec } from './parsers/design-spec.js';
+  type CompositeNodeResult,
+  collectCompositeNodes,
+  nodesToSpec,
+  selectPrimaryFrames,
+} from './parsers/design-spec.js';
 import { extractTokensFromFile, formatTokens } from './parsers/design-tokens.js';
 import { checkFonts, collectFontFamilies } from './parsers/font-checker.js';
 import { collectIconNodes } from './parsers/icon-collector.js';
 import { collectImageRefs } from './parsers/image-collector.js';
+import { extractSectionSummaries } from './parsers/plan-generator.js';
 import type {
   FigmaFile,
   FigmaImageFillsResponse,
@@ -47,6 +52,13 @@ export class FigmaIntegration extends BaseIntegration {
   authMethods: AuthMethod[] = ['api-key'];
 
   private readonly API_BASE = 'https://api.figma.com/v1';
+
+  /**
+   * Whether we detected a low-budget plan (starter/free with low limit-type).
+   * When true, skip non-essential API calls (icons, screenshots) to conserve
+   * the tiny request budget (6 req/month on starter-low).
+   */
+  private lowBudget = false;
 
   async fetch(
     identifier: string,
@@ -87,18 +99,23 @@ export class FigmaIntegration extends BaseIntegration {
 
     let nodes: FigmaNode[];
     let fileName: string;
+    let file: FigmaFile | null = null;
 
-    if (nodeIds.length > 0) {
-      // Fetch specific nodes
+    // Filter out canvas/page-level node IDs (e.g., "0:1") — these don't narrow
+    // the scope and prevent us from fetching the full file (needed for tokens).
+    const specificNodeIds = nodeIds.filter((id) => !id.match(/^0:\d+$/));
+
+    if (specificNodeIds.length > 0) {
+      // Fetch specific nodes (user selected specific frames/components)
       const response = await this.apiRequest<FigmaNodesResponse>(
         token,
-        `/files/${fileKey}/nodes?ids=${formatNodeIds(nodeIds)}`
+        `/files/${fileKey}/nodes?ids=${formatNodeIds(specificNodeIds)}`
       );
       fileName = response.name;
       nodes = Object.values(response.nodes).map((n) => n.document);
     } else {
-      // Fetch entire file
-      const file = await this.apiRequest<FigmaFile>(token, `/files/${fileKey}`);
+      // Fetch entire file (reuse for tokens extraction below)
+      file = await this.apiRequest<FigmaFile>(token, `/files/${fileKey}`);
       fileName = file.name;
       nodes = file.document.children || [];
     }
@@ -118,7 +135,9 @@ export class FigmaIntegration extends BaseIntegration {
     // Collect image references from nodes
     const imageRefs = collectImageRefs(nodes);
 
-    // Fetch image fill download URLs
+    // Fetch image fill download URLs (important — enables image downloads)
+    // This is the only additional API call beyond the file fetch — it's essential
+    // for downloading design images. Icons and screenshots are best-effort.
     let imageFillUrls: Record<string, string> = {};
     if (imageRefs.length > 0) {
       try {
@@ -128,52 +147,175 @@ export class FigmaIntegration extends BaseIntegration {
       }
     }
 
-    // Render top-level frames as PNG screenshots for multimodal context
-    let frameScreenshots: Record<string, string | null> = {};
-    const topFrameIds = this.collectTopLevelFrameIds(nodes, 5);
-    if (topFrameIds.length > 0) {
-      try {
-        const screenshotResponse = await this.apiRequest<FigmaImagesResponse>(
-          token,
-          `/images/${fileKey}?ids=${formatNodeIds(topFrameIds)}&format=png&scale=2`
-        );
-        if (!screenshotResponse.err) {
-          frameScreenshots = screenshotResponse.images;
-        }
-      } catch {
-        // Screenshot rendering failed — proceed without
-      }
-    }
-
     // Collect icon-like nodes for SVG export
     const iconNodes = collectIconNodes(nodes, 30);
     let iconSvgUrls: Record<string, string> = {};
     const exportedIcons = new Map<string, string>();
-    if (iconNodes.length > 0) {
-      try {
-        const iconIds = iconNodes.map((ic) => ic.nodeId);
-        const svgResponse = await this.apiRequest<FigmaImagesResponse>(
-          token,
-          `/images/${fileKey}?ids=${formatNodeIds(iconIds)}&format=svg`
-        );
-        if (!svgResponse.err && svgResponse.images) {
-          iconSvgUrls = svgResponse.images as Record<string, string>;
-          for (const icon of iconNodes) {
-            if (iconSvgUrls[icon.nodeId]) {
-              exportedIcons.set(icon.nodeId, icon.filename);
+    let frameScreenshots: Record<string, string | null> = {};
+
+    // Detect composite visual groups early — needed to deduplicate with frame screenshots.
+    // Composites get a 2x render which is higher quality than the 1x frame screenshot,
+    // so we prefer the composite and skip the duplicate screenshot.
+    const compositeNodes: CompositeNodeResult[] = collectCompositeNodes(nodes);
+    const compositeIdSet = new Set(compositeNodes.map((c) => c.nodeId));
+    const compositeImages = new Map<string, string>();
+    const compositeTextOverlays = new Set<string>();
+    let compositeRenderUrls: Record<string, string | null> = {};
+
+    // The /images endpoint has very strict rate limits (~10 req/min).
+    // Icons + screenshots are best-effort: we combine all node IDs into
+    // a single /images call to minimize API usage.
+    // On low-budget plans (starter/free, 6 req/month), skip entirely to conserve budget.
+    if (!this.lowBudget) {
+      const topFrameIds = this.collectTopLevelFrameIds(nodes, 3);
+      // Deduplicate: skip frame screenshots for nodes that are also composites
+      const screenshotFrameIds = topFrameIds.filter((id) => !compositeIdSet.has(id));
+      const iconIds = iconNodes.map((ic) => ic.nodeId);
+      const allRenderIds = [...iconIds, ...screenshotFrameIds];
+
+      if (allRenderIds.length > 0) {
+        // Delay after image fills endpoint to avoid bursting
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        // Fetch icon SVGs (single request, non-essential — won't retry on 429)
+        if (iconIds.length > 0) {
+          try {
+            const svgResponse = await this.apiRequest<FigmaImagesResponse>(
+              token,
+              `/images/${fileKey}?ids=${formatNodeIds(iconIds)}&format=svg`,
+              false
+            );
+            if (!svgResponse.err && svgResponse.images) {
+              iconSvgUrls = svgResponse.images as Record<string, string>;
+              for (const icon of iconNodes) {
+                if (iconSvgUrls[icon.nodeId]) {
+                  exportedIcons.set(icon.nodeId, icon.filename);
+                }
+              }
             }
+          } catch {
+            // Icon SVG export failed (likely rate limited) — proceed without
           }
         }
-      } catch {
-        // Icon SVG export failed — proceed without
+
+        // Fetch frame screenshots (single request, non-essential — won't retry on 429)
+        if (screenshotFrameIds.length > 0) {
+          try {
+            if (iconIds.length > 0) {
+              await new Promise((resolve) => setTimeout(resolve, 1500));
+            }
+            const screenshotResponse = await this.apiRequest<FigmaImagesResponse>(
+              token,
+              `/images/${fileKey}?ids=${formatNodeIds(screenshotFrameIds)}&format=png&scale=2`,
+              false
+            );
+            if (!screenshotResponse.err) {
+              frameScreenshots = screenshotResponse.images;
+            }
+          } catch {
+            // Screenshot rendering failed — non-critical, proceed without
+          }
+        }
+      }
+
+      // Fetch composite visual group renders (2x for higher quality)
+      if (compositeNodes.length > 0) {
+        const compositeIds = compositeNodes.map((c) => c.nodeId);
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          const compositeResponse = await this.apiRequest<FigmaImagesResponse>(
+            token,
+            `/images/${fileKey}?ids=${formatNodeIds(compositeIds)}&format=png&scale=2`,
+            false // non-essential — won't retry on 429
+          );
+          if (!compositeResponse.err && compositeResponse.images) {
+            compositeRenderUrls = compositeResponse.images;
+            for (const comp of compositeNodes) {
+              if (compositeRenderUrls[comp.nodeId]) {
+                const safeName = comp.name
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]+/g, '-')
+                  .replace(/-+/g, '-');
+                compositeImages.set(comp.nodeId, `/images/composite-${safeName}.png`);
+                if (comp.hasTextOverlays) {
+                  compositeTextOverlays.add(comp.nodeId);
+                }
+              }
+            }
+          }
+        } catch {
+          // Composite rendering failed — fall back to individual layer extraction
+        }
       }
     }
 
-    const content = nodesToSpec(nodes, fileName, {
+    const specOptions = {
       fontSubstitutions,
       imageFillUrls,
       exportedIcons,
+      compositeImages: compositeImages.size > 0 ? compositeImages : undefined,
+      compositeTextOverlays: compositeTextOverlays.size > 0 ? compositeTextOverlays : undefined,
+    };
+    const content = nodesToSpec(nodes, fileName, specOptions);
+
+    // Extract structured section summaries for plan generation
+    const sectionSummaries = extractSectionSummaries(nodes, {
+      imageFillUrls,
+      compositeImages: compositeImages.size > 0 ? compositeImages : undefined,
+      compositeTextOverlays: compositeTextOverlays.size > 0 ? compositeTextOverlays : undefined,
+      exportedIcons: exportedIcons.size > 0 ? exportedIcons : undefined,
+      fontSubstitutions: fontSubstitutions.size > 0 ? fontSubstitutions : undefined,
     });
+
+    // Extract tokens from the file data we already have (avoids re-fetching)
+    let tokensContent: string | undefined;
+    if (file) {
+      try {
+        const tokens = extractTokensFromFile(file);
+        const formatted = formatTokens(tokens, 'css');
+        const totalCount = Object.values(tokens).reduce(
+          (sum, group) => sum + Object.keys(group).length,
+          0
+        );
+        if (totalCount > 0) {
+          tokensContent = `# Design Tokens: ${fileName}\n\n\`\`\`css\n${formatted}\n\`\`\`\n`;
+        }
+      } catch {
+        // Token extraction failed — non-critical
+      }
+    }
+
+    // Extract content structure from nodes we already have (avoids re-fetching)
+    let contentStructure: string | undefined;
+    try {
+      const extracted = extractContent(nodes, fileName);
+      const contentMd = formatContentAsMarkdown(extracted);
+      if (contentMd) {
+        // Keep only navigation and IA summary (compact version)
+        const contentLines = contentMd.split('\n');
+        const summaryLines: string[] = [];
+        let inSection = false;
+        for (const line of contentLines) {
+          if (
+            line.startsWith('## Navigation') ||
+            line.startsWith('## Summary') ||
+            line.startsWith('## Information Architecture')
+          ) {
+            inSection = true;
+            summaryLines.push(line);
+          } else if (line.startsWith('## ') && inSection) {
+            inSection = false;
+          } else if (inSection) {
+            summaryLines.push(line);
+          }
+        }
+        if (summaryLines.length > 0) {
+          contentStructure = summaryLines.join('\n');
+        }
+      }
+    } catch {
+      // Content extraction failed — non-critical
+    }
 
     return {
       content,
@@ -191,6 +333,15 @@ export class FigmaIntegration extends BaseIntegration {
         frameScreenshots,
         iconNodes,
         iconSvgUrls,
+        tokensContent,
+        contentStructure,
+        compositeRenderUrls:
+          Object.keys(compositeRenderUrls).length > 0 ? compositeRenderUrls : undefined,
+        compositeNodes: compositeNodes.length > 0 ? compositeNodes : undefined,
+        compositeImages: compositeImages.size > 0 ? Object.fromEntries(compositeImages) : undefined,
+        compositeTextOverlays:
+          compositeTextOverlays.size > 0 ? [...compositeTextOverlays] : undefined,
+        sectionSummaries: sectionSummaries.length > 0 ? sectionSummaries : undefined,
       },
     };
   }
@@ -431,13 +582,15 @@ ${formatted}
 
   /**
    * Collect top-level frame IDs for rendering as screenshots.
-   * Returns direct FRAME children of CANVAS nodes (max `limit`).
+   * Uses selectPrimaryFrames to avoid screenshotting duplicate frames.
+   * Returns up to `limit` frame IDs.
    */
   private collectTopLevelFrameIds(nodes: FigmaNode[], limit: number): string[] {
     const frameIds: string[] = [];
     for (const node of nodes) {
       if (node.type === 'CANVAS' && node.children) {
-        for (const child of node.children) {
+        const primary = selectPrimaryFrames(node.children);
+        for (const child of primary) {
           if (child.type === 'FRAME' && child.visible !== false) {
             frameIds.push(child.id);
             if (frameIds.length >= limit) return frameIds;
@@ -545,35 +698,187 @@ ${formatted}
     return results;
   }
 
+  // ============================================
+  // Response cache — avoids repeated API calls during development/testing.
+  // Cached in ~/.ralph/figma-cache/ with a 1-hour TTL.
+  // On 429, falls back to stale cache if available.
+  // ============================================
+
+  private static readonly CACHE_DIR = join(homedir(), '.ralph', 'figma-cache');
+  private static readonly CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+  private getCachePath(path: string): string {
+    const hash = createHash('sha256').update(path).digest('hex').slice(0, 16);
+    return join(FigmaIntegration.CACHE_DIR, `${hash}.json`);
+  }
+
+  private readCache<T>(path: string): { data: T; fresh: boolean } | null {
+    const cachePath = this.getCachePath(path);
+    try {
+      if (!existsSync(cachePath)) return null;
+      const stat = statSync(cachePath);
+      const age = Date.now() - stat.mtimeMs;
+      const data = JSON.parse(readFileSync(cachePath, 'utf-8')) as T;
+      return { data, fresh: age < FigmaIntegration.CACHE_TTL_MS };
+    } catch {
+      return null;
+    }
+  }
+
+  private writeCache(path: string, data: unknown): void {
+    try {
+      if (!existsSync(FigmaIntegration.CACHE_DIR)) {
+        mkdirSync(FigmaIntegration.CACHE_DIR, { recursive: true });
+      }
+      writeFileSync(this.getCachePath(path), JSON.stringify(data));
+    } catch {
+      // Cache write failed — non-critical
+    }
+  }
+
   /**
-   * Make an API request to Figma
+   * Make an API request to Figma with timeout, caching, and single retry on 429.
+   * @param essential - If true, retries once on 429. If false, throws immediately on 429.
    */
-  private async apiRequest<T>(token: string, path: string): Promise<T> {
-    const response = await fetch(`${this.API_BASE}${path}`, {
-      headers: {
-        'X-Figma-Token': token,
-      },
-    });
+  private async apiRequest<T>(token: string, path: string, essential = true): Promise<T> {
+    const timeoutMs = 30_000;
+    const maxAttempts = essential ? 2 : 1; // Only retry essential calls
+    const debug = !!process.env.RALPH_DEBUG;
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        this.error(
-          'Invalid Figma token. Get a Personal Access Token from Figma settings and run:\n' +
-            'ralph-starter config set figma.token <your-token>'
-        );
+    // Return fresh cache hit immediately (skip API call entirely)
+    const cached = this.readCache<T>(path);
+    if (cached?.fresh) {
+      if (debug) {
+        console.log(`  [figma debug] cache hit (fresh) for ${path.split('?')[0]}`);
       }
-      if (response.status === 403) {
-        this.error('Access denied. Make sure your token has access to this file.');
-      }
-      if (response.status === 404) {
-        this.error('File not found. Check the file key or URL is correct.');
-      }
-
-      const error = (await response.json().catch(() => ({}))) as { message?: string };
-      this.error(`Figma API error: ${response.status} - ${error.message || response.statusText}`);
+      return cached.data;
     }
 
-    return response.json() as Promise<T>;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+      if (debug) {
+        console.log(
+          `  [figma debug] ${essential ? 'essential' : 'optional'} GET ${path} (attempt ${attempt + 1}/${maxAttempts})`
+        );
+      }
+
+      let response: Response;
+      try {
+        response = await fetch(`${this.API_BASE}${path}`, {
+          headers: { 'X-Figma-Token': token },
+          signal: controller.signal,
+        });
+      } catch (err: unknown) {
+        clearTimeout(timer);
+        if (err instanceof Error && err.name === 'AbortError') {
+          // On timeout, try stale cache before failing
+          if (cached) {
+            if (debug) console.log(`  [figma debug] timeout — using stale cache`);
+            console.log('  Using cached Figma data (API timed out)');
+            return cached.data;
+          }
+          this.error(
+            `Figma API request timed out after ${timeoutMs / 1000}s. The file may be too large — try fetching specific frames with --figma-nodes.`
+          );
+        }
+        throw err;
+      } finally {
+        clearTimeout(timer);
+      }
+
+      if (debug) {
+        const retryAfter = response.headers.get('retry-after');
+        console.log(
+          `  [figma debug] ${response.status} ${response.statusText}${retryAfter ? ` (retry-after: ${retryAfter}s)` : ''}`
+        );
+      }
+
+      if (response.status === 429) {
+        // On rate limit, use stale cache if available (skip retry entirely)
+        if (cached) {
+          if (debug) console.log(`  [figma debug] 429 — using stale cache`);
+          console.log('  Using cached Figma data (API rate limited)');
+          return cached.data;
+        }
+
+        // Extract rate limit diagnostic headers
+        const retryAfter = response.headers.get('retry-after');
+        const planTier = response.headers.get('x-figma-plan-tier');
+        const limitType = response.headers.get('x-figma-rate-limit-type');
+        const retrySeconds = retryAfter ? Number.parseInt(retryAfter, 10) : null;
+
+        // Flag low-budget plans so we skip non-essential calls later
+        if (limitType === 'low' || planTier === 'starter') {
+          this.lowBudget = true;
+        }
+
+        if (debug) {
+          console.log(
+            `  [figma debug] plan=${planTier} limit-type=${limitType} retry-after=${retryAfter}s`
+          );
+        }
+
+        // CloudFront-level block: retry-after > 1 hour means CDN throttling, not transient rate limit.
+        // Retrying is pointless — fail fast with actionable advice.
+        if (retrySeconds && retrySeconds > 3600) {
+          const days = Math.ceil(retrySeconds / 86400);
+          const hints = [
+            `Figma API blocked for ~${days} day(s) (CDN-level throttle).`,
+            planTier ? `  Plan tier: ${planTier} | Limit type: ${limitType || 'unknown'}` : '',
+            "  This often happens with community files — the file owner's plan sets your rate limits.",
+            '  Workarounds:',
+            '    1. Duplicate the file to your own Figma workspace (fixes owner-plan limits)',
+            '    2. Use a VPN to get a fresh IP (bypasses CDN throttle)',
+            '    3. Upgrade to a Figma paid plan with a Dev seat (10+ req/min)',
+          ]
+            .filter(Boolean)
+            .join('\n');
+          this.error(hints);
+        }
+
+        if (attempt + 1 < maxAttempts) {
+          // Wait and retry once for essential calls.
+          // IMPORTANT: respect Figma's retry-after header (typically 30-60s).
+          // Retrying too early resets the cooldown and makes things worse.
+          const waitMs = Math.min(retrySeconds ? retrySeconds * 1000 : 30_000, 60_000);
+          console.log(
+            `  Figma rate limit hit — waiting ${Math.ceil(waitMs / 1000)}s before retry...`
+          );
+          await new Promise((resolve) => setTimeout(resolve, waitMs));
+          continue;
+        }
+        this.error(
+          `Figma API rate limit hit on ${path.split('?')[0]}. ` +
+            'Wait 1-2 minutes before trying again.'
+        );
+      }
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          this.error(
+            'Invalid Figma token. Get a Personal Access Token from Figma settings and run:\n' +
+              'ralph-starter config set figma.token <your-token>'
+          );
+        }
+        if (response.status === 403) {
+          this.error('Access denied. Make sure your token has access to this file.');
+        }
+        if (response.status === 404) {
+          this.error('File not found. Check the file key or URL is correct.');
+        }
+
+        const error = (await response.json().catch(() => ({}))) as { message?: string };
+        this.error(`Figma API error: ${response.status} - ${error.message || response.statusText}`);
+      }
+
+      const data = (await response.json()) as T;
+      this.writeCache(path, data);
+      return data;
+    }
+
+    throw new Error('Figma API request failed after retries');
   }
 
   getHelp(): string {
@@ -634,6 +939,14 @@ Modes:
   components  Generate component code (React, Vue, Svelte, Astro, Next.js, Nuxt, HTML)
   assets      Export icons and images with download scripts
   content     Extract text content and IA for applying to existing templates
+
+Rate Limits:
+  - Starter plan (Collab seat): 6 requests/month — upgrade for serious use
+  - Professional plan (Dev seat, $12/mo): 10-50 requests/min
+  - Responses are cached in ~/.ralph/figma-cache/ (1h TTL)
+  - On rate limit (429), stale cache is used automatically
+  - Community files use the file owner's plan limits, not yours
+  - Debug with: RALPH_DEBUG=1 ralph-starter run --from figma ...
 
 Notes:
   - Figma file URLs can include node selections: ?node-id=X:Y

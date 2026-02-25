@@ -22,7 +22,7 @@ $ ralph-starter run --from figma \
   --project "https://figma.com/file/ABC123/Dashboard" \
   --figma-mode components \
   --figma-framework react \
-  --loops 5 --test --commit
+  --max-iterations 5 --test --commit
 
 🔄 Loop 1/5
   → Fetching from Figma API... 12 frames, 34 components found
@@ -83,6 +83,10 @@ Setup is dead simple, just a personal access token from Figma:
 ralph-starter config set figma.token figd_xxxxx
 ```
 
+:::tip Figma Plan Matters
+The free/starter plan limits you to **6 API requests per month** -- that is barely one fetch. For real development, you need a **Professional plan with a Dev seat** ($12/month), which gives you 10+ requests per minute. Responses are cached locally so repeated runs are free.
+:::
+
 The reason this works at all is [the loop](/blog/my-first-ralph-loop). The agent does not just generate code and stop. It generates, runs tests, sees what broke, fixes it, runs again. By loop 3 or 4 you have components that actually render and pass lint. Same [Ralph Wiggum technique](/blog/ralph-wiggum-technique) I use for everything else -- just pointed at a design file instead of a GitHub issue. I did not even plan it this way. It just... worked.
 
 Want to try it with your own Figma file?
@@ -90,7 +94,17 @@ Want to try it with your own Figma file?
 ```bash
 npx ralph-starter init
 ralph-starter config set figma.token figd_your_token_here
-ralph-starter run --from figma --project "your-figma-url" --figma-mode components --figma-framework react --loops 5
+ralph-starter run --from figma --project "your-figma-url" --figma-mode components --figma-framework react --max-iterations 5
+```
+
+You can also pick your model with `--model`. Sonnet is fast and cheap for UI work, Opus is better for complex state logic:
+
+```bash
+# Fast + cheap (recommended for most Figma workflows)
+ralph-starter run --from figma --project "your-figma-url" --figma-mode components --model claude-sonnet-4-5-20250929 --max-iterations 5
+
+# Maximum quality
+ralph-starter run --from figma --project "your-figma-url" --figma-mode components --model claude-opus-4-6 --max-iterations 3
 ```
 
 ## References

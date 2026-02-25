@@ -16,6 +16,8 @@ export interface AgentRunOptions {
   cwd: string;
   auto?: boolean;
   maxTurns?: number;
+  /** Model to use (e.g., 'claude-sonnet-4-5-20250929'). Passed via --model to supported agents. */
+  model?: string;
   /** Stream output to console in real-time */
   streamOutput?: boolean;
   /** Callback for each line of output */
@@ -116,6 +118,10 @@ export async function runAgent(
       // Auto mode
       if (options.auto) {
         args.push('--dangerously-skip-permissions');
+      }
+      // Model override (e.g., 'claude-sonnet-4-5-20250929')
+      if (options.model) {
+        args.push('--model', options.model);
       }
       // Streaming JSONL output for real-time progress
       args.push('--verbose');

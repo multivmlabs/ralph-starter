@@ -41,6 +41,8 @@ export interface ContextBuildOptions {
   figmaImagesDownloaded?: boolean;
   /** Font substitutions applied (original → Google Fonts alternative) */
   figmaFontSubstitutions?: Array<{ original: string; substitute: string }>;
+  /** Path to design reference image (relative to cwd) — becomes the PRIMARY visual source of truth */
+  designImagePath?: string;
 }
 
 export interface BuiltContext {
@@ -253,7 +255,7 @@ Technology gotchas (CRITICAL — follow these exactly):
 - Do NOT run \`npm run build\` or \`npm run dev\` manually — the loop handles validation automatically (lint between tasks, full build at the end).
 
 Design quality (IMPORTANT):
-- FIRST PRIORITY: If specs/ contains a design specification, follow it EXACTLY — match the described colors, spacing, layout, typography, and visual style faithfully. The spec is the source of truth.
+${opts.designImagePath ? `- **DESIGN REFERENCE IMAGE** (THIS IS YOUR #1 SOURCE OF TRUTH): A screenshot of the exact target design has been saved to \`${opts.designImagePath}\`. Your VERY FIRST action before writing ANY code must be to use the Read tool to open this image and study it carefully. This image shows EXACTLY what the final result must look like — every section, every image position, every text placement, every visual detail. The text spec in specs/ provides supplementary data (exact hex colors, font names, spacing values), but the IMAGE is what you must match visually. After implementing each major section, re-open the design image and compare it to your code. If something looks different from the image, fix it immediately.` : `- FIRST PRIORITY: If specs/ contains a design specification, follow it EXACTLY — match the described colors, spacing, layout, typography, and visual style faithfully. The spec is the source of truth.`}
 - If no spec exists, choose ONE clear design direction (bold/minimal/retro/editorial/playful) and commit to it
 - Use a specific color palette with max 3-4 colors, not rainbow gradients
 - Avoid generic AI aesthetics: no purple-blue gradient backgrounds/text, no glass morphism/neumorphism, no Inter/Roboto defaults — pick distinctive typography (e.g. DM Sans, Playfair Display, Space Mono)
@@ -292,6 +294,17 @@ ${
 - ICONS: Icon SVGs have been downloaded to \`public/images/icons/\`. The spec marks each icon with an "Icon (SVG)" section. Use \`<img src="/images/icons/filename.svg">\` or inline the SVG for color control. Size icons to match the spec dimensions.`
     : '- IMAGES: Use placeholder images from https://placehold.co with exact dimensions from the spec (e.g. `https://placehold.co/400x300`). Match the aspect ratio exactly.\n- ICONS: If the spec references icon SVGs in `/images/icons/`, use those paths. Otherwise, use a popular icon library (Lucide, Heroicons) to match the icon intent described in the spec.'
 }
+- PARALLAX/LAYERED HEROES: When the spec describes a "Composite Background (visual layers only — text NOT included)", this means overlapping visual layers (mountains, gradients, photos) rendered as one image WITHOUT text baked in. Implement as:
+  * Container: \`position: relative; overflow: hidden; min-height: [spec value]\`
+  * Background: \`<img>\` or \`background-image\` with \`position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0\`
+  * ALL text/content elements: \`position: relative; z-index: 1\` to layer OVER the background
+  * The text elements in the spec that follow the composite section are the overlays — place them on top
+- ALTERNATING CONTENT SECTIONS: When numbered sections (01, 02, 03) have images alternating left/right:
+  * Use \`flex-direction: row\` for odd sections, \`flex-direction: row-reverse\` for even (or vice versa based on the spec)
+  * Maintain consistent image dimensions across all sections (match the spec dimensions exactly)
+  * Use consistent gap/spacing between text block and image across all sections
+  * The large background numbers (01, 02, 03) should use \`position: absolute\` with large font-size and low opacity
+- INFERRED LAYOUT: When the spec shows "Inferred Layout" (detected from positions, not Figma auto-layout), treat these CSS hints as reliable — they were algorithmically derived from exact pixel positions in the design. Use the suggested \`flex-direction\`, \`gap\`, \`padding\`, and \`justify\` values.
 - POSITIONING: The spec includes (x, y) positions for each element. Use these for:
   * Elements that overlap or layer on top of each other (use \`position: absolute\` + \`top/left\` or \`inset\`)
   * Verifying element order and spacing within flex/grid containers
@@ -299,7 +312,12 @@ ${
 - NAVIGATION: If the design has a fixed header/nav bar, implement it with \`position: fixed; top: 0; width: 100%; z-index: 50\` and add \`scroll-padding-top\` on \`<html>\` equal to the nav height so anchor links don't hide content behind the nav. For scroll-linked navigation (active section highlighting), use \`IntersectionObserver\` to detect which section is in view.
 - FIDELITY: Match the design EXACTLY — pixel-perfect implementation is the goal. Do not add extra elements, animations, hover effects, or decorations not described in the spec. Do not "improve" the design. The Figma spec is the single source of truth.
 - LAYER ORDER: The spec includes z-index comments (back/middle/front) for overlapping elements. Implement stacking with CSS z-index. Later elements in the spec = higher z-index = rendered on top.
-- SCREENSHOTS: Frame screenshots are in \`public/images/screenshots/\` — use them as visual reference to verify your implementation matches the design.
+- VISUAL REFERENCE (CRITICAL): ${opts.designImagePath ? `The design reference image at \`${opts.designImagePath}\` is your PRIMARY visual source of truth — read it FIRST and refer back to it constantly.` : ''} Frame screenshots from the Figma design are saved in \`public/images/screenshots/\`. You MUST use the Read tool to open these PNG files and visually inspect them BEFORE writing code. These are the ground truth for what the final result should look like. After implementing each major section, open the ${opts.designImagePath ? 'design reference image' : 'screenshot'} again and compare it to your code. Pay close attention to:
+  * Image positioning, cropping, and aspect ratios
+  * Overlapping/layered elements and their visual stacking
+  * Text placement relative to background images
+  * Overall composition and visual hierarchy
+  * Element spacing and alignment
 `
     : ''
 }`;

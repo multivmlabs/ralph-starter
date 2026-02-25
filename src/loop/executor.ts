@@ -236,6 +236,7 @@ export interface LoopOptions {
   contextBudget?: number; // Max input tokens per iteration (0 = unlimited)
   validationWarmup?: number; // Skip validation until N tasks completed (for greenfield builds)
   maxCost?: number; // Maximum cost in USD before stopping (0 = unlimited)
+  planBudget?: import('./cost-tracker.js').PlanBudget; // Plan budget for % display
   agentTimeout?: number; // Agent timeout in milliseconds (default: 300000 = 5 min)
   initialValidationFeedback?: string; // Pre-populate with errors (used by `fix` command)
   maxSkills?: number; // Cap skills included in prompt (default: 5)
@@ -244,6 +245,7 @@ export interface LoopOptions {
   taskTitle?: string; // Human-readable task title (from issue/spec) for display
   figmaImagesDownloaded?: boolean; // Whether Figma images were downloaded to public/images/
   figmaFontSubstitutions?: Array<{ original: string; substitute: string }>; // Font substitutions applied
+  designImagePath?: string; // Path to design reference image (relative to cwd) for pixel-perfect matching
 }
 
 export interface LoopResult {
@@ -488,6 +490,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
         model: options.model || 'claude-3-sonnet',
         maxIterations: maxIterations,
         maxCost: options.maxCost,
+        planBudget: options.planBudget,
       })
     : null;
 
@@ -736,7 +739,9 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       ? ` (${options.model.replace('claude-', '').replace('gpt-', '')})`
       : '';
     const costSoFar = costTracker
-      ? ` │ ${formatCost(costTracker.getStats().totalCost.totalCost)}`
+      ? ` │ ${formatCost(costTracker.getStats().totalCost.totalCost)}${
+          costTracker.getPlanPercentage() ? ` (${costTracker.getPlanPercentage()}%)` : ''
+        }`
       : '';
     const subtitleSuffix = `${modelShort}${costSoFar}`;
     if (currentTask && totalTasks > 0) {
@@ -821,6 +826,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       sourceType: options.sourceType,
       figmaImagesDownloaded: options.figmaImagesDownloaded,
       figmaFontSubstitutions: options.figmaFontSubstitutions,
+      designImagePath: options.designImagePath,
     });
     const iterationTask = builtContext.prompt;
 
@@ -850,6 +856,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       task: iterationTask,
       cwd: options.cwd,
       auto: options.auto,
+      model: options.model,
       // maxTurns removed - was causing issues, match wizard behavior
       streamOutput: !!process.env.RALPH_DEBUG, // Show raw JSON when debugging
       timeoutMs: options.agentTimeout,

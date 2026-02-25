@@ -22,6 +22,233 @@ export interface SpecOptions {
   imageFillUrls?: Record<string, string>;
   /** Icon node IDs that were exported as SVG (nodeId → filename) */
   exportedIcons?: Map<string, string>;
+  /** Composite visual group node IDs that were rendered as single images (nodeId → image path) */
+  compositeImages?: Map<string, string>;
+  /** Composite node IDs that have text overlays (visual-dominant composites) */
+  compositeTextOverlays?: Set<string>;
+}
+
+/**
+ * Detect composite visual groups — overlapping visual layers that should
+ * be rendered as a single image rather than extracted individually.
+ *
+ * Examples: hero backgrounds made of stacked mountain/gradient layers,
+ * photo collages, layered illustrations.
+ *
+ * IMPORTANT: Composites must be PURE visual groups (shapes, images, gradients).
+ * The Figma /images API renders everything visible including text, so if a
+ * composite contains text or content frames, the rendered PNG will have
+ * baked-in text that conflicts with the text extracted in the spec.
+ *
+ * Detection criteria:
+ * 1. No auto-layout (children overlap intentionally)
+ * 2. Multiple children (≥2)
+ * 3. ALL children are purely visual — zero TEXT nodes, zero FRAME/GROUP/COMPONENT
+ *    children that contain text (these are content containers, not visual layers)
+ * 4. Container is large enough to be a background element (≥200px both dimensions)
+ * 5. Children actually overlap (bounding box intersection >30%)
+ * 6. Not a direct child of CANVAS (those are page sections, not backgrounds)
+ */
+export interface CompositeNodeResult {
+  nodeId: string;
+  name: string;
+  width: number;
+  height: number;
+  /** Node IDs of visual-only children to render (excludes text overlays). Present only for visual-dominant composites. */
+  visualChildIds?: string[];
+  /** Whether this composite has text overlays that should be positioned on top */
+  hasTextOverlays?: boolean;
+}
+
+export function collectCompositeNodes(nodes: FigmaNode[]): CompositeNodeResult[] {
+  const results: CompositeNodeResult[] = [];
+
+  // Collect IDs of top-level frames (direct children of CANVAS) to exclude them
+  const topLevelFrameIds = new Set<string>();
+  for (const node of nodes) {
+    if (node.type === 'CANVAS' && node.children) {
+      for (const child of node.children) {
+        topLevelFrameIds.add(child.id);
+      }
+    }
+  }
+
+  function walk(node: FigmaNode) {
+    if (node.visible === false) return;
+    if (!node.children || node.children.length < 2) {
+      // Recurse anyway to check deeper nodes
+      if (node.children) {
+        for (const child of node.children) walk(child);
+      }
+      return;
+    }
+
+    // Never treat top-level frames (page sections) as composites —
+    // they contain layout structure the agent needs
+    if (topLevelFrameIds.has(node.id)) {
+      for (const child of node.children) walk(child);
+      return;
+    }
+
+    const bbox = node.absoluteBoundingBox;
+    // Must be large enough to be a background element (at least 200px in both dimensions)
+    if (!bbox || bbox.width < 200 || bbox.height < 200) {
+      for (const child of node.children) walk(child);
+      return;
+    }
+
+    // Must NOT have auto-layout (overlapping is intentional)
+    if (node.layoutMode && node.layoutMode !== 'NONE') {
+      for (const child of node.children) walk(child);
+      return;
+    }
+
+    const visibleChildren = node.children.filter((c) => c.visible !== false);
+    if (visibleChildren.length < 2) {
+      for (const child of node.children) walk(child);
+      return;
+    }
+
+    // Partition children into visual layers vs text/content layers.
+    // Visual layers: image fills, gradients, shapes with NO text descendants.
+    // Text layers: TEXT nodes or frames/groups that contain text.
+    const visualLayers: FigmaNode[] = [];
+    const textLayers: FigmaNode[] = [];
+
+    for (const child of visibleChildren) {
+      if (child.type === 'TEXT' || containsText(child)) {
+        textLayers.push(child);
+      } else if (hasVisualContent(child)) {
+        visualLayers.push(child);
+      }
+    }
+
+    // Need at least 2 visual layers to form a composite
+    if (visualLayers.length < 2) {
+      for (const child of node.children) walk(child);
+      return;
+    }
+
+    // Check if visual children overlap
+    const visualBboxes = visualLayers
+      .map((c) => c.absoluteBoundingBox)
+      .filter((b): b is NonNullable<typeof b> => b != null);
+
+    if (visualBboxes.length >= 2 && hasSignificantOverlap(visualBboxes)) {
+      if (textLayers.length === 0) {
+        // PURE composite: all visual, no text — render entire node as single image
+        results.push({
+          nodeId: node.id,
+          name: node.name,
+          width: Math.round(bbox.width),
+          height: Math.round(bbox.height),
+        });
+        // Don't recurse — children are handled as one unit
+        return;
+      }
+      // VISUAL-DOMINANT composite: overlapping visuals WITH text overlays.
+      // The text layers must NOT be rendered into the composite image
+      // (Figma API bakes text into PNGs, causing duplication).
+      // We still record the composite but include visualChildIds so the
+      // rendering can target just the visual layers.
+      results.push({
+        nodeId: node.id,
+        name: node.name,
+        width: Math.round(bbox.width),
+        height: Math.round(bbox.height),
+        visualChildIds: visualLayers.map((c) => c.id),
+        hasTextOverlays: true,
+      });
+      // Recurse into text layers so they appear in the spec as normal
+      for (const child of textLayers) walk(child);
+      return;
+    }
+
+    // Recurse into children
+    for (const child of node.children) walk(child);
+  }
+
+  for (const node of nodes) walk(node);
+  return results;
+}
+
+/** Check if a node or any of its descendants contain text */
+function containsText(node: FigmaNode): boolean {
+  if (node.type === 'TEXT') return true;
+  if (node.children) {
+    for (const child of node.children) {
+      if (child.visible !== false && containsText(child)) return true;
+    }
+  }
+  return false;
+}
+
+/** Check if a node has visual content (images, fills, or vector shapes) */
+function hasVisualContent(node: FigmaNode): boolean {
+  // Has image fill
+  if (node.fills?.some((f) => f.type === 'IMAGE' && f.visible !== false)) return true;
+  // Has meaningful color fill
+  if (node.fills?.some((f) => f.visible !== false && f.type === 'SOLID')) return true;
+  // Has gradient
+  if (node.fills?.some((f) => f.visible !== false && f.type?.startsWith('GRADIENT'))) return true;
+  // Is a vector/shape
+  if (['VECTOR', 'BOOLEAN_OPERATION', 'RECTANGLE', 'ELLIPSE'].includes(node.type)) return true;
+  // Is a group/frame with visual children
+  if (node.children?.some((c) => c.visible !== false && hasVisualContent(c))) return true;
+  return false;
+}
+
+/** Check if bounding boxes have significant overlap (>30% of the smallest box) */
+function hasSignificantOverlap(
+  boxes: Array<{ x: number; y: number; width: number; height: number }>
+): boolean {
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i];
+      const b = boxes[j];
+      const overlapX = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
+      const overlapY = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+      const overlapArea = overlapX * overlapY;
+      const smallerArea = Math.min(a.width * a.height, b.width * b.height);
+      if (smallerArea > 0 && overlapArea / smallerArea > 0.3) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Select the primary frame from a list of canvas children.
+ *
+ * When a Figma page has multiple top-level frames (e.g., "Desktop", "Mobile",
+ * component sheets, copies), we only want the main design frame in the spec.
+ * Otherwise the agent gets duplicate content and implements everything twice.
+ *
+ * Heuristic: pick the visible frame with the largest area (width × height).
+ * This is almost always the primary design artboard.
+ */
+export function selectPrimaryFrames(children: FigmaNode[]): FigmaNode[] {
+  const visibleFrames = children.filter(
+    (c) => c.visible !== false && c.type === 'FRAME' && c.absoluteBoundingBox
+  );
+
+  if (visibleFrames.length <= 1) {
+    // 0 or 1 frames — return all visible children (may include non-frame nodes)
+    return children.filter((c) => c.visible !== false);
+  }
+
+  // Pick the frame with the largest area
+  let largest = visibleFrames[0];
+  let largestArea = 0;
+  for (const frame of visibleFrames) {
+    const bbox = frame.absoluteBoundingBox!;
+    const area = bbox.width * bbox.height;
+    if (area > largestArea) {
+      largestArea = area;
+      largest = frame;
+    }
+  }
+
+  return [largest];
 }
 
 /**
@@ -38,7 +265,9 @@ export function nodesToSpec(nodes: FigmaNode[], fileName: string, options?: Spec
     if (node.type === 'CANVAS') {
       sections.push(`## Page: ${node.name}\n`);
       if (node.children) {
-        for (const child of node.children) {
+        // Select only the primary frame to avoid spec duplication
+        const primaryChildren = selectPrimaryFrames(node.children);
+        for (const child of primaryChildren) {
           sections.push(nodeToMarkdown(child, 2, options));
         }
       }
@@ -107,6 +336,33 @@ function nodeToMarkdown(node: FigmaNode, depth: number, options?: SpecOptions): 
     }
     if (node.counterAxisAlignItems) {
       lines.push(`- Cross axis: ${formatAlignment(node.counterAxisAlignItems)}`);
+    }
+  }
+
+  // Infer layout from positions when no auto-layout is present
+  if (
+    (!node.layoutMode || node.layoutMode === 'NONE') &&
+    node.children &&
+    node.children.length >= 2
+  ) {
+    const meaningfulKids = node.children.filter(
+      (c) => c.visible !== false && c.absoluteBoundingBox
+    );
+    const inferred = inferLayout(node, meaningfulKids);
+    if (inferred && inferred.type !== 'absolute') {
+      lines.push(
+        `\n**Inferred Layout** (no auto-layout in Figma — derived from element positions):`
+      );
+      lines.push(
+        `- CSS: \`display: flex; flex-direction: ${inferred.type === 'flex-row' ? 'row' : 'column'}\``
+      );
+      if (inferred.gap) lines.push(`- Gap: ${inferred.gap}px`);
+      if (inferred.padding) {
+        const { top, right, bottom, left } = inferred.padding;
+        lines.push(`- Padding: ${top}px ${right}px ${bottom}px ${left}px`);
+      }
+      if (inferred.justify) lines.push(`- Justify: ${inferred.justify}`);
+      if (inferred.align) lines.push(`- Align: ${inferred.align}`);
     }
   }
 
@@ -340,6 +596,14 @@ function nodeToMarkdown(node: FigmaNode, depth: number, options?: SpecOptions): 
             );
           }
         }
+        // Classify image semantic importance (people, products, key visuals)
+        const sectionBbox = node.absoluteBoundingBox;
+        const importance = classifyImageImportance(node.name, dims ?? null, sectionBbox ?? null);
+        if (importance) {
+          lines.push(
+            `- **Responsive Priority: ${importance.priority.toUpperCase()}** — ${importance.hint}`
+          );
+        }
       }
     }
   }
@@ -357,11 +621,88 @@ function nodeToMarkdown(node: FigmaNode, depth: number, options?: SpecOptions): 
 
   lines.push('');
 
-  // Process children (but limit depth for readability)
-  if (node.children && depth < 4) {
-    // Filter to meaningful children
+  // Check if this node is a composite visual group (rendered as single image)
+  const compositeImagePath = options?.compositeImages?.get(node.id);
+  const compositeHasTextOverlays = options?.compositeTextOverlays?.has(node.id);
+  if (compositeImagePath) {
+    const bbox = node.absoluteBoundingBox;
+    const dimStr = bbox ? ` (${Math.round(bbox.width)}x${Math.round(bbox.height)})` : '';
+
+    if (compositeHasTextOverlays) {
+      // Visual-dominant composite: visual layers rendered as image, text extracted separately
+      lines.push(
+        `\n**Composite Background (visual layers only — text NOT included in this image):**`
+      );
+      lines.push(`- Source: \`${compositeImagePath}\`${dimStr}`);
+      lines.push(`- Element: "${node.name}"`);
+      lines.push(
+        `- This image contains ONLY the visual layers (mountains, gradients, images). Text content appears BELOW as separate elements — overlay them on top.`
+      );
+      if (bbox && bbox.height >= 400) {
+        lines.push(`- Implementation (HERO PARALLAX):`);
+        lines.push(
+          `  * Container: \`position: relative; overflow: hidden; min-height: ${Math.round(bbox.height)}px\``
+        );
+        lines.push(
+          `  * Background image: \`position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0\``
+        );
+        lines.push(
+          `  * CSS: \`background-image: url(${compositeImagePath}); background-size: cover; background-position: center; min-height: ${Math.round(bbox.height)}px\``
+        );
+        lines.push(
+          `  * ALL text/content below must use \`position: relative; z-index: 1\` to layer OVER the background`
+        );
+      } else {
+        lines.push(
+          `- Implementation: Use as full-bleed \`background-image\` with \`background-size: cover\`, all content with \`position: relative; z-index: 1\``
+        );
+      }
+
+      // Recurse into text/content children (they were NOT rendered into the composite image)
+      if (node.children) {
+        const textChildren = node.children.filter((child) => {
+          if (child.visible === false) return false;
+          return child.type === 'TEXT' || containsText(child);
+        });
+        for (let i = 0; i < textChildren.length; i++) {
+          lines.push(nodeToMarkdown(textChildren[i], depth + 1, options));
+        }
+      }
+    } else {
+      // Pure composite: all visual, no text children
+      lines.push(`\n**Composite Background (rendered as single image):**`);
+      lines.push(`- Source: \`${compositeImagePath}\`${dimStr}`);
+      lines.push(`- Element: "${node.name}"`);
+      lines.push(
+        `- This image combines multiple overlapping visual layers from the Figma design into a single background.`
+      );
+      if (bbox && bbox.height >= 400) {
+        lines.push(`- Implementation (HERO): This image MUST fill the entire section.`);
+        lines.push(
+          `  * CSS: \`background-image: url(${compositeImagePath}); background-size: cover; background-position: center; min-height: ${Math.round(bbox.height)}px\``
+        );
+        lines.push(
+          `  * Or: \`<img src="${compositeImagePath}" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0" />\``
+        );
+        lines.push(`  * All text/content on top must use \`position: relative; z-index: 1\``);
+      } else {
+        lines.push(
+          `- Implementation: Use as \`background-image\` with \`background-size: cover\` or as an \`<img>\` with \`object-fit: cover\``
+        );
+      }
+    }
+  } else if (node.children && depth < 6) {
+    // Process children (limit depth for readability — deeper levels are more selective)
+    const isDeep = depth >= 4;
     const meaningfulChildren = node.children.filter((child) => {
       if (child.visible === false) return false;
+      // At deep levels, only include nodes with actual content (text, images, large elements)
+      if (isDeep) {
+        if (child.type === 'TEXT') return true;
+        if (child.fills?.some((f) => f.visible !== false && f.type === 'IMAGE')) return true;
+        const bbox = child.absoluteBoundingBox;
+        return bbox ? bbox.width >= 50 && bbox.height >= 50 : false;
+      }
       // Include frames, components, groups, text
       if (
         ['FRAME', 'COMPONENT', 'COMPONENT_SET', 'INSTANCE', 'GROUP', 'TEXT', 'SECTION'].includes(
@@ -389,19 +730,326 @@ function nodeToMarkdown(node: FigmaNode, depth: number, options?: SpecOptions): 
     // Detect overlapping siblings (non-auto-layout) to add z-index hints
     const hasOverlap = !node.layoutMode || node.layoutMode === 'NONE';
 
+    // Detect sequential/numbered patterns in siblings (e.g., "01", "02", "03" or "Step 1", "Step 2")
+    const sequentialPattern = detectSequentialPattern(meaningfulChildren);
+    if (sequentialPattern) {
+      lines.push(
+        `\n**Sequential Pattern Detected (${sequentialPattern.type}):** ${sequentialPattern.description}`
+      );
+      lines.push(
+        `- IMPORTANT: These elements follow an ordered sequence. Preserve the exact layout order and spacing from the design.`
+      );
+      lines.push(`- Items: ${sequentialPattern.labels.join(' → ')}`);
+    }
+
     for (let i = 0; i < meaningfulChildren.length; i++) {
       const child = meaningfulChildren[i];
-      // In Figma, later children render on top — assign z-index when siblings overlap
+      // In overlapping contexts, text/content ALWAYS gets higher z-index than visual layers.
+      // This is a universal rule: text must be readable above backgrounds, images, and decorations.
       if (hasOverlap && meaningfulChildren.length > 1) {
-        lines.push(
-          `<!-- z-index: ${i} (layer order: ${i === 0 ? 'back' : i === meaningfulChildren.length - 1 ? 'front' : 'middle'}) -->`
-        );
+        const isTextContent = child.type === 'TEXT' || containsText(child);
+        if (isTextContent) {
+          lines.push(
+            `<!-- z-index: 10 (text/content layer — MUST be above all visual layers: use position: relative; z-index: 10) -->`
+          );
+        } else {
+          const isImage = child.fills?.some((f) => f.visible !== false && f.type === 'IMAGE');
+          lines.push(
+            `<!-- z-index: ${i} (${isImage ? 'image' : 'visual'} layer: ${i === 0 ? 'back' : 'middle'} — behind text content) -->`
+          );
+        }
       }
       lines.push(nodeToMarkdown(child, depth + 1, options));
     }
   }
 
   return lines.join('\n');
+}
+
+// ─── Sequential Pattern Detection ───────────────────────────
+
+interface SequentialPatternResult {
+  type: string;
+  description: string;
+  labels: string[];
+}
+
+/**
+ * Detect sequential/numbered patterns among sibling elements.
+ *
+ * Designs often use numbered steps (01, 02, 03), ordered lists, or
+ * sequential labels. The agent must preserve the exact order and
+ * spacing from the design, not reflow them arbitrarily.
+ */
+function detectSequentialPattern(children: FigmaNode[]): SequentialPatternResult | null {
+  if (children.length < 2) return null;
+
+  // Strategy 1: Check node names for numeric sequences ("01", "02" or "Step 1", "Step 2")
+  const nameNums: { index: number; num: number; label: string }[] = [];
+  for (let i = 0; i < children.length; i++) {
+    const match = children[i].name.match(/(\d+)/);
+    if (match) {
+      nameNums.push({ index: i, num: parseInt(match[1], 10), label: children[i].name });
+    }
+  }
+
+  if (nameNums.length >= 2) {
+    const sorted = [...nameNums].sort((a, b) => a.num - b.num);
+    const isSequential = sorted.every((item, i) => i === 0 || item.num === sorted[i - 1].num + 1);
+    if (isSequential) {
+      return {
+        type: 'numbered-steps',
+        description: `${sorted.length} ordered items (${sorted[0].num}–${sorted[sorted.length - 1].num})`,
+        labels: sorted.map((s) => s.label),
+      };
+    }
+  }
+
+  // Strategy 2: Check first TEXT child for leading numbers ("01 ...", "1. ...")
+  const textNums: { index: number; num: number; label: string }[] = [];
+  for (let i = 0; i < children.length; i++) {
+    const firstText = findFirstTextContent(children[i]);
+    if (firstText) {
+      const match = firstText.match(/^[0\s]*(\d+)/);
+      if (match) {
+        const preview = firstText.slice(0, 40).replace(/\n/g, ' ');
+        textNums.push({ index: i, num: parseInt(match[1], 10), label: preview });
+      }
+    }
+  }
+
+  if (textNums.length >= 2) {
+    const sorted = [...textNums].sort((a, b) => a.num - b.num);
+    const isSequential = sorted.every((item, i) => i === 0 || item.num === sorted[i - 1].num + 1);
+    if (isSequential) {
+      return {
+        type: 'numbered-content',
+        description: `${sorted.length} sequentially numbered content blocks`,
+        labels: sorted.map((s) => s.label),
+      };
+    }
+  }
+
+  return null;
+}
+
+/** Find the first text content string in a node tree (shallow search, max depth 3) */
+function findFirstTextContent(node: FigmaNode, depth = 0): string | null {
+  if (depth > 3) return null;
+  if (node.type === 'TEXT' && node.characters) return node.characters;
+  if (node.children) {
+    for (const child of node.children) {
+      if (child.visible === false) continue;
+      const text = findFirstTextContent(child, depth + 1);
+      if (text) return text;
+    }
+  }
+  return null;
+}
+
+// ─── Image Semantic Importance ──────────────────────────────
+
+interface ImageImportance {
+  priority: 'critical' | 'high' | 'normal';
+  hint: string;
+}
+
+/**
+ * Classify image semantic importance from node name and context.
+ *
+ * Universal heuristic: images of people are almost always the most
+ * important visual element on a page (hero portraits, team photos,
+ * testimonials). They must never be hidden or cropped away at any
+ * breakpoint. Product/feature images are also high-priority.
+ */
+function classifyImageImportance(
+  nodeName: string,
+  bbox: { width: number; height: number } | null,
+  sectionBbox: { width: number; height: number } | null
+): ImageImportance | null {
+  const lower = nodeName.toLowerCase();
+
+  // Person/people images — highest priority
+  if (
+    /\b(person|people|portrait|photo|avatar|team|founder|headshot|profile|model|woman|man|face|selfie|human|client|testimonial)\b/.test(
+      lower
+    ) ||
+    /\b(hero.*(image|photo|pic|img))\b/.test(lower)
+  ) {
+    return {
+      priority: 'critical',
+      hint: 'Contains a person/people — this is the KEY visual element. MUST remain visible at ALL viewport sizes. Use `object-position: top center` to keep the face/upper body visible when cropping. NEVER use `display: none` or `visibility: hidden` on this image at any breakpoint.',
+    };
+  }
+
+  // Large images relative to section — likely the primary visual
+  if (bbox && sectionBbox) {
+    const areaRatio = (bbox.width * bbox.height) / (sectionBbox.width * sectionBbox.height);
+    if (areaRatio > 0.3) {
+      return {
+        priority: 'high',
+        hint: 'Large primary image — keep visible at all breakpoints. On smaller screens, scale proportionally rather than hiding.',
+      };
+    }
+  }
+
+  // Product/key content images
+  if (
+    /\b(product|feature|showcase|main|key|primary|highlight|mockup|screenshot|demo)\b/.test(lower)
+  ) {
+    return {
+      priority: 'high',
+      hint: 'Key content image — must remain visible and prominent at all breakpoints.',
+    };
+  }
+
+  return null;
+}
+
+// ─── Layout Inference ───────────────────────────────────────
+
+interface InferredLayout {
+  type: 'flex-row' | 'flex-column' | 'absolute';
+  gap?: number;
+  padding?: { top: number; right: number; bottom: number; left: number };
+  justify?: string;
+  align?: string;
+}
+
+/**
+ * Infer CSS layout from absolute positions of sibling elements.
+ * Used when Figma designs lack auto-layout (e.g., community files).
+ */
+function inferLayout(parent: FigmaNode, children: FigmaNode[]): InferredLayout | null {
+  if (children.length < 2) return null;
+  if (parent.layoutMode && parent.layoutMode !== 'NONE') return null;
+
+  const parentBbox = parent.absoluteBoundingBox;
+  if (!parentBbox) return null;
+
+  const childBoxes = children
+    .filter((c) => c.absoluteBoundingBox)
+    .map((c) => {
+      const bb = c.absoluteBoundingBox as NonNullable<typeof c.absoluteBoundingBox>;
+      return {
+        node: c,
+        bbox: bb,
+        relX: bb.x - parentBbox.x,
+        relY: bb.y - parentBbox.y,
+      };
+    });
+
+  if (childBoxes.length < 2) return null;
+
+  // Check for horizontal row: all children share similar Y within tolerance
+  const yTolerance = Math.min(20, parentBbox.height * 0.05);
+  const yValues = childBoxes.map((c) => c.relY);
+  const yRange = Math.max(...yValues) - Math.min(...yValues);
+  const isHorizontalRow = yRange < yTolerance;
+
+  // Check for vertical column: all children share similar X within tolerance
+  const xTolerance = Math.min(20, parentBbox.width * 0.05);
+  const xValues = childBoxes.map((c) => c.relX);
+  const xRange = Math.max(...xValues) - Math.min(...xValues);
+  const isVerticalColumn = xRange < xTolerance;
+
+  if (isHorizontalRow && childBoxes.length >= 2) {
+    const sorted = [...childBoxes].sort((a, b) => a.relX - b.relX);
+    const gaps: number[] = [];
+    for (let i = 1; i < sorted.length; i++) {
+      const prevRight = sorted[i - 1].relX + sorted[i - 1].bbox.width;
+      gaps.push(Math.round(sorted[i].relX - prevRight));
+    }
+    const avgGap = gaps.length > 0 ? Math.round(gaps.reduce((s, g) => s + g, 0) / gaps.length) : 0;
+
+    const firstLeft = sorted[0].relX;
+    const lastRight = sorted[sorted.length - 1].relX + sorted[sorted.length - 1].bbox.width;
+    const topPad = Math.round(Math.max(0, Math.min(...yValues)));
+    const leftPad = Math.round(Math.max(0, firstLeft));
+    const rightPad = Math.round(Math.max(0, parentBbox.width - lastRight));
+
+    return {
+      type: 'flex-row',
+      gap: avgGap > 0 ? avgGap : undefined,
+      padding:
+        topPad > 0 || leftPad > 0 || rightPad > 0
+          ? { top: topPad, right: rightPad, bottom: 0, left: leftPad }
+          : undefined,
+      justify: detectJustification(
+        sorted.map((s) => s.relX),
+        sorted.map((s) => s.bbox.width),
+        parentBbox.width
+      ),
+    };
+  }
+
+  if (isVerticalColumn && childBoxes.length >= 2) {
+    const sorted = [...childBoxes].sort((a, b) => a.relY - b.relY);
+    const gaps: number[] = [];
+    for (let i = 1; i < sorted.length; i++) {
+      const prevBottom = sorted[i - 1].relY + sorted[i - 1].bbox.height;
+      gaps.push(Math.round(sorted[i].relY - prevBottom));
+    }
+    const avgGap = gaps.length > 0 ? Math.round(gaps.reduce((s, g) => s + g, 0) / gaps.length) : 0;
+
+    const topPad = Math.round(Math.max(0, sorted[0].relY));
+    const leftPad = Math.round(Math.max(0, Math.min(...xValues)));
+
+    return {
+      type: 'flex-column',
+      gap: avgGap > 0 ? avgGap : undefined,
+      padding:
+        topPad > 0 || leftPad > 0 ? { top: topPad, right: 0, bottom: 0, left: leftPad } : undefined,
+    };
+  }
+
+  // Neither row nor column — elements may overlap or have complex positions
+  return { type: 'absolute' };
+}
+
+/**
+ * Detect justification (start, center, space-between, end) from child X positions.
+ */
+function detectJustification(
+  xs: number[],
+  widths: number[],
+  parentWidth: number
+): string | undefined {
+  if (xs.length < 2) return undefined;
+
+  const firstLeft = xs[0];
+  const lastRight = xs[xs.length - 1] + widths[widths.length - 1];
+  const leftSpace = firstLeft;
+  const rightSpace = parentWidth - lastRight;
+
+  // Nearly equal left/right space → center
+  if (Math.abs(leftSpace - rightSpace) < 20 && leftSpace > 20) {
+    return 'center';
+  }
+
+  // Very little left space, substantial right space → flex-start
+  if (leftSpace < 20 && rightSpace > 40) {
+    return 'flex-start';
+  }
+
+  // Very little right space, substantial left space → flex-end
+  if (rightSpace < 20 && leftSpace > 40) {
+    return 'flex-end';
+  }
+
+  // Equal gaps between items → space-between (if outer edges have minimal spacing)
+  if (xs.length >= 3) {
+    const gaps: number[] = [];
+    for (let i = 1; i < xs.length; i++) {
+      gaps.push(xs[i] - (xs[i - 1] + widths[i - 1]));
+    }
+    const gapVariance = Math.max(...gaps) - Math.min(...gaps);
+    if (gapVariance < 10 && leftSpace < gaps[0] * 0.5) {
+      return 'space-between';
+    }
+  }
+
+  return undefined;
 }
 
 // ─── Helper functions ───────────────────────────────────────
@@ -479,7 +1127,7 @@ function rgbaToHex(rgba: RGBA): string {
 /**
  * Convert Figma RGBA to CSS rgba() or hex
  */
-function rgbaToCss(rgba: RGBA, paintOpacity?: number): string {
+export function rgbaToCss(rgba: RGBA, paintOpacity?: number): string {
   const hex = rgbaToHex(rgba);
   const alpha = (rgba.a ?? 1) * (paintOpacity ?? 1);
   if (alpha < 1) {
@@ -512,7 +1160,7 @@ function formatFills(fills: Paint[]): string {
 /**
  * Format gradient as CSS gradient string
  */
-function formatGradient(paint: Paint): string {
+export function formatGradient(paint: Paint): string {
   const stops = paint.gradientStops || [];
   const stopsStr = stops
     .map((s: GradientStop) => `${rgbaToCss(s.color)} ${Math.round(s.position * 100)}%`)
