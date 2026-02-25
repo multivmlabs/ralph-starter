@@ -14,7 +14,6 @@ import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { isFigmaUrl } from '../integrations/figma/utils/url-parser.js';
 import { detectAvailableAgents } from '../loop/agents.js';
-import { showWelcome } from '../wizard/ui.js';
 import { type RunCommandOptions, runCommand } from './run.js';
 
 interface FigmaWizardOptions {
@@ -122,8 +121,6 @@ async function buildModelChoices(): Promise<Array<{ name: string; value: string;
 }
 
 export async function figmaCommand(options: FigmaWizardOptions): Promise<void> {
-  showWelcome();
-
   console.log(chalk.cyan.bold('  Figma to Code'));
   console.log(chalk.dim('  Design to code in one command'));
   console.log();
