@@ -11,7 +11,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -715,7 +715,7 @@ ${formatted}
   private readCache<T>(path: string): { data: T; fresh: boolean } | null {
     const cachePath = this.getCachePath(path);
     try {
-      if (!existsSync(cachePath)) return null;
+      // Read file and stat atomically — no existsSync check to avoid TOCTOU race
       const stat = statSync(cachePath);
       const age = Date.now() - stat.mtimeMs;
       const data = JSON.parse(readFileSync(cachePath, 'utf-8')) as T;
@@ -727,9 +727,8 @@ ${formatted}
 
   private writeCache(path: string, data: unknown): void {
     try {
-      if (!existsSync(FigmaIntegration.CACHE_DIR)) {
-        mkdirSync(FigmaIntegration.CACHE_DIR, { recursive: true });
-      }
+      // mkdirSync with recursive:true is safe even if dir already exists — no TOCTOU race
+      mkdirSync(FigmaIntegration.CACHE_DIR, { recursive: true });
       writeFileSync(this.getCachePath(path), JSON.stringify(data));
     } catch {
       // Cache write failed — non-critical

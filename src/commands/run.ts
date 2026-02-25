@@ -25,6 +25,7 @@ import type { SourceOptions } from '../sources/types.js';
 import { detectPackageManager, formatRunCommand, getRunCommand } from '../utils/package-manager.js';
 import {
   isValidFigmaCdnUrl,
+  isValidPngBuffer,
   sanitizeAssetFilename,
   sanitizeSvgContent,
 } from '../utils/sanitize.js';
@@ -99,22 +100,22 @@ function detectProjectStack(cwd: string): string | null {
     const parts: string[] = [];
 
     // Framework detection (pick one)
-    if (allDeps['next']) parts.push('Next.js');
-    else if (allDeps['nuxt']) parts.push('Nuxt');
+    if (allDeps.next) parts.push('Next.js');
+    else if (allDeps.nuxt) parts.push('Nuxt');
     else if (allDeps['@remix-run/react'] || allDeps.remix) parts.push('Remix');
-    else if (allDeps['astro']) parts.push('Astro');
-    else if (allDeps['svelte'] || allDeps['@sveltejs/kit']) parts.push('Svelte');
-    else if (allDeps['vue']) parts.push('Vue');
-    else if (allDeps['react']) parts.push('React');
+    else if (allDeps.astro) parts.push('Astro');
+    else if (allDeps.svelte || allDeps['@sveltejs/kit']) parts.push('Svelte');
+    else if (allDeps.vue) parts.push('Vue');
+    else if (allDeps.react) parts.push('React');
 
     // Language
-    if (allDeps['typescript'] || existsSync(join(cwd, 'tsconfig.json'))) {
+    if (allDeps.typescript || existsSync(join(cwd, 'tsconfig.json'))) {
       parts.push('TypeScript');
     }
 
     // CSS framework
-    if (allDeps['tailwindcss']) {
-      const version = allDeps['tailwindcss']?.replace(/[\^~>=<]/g, '');
+    if (allDeps.tailwindcss) {
+      const version = allDeps.tailwindcss?.replace(/[\^~>=<]/g, '');
       const major = version ? Number.parseInt(version.split('.')[0], 10) : null;
       parts.push(major && major >= 4 ? 'Tailwind CSS v4' : 'Tailwind CSS');
     } else if (allDeps['styled-components']) {
@@ -303,9 +304,7 @@ export async function runCommand(
   if (options.outputDir) {
     const expandedPath = options.outputDir.replace(/^~/, homedir());
     cwd = resolve(expandedPath);
-    if (!existsSync(cwd)) {
-      mkdirSync(cwd, { recursive: true });
-    }
+    mkdirSync(cwd, { recursive: true });
   }
 
   showWelcome();
@@ -441,9 +440,7 @@ export async function runCommand(
         if (imageFillUrls && Object.keys(imageFillUrls).length > 0) {
           try {
             const imagesDir = join(cwd, 'public', 'images');
-            if (!existsSync(imagesDir)) {
-              mkdirSync(imagesDir, { recursive: true });
-            }
+            mkdirSync(imagesDir, { recursive: true });
 
             const downloads = Object.entries(imageFillUrls).filter(
               ([, url]) => url != null && url !== ''
@@ -459,6 +456,7 @@ export async function runCommand(
                     const response = await fetch(url);
                     if (!response.ok) return false;
                     const buffer = Buffer.from(await response.arrayBuffer());
+                    if (!isValidPngBuffer(buffer)) return false;
                     writeFileSync(join(imagesDir, `${sanitizeAssetFilename(ref)}.png`), buffer);
                     return true;
                   })
@@ -487,9 +485,7 @@ export async function runCommand(
           if (validScreenshots.length > 0) {
             try {
               const screenshotsDir = join(cwd, 'public', 'images', 'screenshots');
-              if (!existsSync(screenshotsDir)) {
-                mkdirSync(screenshotsDir, { recursive: true });
-              }
+              mkdirSync(screenshotsDir, { recursive: true });
               let ssDownloaded = 0;
               const ssTimeout = AbortSignal.timeout(30_000);
               const ssResults = await Promise.allSettled(
@@ -498,6 +494,7 @@ export async function runCommand(
                   const response = await fetch(url!, { signal: ssTimeout });
                   if (!response.ok) return false;
                   const buffer = Buffer.from(await response.arrayBuffer());
+                  if (!isValidPngBuffer(buffer)) return false;
                   const filename = `frame-${sanitizeAssetFilename(nodeId.replace(/:/g, '-'))}.png`;
                   writeFileSync(join(screenshotsDir, filename), buffer);
                   return true;
@@ -526,9 +523,7 @@ export async function runCommand(
               | undefined;
             if (iconNodes) {
               const iconsDir = join(cwd, 'public', 'images', 'icons');
-              if (!existsSync(iconsDir)) {
-                mkdirSync(iconsDir, { recursive: true });
-              }
+              mkdirSync(iconsDir, { recursive: true });
               let iconDownloaded = 0;
               const iconTimeout = AbortSignal.timeout(30_000);
               const iconResults = await Promise.allSettled(
@@ -566,9 +561,7 @@ export async function runCommand(
         if (compositeRenderUrls && compositeNodes) {
           try {
             const imagesDir = join(cwd, 'public', 'images');
-            if (!existsSync(imagesDir)) {
-              mkdirSync(imagesDir, { recursive: true });
-            }
+            mkdirSync(imagesDir, { recursive: true });
             let compositeDownloaded = 0;
             const compTimeout = AbortSignal.timeout(30_000);
             const compResults = await Promise.allSettled(
@@ -578,6 +571,7 @@ export async function runCommand(
                 const response = await fetch(url, { signal: compTimeout });
                 if (!response.ok) return false;
                 const buffer = Buffer.from(await response.arrayBuffer());
+                if (!isValidPngBuffer(buffer)) return false;
                 const safeName = sanitizeAssetFilename(comp.name);
                 writeFileSync(join(imagesDir, `composite-${safeName}.png`), buffer);
                 return true;
@@ -684,9 +678,7 @@ export async function runCommand(
 
       // Write to specs directory
       const specsDir = join(cwd, 'specs');
-      if (!existsSync(specsDir)) {
-        mkdirSync(specsDir, { recursive: true });
-      }
+      mkdirSync(specsDir, { recursive: true });
 
       const specFilename = result.title
         ? `${result.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.md`
@@ -773,9 +765,7 @@ export async function runCommand(
           ]);
 
           const newCwd = join(process.cwd(), folderName);
-          if (!existsSync(newCwd)) {
-            mkdirSync(newCwd, { recursive: true });
-          }
+          mkdirSync(newCwd, { recursive: true });
           cwd = newCwd;
           console.log(chalk.dim(`  Created: ${cwd}`));
         } else if (projectLocation === 'custom') {
@@ -790,10 +780,7 @@ export async function runCommand(
           // Expand ~ to home directory
           const expandedPath = customPath.replace(/^~/, homedir());
           cwd = resolve(expandedPath);
-
-          if (!existsSync(cwd)) {
-            mkdirSync(cwd, { recursive: true });
-          }
+          mkdirSync(cwd, { recursive: true });
           console.log(chalk.dim(`  Using: ${cwd}`));
         }
         // 'current' - no change needed
@@ -1048,9 +1035,7 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
       process.exit(1);
     }
     const specsDir = join(cwd, 'specs');
-    if (!existsSync(specsDir)) {
-      mkdirSync(specsDir, { recursive: true });
-    }
+    mkdirSync(specsDir, { recursive: true });
     const destPath = join(specsDir, 'design-reference.png');
     copyFileSync(srcPath, destPath);
     designImagePath = 'specs/design-reference.png';
