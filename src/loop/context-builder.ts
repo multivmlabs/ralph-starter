@@ -263,6 +263,7 @@ ${
   opts.sourceType === 'figma'
     ? `
 Figma-to-code guidelines (CRITICAL — your spec comes from a Figma design file):
+<<<<<<< HEAD
 - AUTO-LAYOUT → FLEXBOX/GRID: "horizontal" = \`display: flex; flex-direction: row\`. "Vertical" = \`flex-direction: column\`. "Wrap" = \`flex-wrap: wrap\`. Use \`gap\` for item spacing. Never use margin for gap spacing in flex containers.
 - COLORS: Match colors EXACTLY as specified — copy hex/rgba values from design tokens verbatim. For opacity, use the exact value (e.g. \`/80\` not \`/75\`). If the spec includes a "Design Tokens" section with CSS variables, put them in \`@theme inline { }\` and use Tailwind utilities (e.g. \`bg-primary\`, \`text-accent/80\`). If not, extract colors from the spec and create the @theme block yourself.
 - TYPOGRAPHY: ${opts.figmaFontSubstitutions?.length ? 'The spec includes a "Font Substitutions" section — use the substitute Google Fonts listed there. Import them via Google Fonts `<link>` tag.' : 'Use the EXACT font names from the spec. Add Google Fonts `<link>` import in the HTML head. Do NOT substitute with generic fonts.'} Apply exact font-size, font-weight, line-height, and letter-spacing values from the spec — do NOT round or approximate these values.
