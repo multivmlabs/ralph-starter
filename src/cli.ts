@@ -92,6 +92,7 @@ program
     '--context-budget <n>',
     'Max input tokens per iteration for smart context trimming (0 = unlimited)'
   )
+  .option('--max-cost <amount>', 'Maximum cost in USD before stopping (0 = unlimited)', parseFloat)
   // Figma integration options
   .option('--figma-mode <mode>', 'Figma mode: spec, tokens, components, assets, content')
   .option(

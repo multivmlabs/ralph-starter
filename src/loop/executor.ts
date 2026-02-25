@@ -883,6 +883,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
 
     // Track cost for this iteration (silent - summary shown at end)
     if (costTracker) {
+      const prevTotal = costTracker.getStats().totalCost.totalCost;
       costTracker.recordIteration(options.task, result.output);
 
       // Post-iteration cost ceiling check — prevent starting another expensive iteration
@@ -896,6 +897,21 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
         finalIteration = i;
         exitReason = 'cost_ceiling';
         break;
+      }
+
+      // Warn at cost thresholds when no --max-cost is set
+      if (!options.maxCost) {
+        const total = costTracker.getStats().totalCost.totalCost;
+        const thresholds = [2, 5, 10];
+        for (const t of thresholds) {
+          if (total >= t && prevTotal < t) {
+            console.log(
+              chalk.yellow(
+                `\n  ⚠ Estimated cost has reached $${t}. Use --max-cost to set a budget limit.`
+              )
+            );
+          }
+        }
       }
     }
 
