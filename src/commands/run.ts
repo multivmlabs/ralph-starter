@@ -23,6 +23,11 @@ import { getSourceDefaults } from '../sources/config.js';
 import { fetchFromSource } from '../sources/index.js';
 import type { SourceOptions } from '../sources/types.js';
 import { detectPackageManager, formatRunCommand, getRunCommand } from '../utils/package-manager.js';
+import {
+  isValidFigmaCdnUrl,
+  sanitizeAssetFilename,
+  sanitizeSvgContent,
+} from '../utils/sanitize.js';
 import { showWelcome } from '../wizard/ui.js';
 
 /** Default fallback repo for GitHub issues when no project is specified */
@@ -450,10 +455,11 @@ export async function runCommand(
                 const batch = downloads.slice(idx, idx + BATCH_SIZE);
                 const results = await Promise.allSettled(
                   batch.map(async ([ref, url]) => {
+                    if (!isValidFigmaCdnUrl(url)) return false;
                     const response = await fetch(url);
                     if (!response.ok) return false;
                     const buffer = Buffer.from(await response.arrayBuffer());
-                    writeFileSync(join(imagesDir, `${ref}.png`), buffer);
+                    writeFileSync(join(imagesDir, `${sanitizeAssetFilename(ref)}.png`), buffer);
                     return true;
                   })
                 );
@@ -488,10 +494,11 @@ export async function runCommand(
               const ssTimeout = AbortSignal.timeout(30_000);
               const ssResults = await Promise.allSettled(
                 validScreenshots.map(async ([nodeId, url]) => {
+                  if (!isValidFigmaCdnUrl(url!)) return false;
                   const response = await fetch(url!, { signal: ssTimeout });
                   if (!response.ok) return false;
                   const buffer = Buffer.from(await response.arrayBuffer());
-                  const filename = `frame-${nodeId.replace(/:/g, '-')}.png`;
+                  const filename = `frame-${sanitizeAssetFilename(nodeId.replace(/:/g, '-'))}.png`;
                   writeFileSync(join(screenshotsDir, filename), buffer);
                   return true;
                 })
@@ -527,11 +534,11 @@ export async function runCommand(
               const iconResults = await Promise.allSettled(
                 iconNodes.map(async (icon) => {
                   const url = iconSvgUrls[icon.nodeId];
-                  if (!url) return false;
+                  if (!url || !isValidFigmaCdnUrl(url)) return false;
                   const response = await fetch(url, { signal: iconTimeout });
                   if (!response.ok) return false;
-                  const svg = await response.text();
-                  writeFileSync(join(iconsDir, icon.filename), svg);
+                  const svg = sanitizeSvgContent(await response.text());
+                  writeFileSync(join(iconsDir, sanitizeAssetFilename(icon.filename)), svg);
                   return true;
                 })
               );
@@ -567,14 +574,11 @@ export async function runCommand(
             const compResults = await Promise.allSettled(
               compositeNodes.map(async (comp) => {
                 const url = compositeRenderUrls[comp.nodeId];
-                if (!url) return false;
+                if (!url || !isValidFigmaCdnUrl(url)) return false;
                 const response = await fetch(url, { signal: compTimeout });
                 if (!response.ok) return false;
                 const buffer = Buffer.from(await response.arrayBuffer());
-                const safeName = comp.name
-                  .toLowerCase()
-                  .replace(/[^a-z0-9]+/g, '-')
-                  .replace(/-+/g, '-');
+                const safeName = sanitizeAssetFilename(comp.name);
                 writeFileSync(join(imagesDir, `composite-${safeName}.png`), buffer);
                 return true;
               })
