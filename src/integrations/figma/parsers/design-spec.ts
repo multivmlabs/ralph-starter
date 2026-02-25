@@ -1099,11 +1099,17 @@ function scaleModeToCSS(scaleMode: string, isBackground?: boolean): string {
  */
 function imageTransformToObjectPosition(transform: Transform): string | null {
   const [[a, , tx], [, d, ty]] = transform;
-  // If scale is ~1 (no crop), position is irrelevant
-  if (a > 0.99 && d > 0.99) return null;
 
-  const xPct = a < 0.99 ? Math.round((tx / (1 - a)) * 100) : 50;
-  const yPct = d < 0.99 ? Math.round((ty / (1 - d)) * 100) : 50;
+  const EPSILON = 1e-4; // Threshold for "no meaningful crop"
+  const isFullScaleX = Math.abs(1 - a) < EPSILON;
+  const isFullScaleY = Math.abs(1 - d) < EPSILON;
+
+  // If both dimensions show full image (no crop), position is irrelevant
+  if (isFullScaleX && isFullScaleY) return null;
+
+  // For each axis: if cropped, compute position; if full-scale, center (50%)
+  const xPct = !isFullScaleX ? Math.round((tx / (1 - a)) * 100) : 50;
+  const yPct = !isFullScaleY ? Math.round((ty / (1 - d)) * 100) : 50;
 
   // Default is 50% 50% — skip if that's what we computed
   if (xPct === 50 && yPct === 50) return null;
