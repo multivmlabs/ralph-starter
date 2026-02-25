@@ -5,7 +5,7 @@
  * Uses `sharp` as an optional dependency — gracefully degrades when unavailable.
  */
 
-import { statSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 
 const MAX_IMAGE_BYTES = 1_000_000; // 1MB target
 const MAX_IMAGE_DIMENSION = 2048; // Max width or height in pixels
@@ -20,12 +20,14 @@ export async function optimizeImage(
   filePath: string,
   targetMaxBytes: number = MAX_IMAGE_BYTES
 ): Promise<{ optimized: boolean; originalSize: number; newSize: number }> {
-  let originalSize: number;
+  // Read file into memory once to avoid TOCTOU race between stat and read
+  let fileBuffer: Buffer;
   try {
-    originalSize = statSync(filePath).size;
+    fileBuffer = readFileSync(filePath);
   } catch {
     return { optimized: false, originalSize: 0, newSize: 0 };
   }
+  const originalSize = fileBuffer.length;
 
   // Skip if already under target
   if (originalSize <= targetMaxBytes) {
@@ -37,7 +39,7 @@ export async function optimizeImage(
     // Using Function constructor to prevent TypeScript from resolving the module at compile time.
     // biome-ignore lint/security/noGlobalEval: dynamic optional dependency import
     const sharpModule = (await new Function('return import("sharp")')().catch(() => null)) as {
-      default: (input: string) => {
+      default: (input: string | Buffer) => {
         metadata: () => Promise<{ width?: number; height?: number }>;
         resize: (...args: unknown[]) => unknown;
         png: (opts: unknown) => { toBuffer: () => Promise<Buffer> };
@@ -48,7 +50,7 @@ export async function optimizeImage(
     }
 
     const sharp = sharpModule.default;
-    const image = sharp(filePath);
+    const image = sharp(fileBuffer);
     const metadata = await image.metadata();
 
     // Resize if dimensions exceed max (preserving aspect ratio)

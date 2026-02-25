@@ -11,7 +11,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { closeSync, fstatSync, mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -714,14 +714,22 @@ ${formatted}
 
   private readCache<T>(path: string): { data: T; fresh: boolean } | null {
     const cachePath = this.getCachePath(path);
+    // Use a single file descriptor for both stat and read to avoid TOCTOU race
+    let fd: number;
     try {
-      // Read file and stat atomically — no existsSync check to avoid TOCTOU race
-      const stat = statSync(cachePath);
+      fd = openSync(cachePath, 'r');
+    } catch {
+      return null;
+    }
+    try {
+      const stat = fstatSync(fd);
       const age = Date.now() - stat.mtimeMs;
-      const data = JSON.parse(readFileSync(cachePath, 'utf-8')) as T;
+      const data = JSON.parse(readFileSync(fd, 'utf-8')) as T;
       return { data, fresh: age < FigmaIntegration.CACHE_TTL_MS };
     } catch {
       return null;
+    } finally {
+      closeSync(fd);
     }
   }
 
