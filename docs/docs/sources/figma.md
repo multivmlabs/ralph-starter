@@ -33,6 +33,16 @@ ralph-starter config set figma.token <your-token>
 
 ## Usage
 
+### Interactive Wizard (Recommended)
+
+The easiest way to use Figma with ralph-starter:
+
+```bash
+ralph-starter figma
+```
+
+This launches a 4-step wizard: Figma URL, task description, tech stack, and model selection. See [CLI: figma](../cli/figma.md) for details.
+
 ### Basic Usage
 
 ```bash
@@ -58,10 +68,24 @@ ralph-starter integrations fetch figma "ABC123" --figma-nodes "1:23,1:45"
 Output includes:
 - Frame hierarchy with headings
 - Dimensions and layout information
-- Auto-layout properties (flex, gap, padding)
-- Typography details
+- Auto-layout properties (flex direction, gap, padding, alignment, wrap, counter-axis spacing)
+- Sizing modes per element (`layoutSizingHorizontal`/`Vertical`: FIXED, HUG, FILL)
+- Absolute positioning for overlay elements (`layoutPositioning`)
+- Min/max width/height constraints for responsive behavior
+- Overflow and scroll behavior (`clipsContent`, `overflowDirection`, `scrollBehavior`)
+- Typography details (font family, weight, style, size, line height, letter spacing, text truncation, max lines)
+- Individual border widths per side (`individualStrokeWeights`), dashed borders (`strokeDashes`)
+- Rotation and transform properties
+- Image transforms with crop position (`object-position`)
+- Image filters (brightness, contrast, saturation, etc.)
+- Mask detection (`isMask`)
 - Component properties and variants
-- Visual effects (shadows, blur)
+- Visual effects (shadows, blur, blend modes)
+- Google Fonts validation with substitution suggestions
+- Automatic image fill URL extraction and download
+- Icon collection and SVG export
+- Frame screenshot rendering for visual reference
+- Composite visual group detection (overlapping layers rendered as single image)
 
 ### Mode: Design Tokens
 
