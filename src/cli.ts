@@ -6,6 +6,7 @@ import { authCommand } from './commands/auth.js';
 import { autoCommand } from './commands/auto.js';
 import { checkCommand } from './commands/check.js';
 import { configCommand } from './commands/config.js';
+import { figmaCommand } from './commands/figma.js';
 import { fixCommand } from './commands/fix.js';
 import { initCommand } from './commands/init.js';
 import { integrationsCommand } from './commands/integrations.js';
@@ -128,6 +129,31 @@ program
     'Design reference image to match (screenshot of the target design)'
   )
   .action(fixCommand);
+
+// ralph-starter figma - Figma design to code wizard
+program
+  .command('figma')
+  .description('Convert Figma designs to code with an interactive wizard')
+  .option('--figma-mode <mode>', 'Figma mode: spec, tokens, components, assets, content')
+  .option(
+    '--figma-framework <framework>',
+    'Component framework: react, vue, svelte, astro, nextjs, nuxt, html'
+  )
+  .option('--commit', 'Auto-commit changes')
+  .option('--validate', 'Run validation after each iteration', true)
+  .option('--no-validate', 'Skip validation')
+  .option('--max-iterations <n>', 'Maximum loop iterations')
+  .option('--agent <name>', 'Specify agent to use')
+  .action(async (options) => {
+    await figmaCommand({
+      mode: options.figmaMode,
+      framework: options.figmaFramework,
+      commit: options.commit,
+      validate: options.validate,
+      maxIterations: options.maxIterations ? parseInt(options.maxIterations, 10) : undefined,
+      agent: options.agent,
+    });
+  });
 
 // ralph-starter init - Initialize Ralph in a project
 program
