@@ -1,0 +1,155 @@
+.container {
+  margin-bottom: 2rem;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.header a {
+  color: var(--ifm-color-primary);
+  text-decoration: none;
+}
+
+.header a:hover {
+  text-decoration: underline;
+}
+
+.liveIndicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.release {
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
+  background: var(--ifm-background-surface-color);
+  transition: border-color 0.2s;
+}
+
+.release:hover {
+  border-color: var(--ifm-color-primary);
+}
+
+.releaseHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.releaseTag {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--ifm-color-primary);
+  text-decoration: none;
+}
+
+.releaseTag:hover {
+  text-decoration: underline;
+}
+
+.prerelease {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.15em 0.5em;
+  border-radius: 4px;
+  background: var(--ifm-color-warning-contrast-background);
+  color: var(--ifm-color-warning-darkest);
+}
+
+.releaseDate {
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-500);
+}
+
+.releaseName {
+  margin: 0.25rem 0 0.75rem;
+  font-size: 1rem;
+}
+
+.releaseBody {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.releaseBody h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 1rem 0 0.5rem;
+}
+
+.releaseBody h4 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0.75rem 0 0.4rem;
+}
+
+.releaseBody ul {
+  padding-left: 1.25rem;
+  margin: 0.25rem 0;
+}
+
+.releaseBody li {
+  margin-bottom: 0.2rem;
+}
+
+.releaseBody code {
+  font-size: 0.85em;
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  background: var(--ifm-color-emphasis-100);
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2rem 0;
+  color: var(--ifm-color-emphasis-500);
+  font-size: 0.9rem;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--ifm-color-emphasis-200);
+  border-top-color: var(--ifm-color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.fallback {
+  padding: 1rem;
+  border-radius: 8px;
+  background: var(--ifm-color-emphasis-100);
+  font-size: 0.9rem;
+}
+
+.fallback a {
+  color: var(--ifm-color-primary);
+}

@@ -5,9 +5,42 @@ description: Release notes and version history for ralph-starter
 keywords: [changelog, releases, version history, updates]
 ---
 
+import GitHubReleases from '@site/src/components/GitHubReleases';
+
 # Changelog
 
 All notable changes to ralph-starter are documented here. This project follows [Semantic Versioning](https://semver.org/).
+
+<GitHubReleases />
+
+---
+
+## Pre-release History
+
+:::info
+Releases above are fetched live from [GitHub Releases](https://github.com/multivmlabs/ralph-starter/releases). The entries below cover the pre-release development period.
+:::
+
+---
+
+## [0.3.3] - 2026-02-25
+
+### Added
+- **`ralph-starter figma` wizard command**: Interactive 4-step design-to-code workflow (Figma URL, task description, tech stack auto-detection, smart model selection)
+- **Full Figma API property coverage**: Layout sizing modes, individual strokes, rotation, font style/weight, text truncation, opacity, blend modes, and more
+- **Figma parsers**: Font checker with web-safe substitutions, image collector, icon collector, plan generator for multi-section builds
+- **Agent design-to-code guidelines**: Comprehensive layout, colors, typography, sizing, borders, shadows, images, and responsive rules injected into agent context
+- **Security sanitization utilities**: `sanitizeAssetFilename`, `isValidFigmaCdnUrl`, `sanitizeSvgContent` (substring-based parser), `isValidPngBuffer` for all Figma asset downloads
+
+### Fixed
+- Division-by-zero in `imageTransformToObjectPosition` (epsilon-based guard)
+- TOCTOU race conditions in Figma cache read (fd-based atomic stat+read) and image optimizer (buffer-based processing)
+- Eliminated redundant `existsSync` guards before `mkdirSync({ recursive: true })`
+
+### Security
+- SVG sanitization rewritten from regex to substring-based state machine to pass CodeQL static analysis
+- PNG magic byte validation on all downloaded image buffers
+- Figma CDN URL allowlist validation (`.figma.com`, `.amazonaws.com`, `.cloudfront.net`)
 
 ---
 
@@ -205,11 +238,6 @@ All notable changes to ralph-starter are documented here. This project follows [
 - **[Template marketplace](https://github.com/multivmlabs/ralph-templates)** with community templates
 
 ---
-
-## Links
-
-- [GitHub Releases](https://github.com/multivmlabs/ralph-starter/releases)
-- [npm Package History](https://www.npmjs.com/package/ralph-starter?activeTab=versions)
 
 ## Upgrade
 
