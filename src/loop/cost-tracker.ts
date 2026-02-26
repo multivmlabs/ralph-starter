@@ -89,11 +89,30 @@ export interface CostTrackerStats {
   iterations: IterationCost[];
 }
 
+export interface PlanBudget {
+  name: string;
+  /** Monthly spending limit in USD (0 = unlimited/pay-as-you-go) */
+  monthlyLimit: number;
+}
+
+/** Known plan budgets (approximate monthly API spending limits) */
+export const KNOWN_PLANS: Record<string, PlanBudget> = {
+  max: { name: 'Claude Max', monthlyLimit: 200 },
+  'claude-max': { name: 'Claude Max', monthlyLimit: 200 },
+  pro: { name: 'Claude Pro', monthlyLimit: 100 },
+  'claude-pro': { name: 'Claude Pro', monthlyLimit: 100 },
+  team: { name: 'Claude Team', monthlyLimit: 150 },
+  'claude-team': { name: 'Claude Team', monthlyLimit: 150 },
+  api: { name: 'API (pay-as-you-go)', monthlyLimit: 0 },
+};
+
 export interface CostTrackerConfig {
   model: string;
   maxIterations?: number;
   /** Maximum cost in USD before the loop should stop (0 = unlimited) */
   maxCost?: number;
+  /** Plan budget for percentage display */
+  planBudget?: PlanBudget;
 }
 
 /**
@@ -311,6 +330,16 @@ export class CostTracker {
   }
 
   /**
+   * Get plan usage percentage (null if no plan budget configured)
+   */
+  getPlanPercentage(): string | null {
+    if (!this.config.planBudget?.monthlyLimit) return null;
+    const total = this.iterations.reduce((sum, i) => sum + i.cost.totalCost, 0);
+    const pct = (total / this.config.planBudget.monthlyLimit) * 100;
+    return pct.toFixed(1);
+  }
+
+  /**
    * Format stats for CLI display
    */
   formatStats(): string {
@@ -324,6 +353,13 @@ export class CostTracker {
       `Tokens: ${formatTokens(stats.totalTokens.totalTokens)} (${formatTokens(stats.totalTokens.inputTokens)} in / ${formatTokens(stats.totalTokens.outputTokens)} out)`,
       `Cost: ${formatCost(stats.totalCost.totalCost)} (${formatCost(stats.avgCostPerIteration.totalCost)}/iteration avg)`,
     ];
+
+    if (this.config.planBudget?.monthlyLimit) {
+      const pct = this.getPlanPercentage();
+      lines.push(
+        `Plan usage: ${pct}% of ${this.config.planBudget.name} ($${this.config.planBudget.monthlyLimit}/mo)`
+      );
+    }
 
     if (stats.totalCacheSavings > 0) {
       lines.push(`Cache savings: ${formatCost(stats.totalCacheSavings)}`);

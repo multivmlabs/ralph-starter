@@ -56,9 +56,14 @@ export function parseFigmaUrl(input: string): FigmaUrlParts {
 
     // Extract node IDs
     if (urlMatch[3]) {
-      // Node IDs can be comma-separated and URL-encoded
+      // Node IDs can be comma-separated and URL-encoded.
+      // Figma URLs use dashes (0-1) but the REST API expects colons (0:1).
       const nodeIdStr = decodeURIComponent(urlMatch[3]);
-      result.nodeIds = nodeIdStr.split(',').map((id) => id.trim());
+      result.nodeIds = nodeIdStr.split(',').map((id) => {
+        const trimmed = id.trim();
+        // Convert "0-1" → "0:1" (only for simple N-N patterns from URLs)
+        return /^\d+-\d+$/.test(trimmed) ? trimmed.replace('-', ':') : trimmed;
+      });
     }
 
     return result;

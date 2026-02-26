@@ -63,6 +63,7 @@ program
   .option('--prd <file>', 'Read tasks from a PRD markdown file')
   .option('--max-iterations <n>', 'Maximum loop iterations (auto-calculated if not specified)')
   .option('--agent <name>', 'Specify agent (claude-code, cursor, codex, opencode, openclaw)')
+  .option('--model <name>', 'Model to use (e.g., claude-sonnet-4-5-20250929, claude-opus-4-6)')
   .option('--from <source>', 'Fetch spec from source (file, url, github, todoist, linear, notion)')
   .option('--project <name>', 'Project/repo name for --from integrations')
   .option('--label <name>', 'Label filter for --from integrations')
@@ -93,6 +94,7 @@ program
     'Max input tokens per iteration for smart context trimming (0 = unlimited)'
   )
   .option('--max-cost <amount>', 'Maximum cost in USD before stopping (0 = unlimited)', parseFloat)
+  .option('--plan <name>', 'API plan for budget tracking (max, pro, team, api)')
   // Figma integration options
   .option('--figma-mode <mode>', 'Figma mode: spec, tokens, components, assets, content')
   .option(
@@ -105,6 +107,10 @@ program
   .option('--figma-target <path>', 'Target directory for content mode')
   .option('--figma-preview', 'Show content changes without applying (content mode)')
   .option('--figma-mapping <file>', 'Custom content mapping file (content mode)')
+  .option(
+    '--design-image <path>',
+    'Design reference image (screenshot of the target design for pixel-perfect matching)'
+  )
   .action(runCommand);
 
 // ralph-starter fix - Fix build errors and code quality issues
@@ -117,6 +123,10 @@ program
   .option('--max-iterations <n>', 'Max fix iterations (default: 3)')
   .option('--output-dir <dir>', 'Project directory (default: cwd)')
   .option('--design', 'Visual-first design fix: screenshot, analyze, plan, and fix design issues')
+  .option(
+    '--design-image <path>',
+    'Design reference image to match (screenshot of the target design)'
+  )
   .action(fixCommand);
 
 // ralph-starter init - Initialize Ralph in a project

@@ -46,7 +46,7 @@ export function drawSeparator(label?: string, width?: number): string {
   const labelLen = label.length + 2; // space on each side
   const sideLen = Math.max(1, Math.floor((w - labelLen) / 2));
   const left = '─'.repeat(sideLen);
-  const right = '─'.repeat(w - sideLen - labelLen);
+  const right = '─'.repeat(Math.max(0, w - sideLen - labelLen));
   return chalk.dim(`${left} ${label} ${right}`);
 }
 

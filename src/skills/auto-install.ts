@@ -42,11 +42,19 @@ const WEB_NEGATIVE_KEYWORDS = [
   'flutter',
   'swift',
   'kotlin',
+  'game',
 ];
 
-function buildSkillQueries(task: string): string[] {
+function buildSkillQueries(task: string, sourceType?: string): string[] {
   const queries = new Set<string>();
   const text = task.toLowerCase();
+
+  // Source-based skills (triggered by --from flag, not task text)
+  if (sourceType === 'figma') {
+    queries.add('figma');
+    queries.add('figma implement design');
+    queries.add('frontend design');
+  }
 
   // Framework-specific skills
   if (text.includes('astro')) queries.add('astro');
@@ -74,7 +82,18 @@ function buildSkillQueries(task: string): string[] {
   }
 
   if (text.includes('design') || text.includes('ui') || text.includes('ux')) {
-    queries.add('ui design');
+    // Skip generic "ui design" query when sourceType is set — the source-specific
+    // queries above are more targeted and avoid pulling in irrelevant results
+    // like game-ui-design, android-design-guidelines, etc.
+    if (!sourceType) {
+      queries.add('ui design');
+    }
+  }
+
+  // Also pick up figma from task text (in addition to --from flag)
+  if (text.includes('figma') && sourceType !== 'figma') {
+    queries.add('figma');
+    queries.add('figma implement design');
   }
 
   // CSS/styling tasks get design skills
@@ -111,15 +130,40 @@ function buildSkillQueries(task: string): string[] {
   return Array.from(queries);
 }
 
+/** Skills for non-web platforms — exclude from web/figma tasks unless explicitly requested */
+const PLATFORM_SKILLS = [
+  'android',
+  'ios',
+  'macos',
+  'react-native',
+  'expo',
+  'flutter',
+  'swift',
+  'kotlin',
+];
+
 /**
  * Check if a skill is relevant to the given task.
- * Reuses the same logic as the executor's shouldAutoApplySkill.
+ * Filters out platform-specific skills (android, ios, react-native, etc.)
+ * unless the task explicitly mentions that platform.
  */
-function isSkillRelevantToTask(skill: ClaudeSkill, task: string): boolean {
+function isSkillRelevantToTask(skill: ClaudeSkill, task: string, sourceType?: string): boolean {
   const name = skill.name.toLowerCase();
   const desc = (skill.description || '').toLowerCase();
   const text = `${name} ${desc}`;
   const taskLower = task.toLowerCase();
+
+  // Filter out platform-specific skills unless the task mentions that platform
+  const matchesPlatform = PLATFORM_SKILLS.some((p) => name.includes(p));
+  if (matchesPlatform) {
+    const taskMentionsPlatform = PLATFORM_SKILLS.some((p) => taskLower.includes(p));
+    if (!taskMentionsPlatform) return false;
+  }
+
+  // Figma source: prioritize figma/implement-design skills
+  if (sourceType === 'figma') {
+    if (name.includes('figma') || name.includes('implement-design')) return true;
+  }
 
   const taskIsWeb = WEB_TASK_KEYWORDS.some((kw) => taskLower.includes(kw));
 
@@ -133,6 +177,7 @@ function isSkillRelevantToTask(skill: ClaudeSkill, task: string): boolean {
   if (taskLower.includes('astro') && text.includes('astro')) return true;
   if (taskLower.includes('tailwind') && text.includes('tailwind')) return true;
   if (taskLower.includes('seo') && text.includes('seo')) return true;
+  if (taskLower.includes('figma') && text.includes('figma')) return true;
 
   return false;
 }
@@ -175,6 +220,8 @@ function scoreCandidate(candidate: SkillCandidate, task: string): number {
   boost('react', taskLower.includes('react') ? 3 : 0);
   boost('next', taskLower.includes('next') ? 3 : 0);
   boost('tailwind', taskLower.includes('tailwind') ? 3 : 0);
+  boost('figma', taskLower.includes('figma') ? 5 : 0); // Figma skills are critical for design-to-code
+  boost('implement-design', taskLower.includes('figma') ? 4 : 0);
   boost('seo', taskLower.includes('seo') ? 3 : 2); // SEO is always useful for web projects
 
   // Boost based on install count (popularity as quality signal)
@@ -260,14 +307,20 @@ async function installSkill(candidate: SkillCandidate, globalInstall: boolean): 
   }
 }
 
-export async function autoInstallSkillsFromTask(task: string, cwd: string): Promise<string[]> {
+export async function autoInstallSkillsFromTask(
+  task: string,
+  cwd: string,
+  sourceType?: string
+): Promise<string[]> {
   if (!task.trim()) return [];
   // Explicit disable is the only way to turn this off
   if (process.env.RALPH_DISABLE_SKILL_AUTO_INSTALL === '1') return [];
 
-  // Detect what's already installed
+  // Detect what's already installed (filters out platform-irrelevant skills like android/ios)
   const installedSkills = detectClaudeSkills(cwd);
-  const relevantInstalled = installedSkills.filter((s) => isSkillRelevantToTask(s, task));
+  const relevantInstalled = installedSkills.filter((s) =>
+    isSkillRelevantToTask(s, task, sourceType)
+  );
 
   // Show installed skills to the user
   if (relevantInstalled.length > 0) {
@@ -285,7 +338,7 @@ export async function autoInstallSkillsFromTask(task: string, cwd: string): Prom
   }
 
   // Search for complementary skills if we don't have enough relevant ones
-  const queries = buildSkillQueries(task);
+  const queries = buildSkillQueries(task, sourceType);
   if (queries.length === 0) return relevantInstalled.map((s) => s.name);
 
   const spinner = ora('Checking for complementary skills...').start();

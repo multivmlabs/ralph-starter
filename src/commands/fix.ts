@@ -1,5 +1,5 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import chalk from 'chalk';
 import ora from 'ora';
 import { type Agent, detectAvailableAgents, detectBestAgent } from '../loop/agents.js';
@@ -20,6 +20,7 @@ interface FixOptions {
   outputDir?: string;
   scan?: boolean;
   design?: boolean;
+  designImage?: string;
 }
 
 /**
@@ -188,6 +189,24 @@ export async function fixCommand(customTask: string | undefined, options: FixOpt
     fixTask = `${fixTask}\n\n## Original Design Specification\n\nIMPORTANT: Use the following specification as the source of truth for what the design should look like. Match the described colors, spacing, layout, and styling exactly.\n${specContext}`;
   }
 
+  // Copy design reference image if provided (must happen before prompt construction)
+  let designImagePath: string | undefined;
+  if (options.designImage) {
+    const srcPath = resolve(options.designImage);
+    if (!existsSync(srcPath)) {
+      console.log(chalk.red(`Design image not found: ${srcPath}`));
+      return;
+    }
+    const destSpecsDir = join(cwd, 'specs');
+    if (!existsSync(destSpecsDir)) {
+      mkdirSync(destSpecsDir, { recursive: true });
+    }
+    const destPath = join(destSpecsDir, 'design-reference.png');
+    copyFileSync(srcPath, destPath);
+    designImagePath = 'specs/design-reference.png';
+    console.log(chalk.cyan(`Design reference image: ${designImagePath}`));
+  }
+
   // For design/visual tasks, add instructions to visually verify with screenshots
   const DESIGN_KEYWORDS = [
     'css',
@@ -221,13 +240,19 @@ export async function fixCommand(customTask: string | undefined, options: FixOpt
   // --design flag: structured visual-first fix flow
   if (options.design) {
     fixTask = `You are fixing design and visual issues in this project. Ignore IMPLEMENTATION_PLAN.md — this is a visual fix pass, not a feature build.
-
-IMPORTANT: Your VERY FIRST action must be to start the dev server and take screenshots. Do NOT read files or explore the codebase first — start visually.
+${
+  designImagePath
+    ? `
+CRITICAL — DESIGN REFERENCE IMAGE: A screenshot of the EXACT target design is at \`${designImagePath}\`. Your VERY FIRST action must be to use the Read tool to open this image and study it carefully. This is what the final result MUST look like. Every comparison you make should be against THIS image, not just the text spec.
+`
+    : ''
+}
+IMPORTANT: Your ${designImagePath ? 'SECOND' : 'VERY FIRST'} action must be to start the dev server and take screenshots. Do NOT read code files or explore the codebase first — start visually.
 
 ## Phase 1: Visual Audit (DO THIS FIRST)
-1. Start the dev server (e.g. \`npm run dev\` or \`npx vite\`) — this OVERRIDES the "no dev server" rule
+${designImagePath ? `0. Use the Read tool to open \`${designImagePath}\` — study it carefully, this is your target\n` : ''}1. Start the dev server (e.g. \`npm run dev\` or \`npx vite\`) — this OVERRIDES the "no dev server" rule
 2. Take full-page screenshots at 3 viewports: desktop (1440px), tablet (768px), mobile (375px)
-3. Analyze each screenshot carefully against the spec below
+3. Analyze each screenshot carefully against the ${designImagePath ? `design reference image (\`${designImagePath}\`)` : 'spec below'}
 
 ## Phase 2: Issue Identification (be SPECIFIC, not generic)
 Look at the screenshots and identify CONCRETE issues you can actually see. Do NOT list generic improvements — only list problems visible in the screenshots.
@@ -273,10 +298,35 @@ This is a visual/design task. After making your CSS and styling changes, you MUS
 5. CRITICAL: Stop the dev server (kill the process) when done — do NOT leave it running`;
   }
 
+  // Detect source type from project artifacts so skill filtering works correctly.
+  // e.g., if we see public/images/screenshots/ or figma specs, we know this is a
+  // figma project and can filter out android/ios/game skills.
+  let sourceType: string | undefined;
+  if (existsSync(join(cwd, 'public', 'images', 'screenshots'))) {
+    sourceType = 'figma';
+  } else if (existsSync(specsDir)) {
+    try {
+      const specFiles = readdirSync(specsDir).filter((f) => f.endsWith('.md'));
+      for (const file of specFiles) {
+        const head = readFileSync(join(specsDir, file), 'utf-8').slice(0, 200);
+        if (head.includes('Design Specification:') || head.includes('figma')) {
+          sourceType = 'figma';
+          break;
+        }
+      }
+    } catch {
+      // Unreadable — skip detection
+    }
+  }
+
   // Install relevant skills so the agent has design/quality context
   // Use the user's custom task (not the full generated prompt) to avoid keyword-spam
   // that triggers excessive skill searches from the design prompt boilerplate
-  await autoInstallSkillsFromTask(customTask || (options.design ? 'design fix' : 'fix'), cwd);
+  await autoInstallSkillsFromTask(
+    customTask || (options.design ? 'design fix' : 'fix'),
+    cwd,
+    sourceType
+  );
 
   const defaultIter = options.design ? 7 : isDesignTask ? 4 : 3;
   const maxIter = options.maxIterations ? Number.parseInt(options.maxIterations, 10) : defaultIter;
@@ -295,6 +345,8 @@ This is a visual/design task. After making your CSS and styling changes, you MUS
     maxSkills: options.design ? 4 : undefined,
     skipPlanInstructions: options.design,
     fixMode: options.design ? 'design' : customTask ? 'custom' : 'scan',
+    designImagePath,
+    sourceType,
     // Design mode: require explicit DESIGN_VERIFIED token after visual verification
     ...(options.design && {
       completionPromise: 'DESIGN_VERIFIED',
