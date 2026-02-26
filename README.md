@@ -48,6 +48,9 @@ ralph-starter run --from linear --project "Mobile App" --label "sprint-1"
 # Build from a Notion spec
 ralph-starter run --from notion --project "https://notion.so/Product-Spec-abc123"
 
+# Build from a Figma design (interactive wizard)
+ralph-starter figma
+
 # Or just describe what you want
 ralph-starter run "build a todo app with React" --commit
 ```
@@ -63,7 +66,7 @@ ralph-starter integrates with your favorite tools out of the box:
 | **GitHub** | `gh` CLI (recommended) or API token | Issues, PRs, files |
 | **Linear** | `linear` CLI or API key | Issues by team/project |
 | **Notion** | None (public) or API token (private) | Pages, databases |
-| **Figma** | API token | Design specs, tokens, assets & content extraction |
+| **Figma** | API token | Design specs, tokens, assets, content, font checking, icon/image export |
 | **URLs** | None | Any public markdown/HTML |
 | **Files** | None | Local markdown, PDF |
 
@@ -86,6 +89,7 @@ ralph-starter integrations fetch github owner/repo
 ## Table of Contents
 
 - [Integrations](#integrations)
+- [Figma to Code](#figma-to-code)
 - [Quick Start](#quick-start)
 - [Features](#features)
 - [Commands](#commands)
@@ -94,11 +98,30 @@ ralph-starter integrations fetch github owner/repo
 
 ---
 
+### Figma to Code
+
+Convert Figma designs to production code with one command:
+
+```bash
+ralph-starter figma
+```
+
+The interactive wizard walks you through:
+1. **Figma URL** — paste your design file or frame URL
+2. **Task** — describe what to build (e.g., "build a responsive landing page")
+3. **Tech stack** — auto-detects from your project, or choose/type your own
+4. **Model** — smart dropdown based on your installed agents (Opus 4.6, Sonnet 4.5, etc.)
+
+Features: full API property coverage (auto-layout, sizing modes, individual borders, rotation, text truncation), Google Fonts checking with substitution suggestions, automatic image/icon/screenshot downloads, design token extraction, and detailed agent guidelines for pixel-perfect implementation.
+
+---
+
 ### Key Features
 
 | Feature | Description |
 |---------|-------------|
 | **Integrations** | Pull specs from GitHub, Linear, Notion, Figma, URLs, files |
+| **Figma to Code** | Interactive wizard: design URL → tech stack → model → build |
 | **Multi-Agent Support** | Works with Claude Code, Cursor, Copilot, Gemini CLI, and more |
 | **Interactive Wizard** | Guided project creation with AI-refined specifications |
 | **16+ Workflow Presets** | Pre-configured modes: feature, tdd, debug, review, and more |
@@ -184,6 +207,9 @@ ralph-starter run "add user authentication" --commit --pr
 
 # With validation (backpressure)
 ralph-starter run "refactor auth" --commit --validate
+
+# Figma design to code (interactive wizard)
+ralph-starter figma
 
 # Fetch specs from external sources
 ralph-starter run --from https://example.com/spec.md

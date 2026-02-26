@@ -74,7 +74,7 @@ const SECTIONS = [
   {
     heading: 'Community',
     dir: 'community',
-    files: ['contributing.md', 'changelog.md', 'ideas.md'],
+    files: ['contributing.md', 'changelog.mdx', 'ideas.md'],
   },
   { heading: 'FAQ', files: ['faq.md'] },
 ];

@@ -2,7 +2,7 @@
 
 > AI-powered autonomous coding tool. Connect GitHub, Linear, Notion, Figma and run AI coding loops from specs to production.
 
-> Generated on 2026-02-18 | [ralphstarter.ai](https://ralphstarter.ai)
+> Generated on 2026-02-26 | [ralphstarter.ai](https://ralphstarter.ai)
 
 ## Table of Contents
 
@@ -2749,6 +2749,26 @@ Verify your authentication:
 ralph-starter source test github
 ```
 
+### Task Management
+
+Beyond fetching specs, you can create, update, and close GitHub issues directly from the CLI:
+
+```bash
+# List open issues
+ralph-starter task list --source github --project owner/repo
+
+# Create an issue
+ralph-starter task create --title "Add dark mode" --project owner/repo --assignee octocat
+
+# Update an issue
+ralph-starter task update #42 --assignee octocat --project owner/repo
+
+# Close an issue
+ralph-starter task close #42 --comment "Fixed in PR #100" --project owner/repo
+```
+
+See [`ralph-starter task`](/docs/cli/task) for full details.
+
 ### Tips
 
 1. **Use labels effectively** - Create a "ready-to-build" or "ralph" label for issues that are well-specified
@@ -2888,6 +2908,31 @@ Create these labels in Linear:
 1. Move issues to "In Progress" when ralph-starter starts
 2. Add comments with build progress
 3. Close issues when build succeeds
+
+### Task Management
+
+Beyond fetching specs, you can create, update, close, and assign Linear issues from the CLI:
+
+```bash
+# List issues from Linear
+ralph-starter task list --source linear
+
+# Create an issue on a specific team
+ralph-starter task create --title "Add dark mode" --source linear --priority P1
+
+# Assign an issue (resolves display name to user ID automatically)
+ralph-starter task update ENG-42 --assignee ruben
+
+# Update status
+ralph-starter task update ENG-42 --status "In Progress"
+
+# Close an issue
+ralph-starter task close ENG-42 --comment "Shipped in v1.2"
+```
+
+Assignee resolution is case-insensitive and matches against display name, full name, and email prefix. If no match is found, ralph-starter shows available team members.
+
+See [`ralph-starter task`](/docs/cli/task) for full details.
 
 ### Tips
 
@@ -3129,6 +3174,16 @@ ralph-starter config set figma.token <your-token>
 
 ### Usage
 
+#### Interactive Wizard (Recommended)
+
+The easiest way to use Figma with ralph-starter:
+
+```bash
+ralph-starter figma
+```
+
+This launches a 4-step wizard: Figma URL, task description, tech stack, and model selection. See [CLI: figma](../cli/figma.md) for details.
+
 #### Basic Usage
 
 ```bash
@@ -3154,10 +3209,24 @@ ralph-starter integrations fetch figma "ABC123" --figma-nodes "1:23,1:45"
 Output includes:
 - Frame hierarchy with headings
 - Dimensions and layout information
-- Auto-layout properties (flex, gap, padding)
-- Typography details
+- Auto-layout properties (flex direction, gap, padding, alignment, wrap, counter-axis spacing)
+- Sizing modes per element (`layoutSizingHorizontal`/`Vertical`: FIXED, HUG, FILL)
+- Absolute positioning for overlay elements (`layoutPositioning`)
+- Min/max width/height constraints for responsive behavior
+- Overflow and scroll behavior (`clipsContent`, `overflowDirection`, `scrollBehavior`)
+- Typography details (font family, weight, style, size, line height, letter spacing, text truncation, max lines)
+- Individual border widths per side (`individualStrokeWeights`), dashed borders (`strokeDashes`)
+- Rotation and transform properties
+- Image transforms with crop position (`object-position`)
+- Image filters (brightness, contrast, saturation, etc.)
+- Mask detection (`isMask`)
 - Component properties and variants
-- Visual effects (shadows, blur)
+- Visual effects (shadows, blur, blend modes)
+- Google Fonts validation with substitution suggestions
+- Automatic image fill URL extraction and download
+- Icon collection and SVG export
+- Frame screenshot rendering for visual reference
+- Composite visual group detection (overlapping layers rendered as single image)
 
 #### Mode: Design Tokens
 
@@ -3295,6 +3364,7 @@ Create a custom mapping file to control how Figma content maps to your component
 | `--figma-target` | Target directory (content mode) | Path (e.g., `src/pages`) |
 | `--figma-preview` | Preview without applying (content mode) | Flag |
 | `--figma-mapping` | Custom mapping file (content mode) | File path (e.g., `mapping.json`) |
+| `--model` | AI model for the coding agent | Model ID (e.g., `claude-sonnet-4-5-20250929`) |
 
 ### Figma URL Formats
 
@@ -3343,6 +3413,30 @@ ralph-starter integrations fetch figma "ABC123" --figma-mode assets
 # Run the generated curl commands to download
 ```
 
+#### Choose Your Model
+
+Use `--model` to pick which AI model implements the design. Sonnet is fast and cost-effective for most UI work; Opus produces more nuanced implementations for complex layouts:
+
+```bash
+# Fast iteration with Sonnet (recommended for most Figma workflows)
+ralph-starter run --from figma \
+  --project "https://figma.com/file/ABC123/Dashboard" \
+  --figma-mode components \
+  --model claude-sonnet-4-5-20250929 \
+  --max-iterations 5
+
+# Maximum quality with Opus
+ralph-starter run --from figma \
+  --project "https://figma.com/file/ABC123/Dashboard" \
+  --figma-mode components \
+  --model claude-opus-4-6 \
+  --max-iterations 3
+```
+
+:::tip Model Selection for Figma
+**Sonnet** is the sweet spot for Figma-to-code. It handles component structure, layout, and styling accurately at ~5x lower cost and faster iteration speed. Use **Opus** when you need complex state logic or intricate responsive behavior alongside the UI.
+:::
+
 ### Test Connection
 
 Verify your authentication:
@@ -3351,7 +3445,71 @@ Verify your authentication:
 ralph-starter integrations test figma
 ```
 
+### Rate Limits & Caching
+
+#### Figma API Rate Limits
+
+Figma enforces rate limits based on your **plan tier** and **seat type**. This matters because it determines how many API requests you can make per minute (or per month).
+
+| Seat Type | Starter | Professional | Enterprise |
+|-----------|---------|-------------|------------|
+| Collab/Viewer (low) | 6/month | 5/min | 10/min |
+| Dev/Full (high) | 10/min | 15-50/min | 20-100/min |
+
+:::warning Free & Starter Plans
+On the **Starter plan with a Collab/Viewer seat** (`limit-type=low`), you get only **6 requests per month**. Each `ralph-starter run --from figma` uses 2-4 API calls, so you can exhaust your budget in 1-2 runs. Upgrade to a **Professional plan with a Dev seat** ($12/month) for 10+ requests per minute.
+:::
+
+#### Community Files
+
+When you access a **community file** (duplicated from the Figma Community), the **file owner's plan** determines your rate limits -- not your own plan. If the original author is on a free/starter plan, you'll be limited to 6 requests per month regardless of your plan.
+
+**Fix:** Duplicate the file to your own workspace. This makes you the owner and applies your plan's limits.
+
+#### Response Caching
+
+ralph-starter automatically caches Figma API responses in `~/.ralph/figma-cache/` with a 1-hour TTL. This means:
+
+- **First run** fetches from the API and populates the cache
+- **Subsequent runs** (within 1 hour) use the cache with zero API calls
+- **Rate limited (429)?** Falls back to stale cache if available
+
+This is especially useful for iterative development -- fetch once, then run the coding loop as many times as you want without touching the API.
+
+To clear the cache and force a fresh fetch:
+
+```bash
+rm -rf ~/.ralph/figma-cache/
+```
+
+#### Debugging API Issues
+
+Use the `RALPH_DEBUG` environment variable to see every API request, response status, and rate limit headers:
+
+```bash
+RALPH_DEBUG=1 ralph-starter run --from figma --project "your-figma-url"
+```
+
+This shows:
+- Each API endpoint being called
+- HTTP status codes and retry-after values
+- Plan tier (`x-figma-plan-tier`) and limit type (`x-figma-rate-limit-type`)
+- Cache hits and stale cache fallbacks
+
 ### Troubleshooting
+
+#### "Figma API blocked for ~N day(s)"
+
+This means CloudFront (Figma's CDN) has blocked your IP after too many rate-limited requests. The `retry-after` header shows days, not minutes.
+
+**Solutions (pick one):**
+1. **Upgrade your Figma plan** to Professional with a Dev seat ($12/month) -- gives you 10+ req/min instead of 6/month
+2. **Use a VPN** to get a fresh IP, fetch once to populate the cache, then disconnect
+3. **Wait** for the block to expire (shown in the error message)
+
+#### "Figma API rate limit hit"
+
+A transient rate limit (not a CDN block). ralph-starter will automatically retry once after respecting the `retry-after` header. If it fails again, wait 1-2 minutes and try again.
 
 #### "Invalid Figma token"
 
@@ -3374,6 +3532,7 @@ Assets are detected by name patterns. Rename your icon frames to include "icon",
 - **Variables API** requires Figma Enterprise plan (falls back to styles)
 - **Image export URLs** expire after 30 days
 - **Large files** may be slow; use `--figma-nodes` to target specific frames
+- **Starter plan (Collab seat)** limited to 6 API requests/month -- use caching or upgrade to Professional
 
 
 ---
@@ -7397,9 +7556,42 @@ Thank you for contributing to ralph-starter!
 
 ---
 
+import GitHubReleases from '@site/src/components/GitHubReleases';
+
 ## Changelog
 
 All notable changes to ralph-starter are documented here. This project follows [Semantic Versioning](https://semver.org/).
+
+<GitHubReleases />
+
+---
+
+### Pre-release History
+
+:::info
+Releases above are fetched live from [GitHub Releases](https://github.com/multivmlabs/ralph-starter/releases). The entries below cover the pre-release development period.
+:::
+
+---
+
+### [0.3.3] - 2026-02-25
+
+#### Added
+- **`ralph-starter figma` wizard command**: Interactive 4-step design-to-code workflow (Figma URL, task description, tech stack auto-detection, smart model selection)
+- **Full Figma API property coverage**: Layout sizing modes, individual strokes, rotation, font style/weight, text truncation, opacity, blend modes, and more
+- **Figma parsers**: Font checker with web-safe substitutions, image collector, icon collector, plan generator for multi-section builds
+- **Agent design-to-code guidelines**: Comprehensive layout, colors, typography, sizing, borders, shadows, images, and responsive rules injected into agent context
+- **Security sanitization utilities**: `sanitizeAssetFilename`, `isValidFigmaCdnUrl`, `sanitizeSvgContent` (substring-based parser), `isValidPngBuffer` for all Figma asset downloads
+
+#### Fixed
+- Division-by-zero in `imageTransformToObjectPosition` (epsilon-based guard)
+- TOCTOU race conditions in Figma cache read (fd-based atomic stat+read) and image optimizer (buffer-based processing)
+- Eliminated redundant `existsSync` guards before `mkdirSync({ recursive: true })`
+
+#### Security
+- SVG sanitization rewritten from regex to substring-based state machine to pass CodeQL static analysis
+- PNG magic byte validation on all downloaded image buffers
+- Figma CDN URL allowlist validation (`.figma.com`, `.amazonaws.com`, `.cloudfront.net`)
 
 ---
 
@@ -7597,11 +7789,6 @@ All notable changes to ralph-starter are documented here. This project follows [
 - **[Template marketplace](https://github.com/multivmlabs/ralph-templates)** with community templates
 
 ---
-
-### Links
-
-- [GitHub Releases](https://github.com/multivmlabs/ralph-starter/releases)
-- [npm Package History](https://www.npmjs.com/package/ralph-starter?activeTab=versions)
 
 ### Upgrade
 
