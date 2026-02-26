@@ -506,6 +506,23 @@ function nodeToMarkdown(node: FigmaNode, depth: number, options?: SpecOptions): 
     }
   }
 
+  // Detect likely interactive elements (social icons, buttons, CTAs)
+  if (node.type !== 'TEXT') {
+    const socialPattern =
+      /\b(instagram|twitter|facebook|linkedin|youtube|tiktok|github|discord)\b/i;
+    const interactivePattern =
+      /\b(cta|button|btn|link|action|submit|sign.?up|log.?in|subscribe)\b/i;
+    const socialMatch = node.name.match(socialPattern);
+    if (socialMatch) {
+      const platform = socialMatch[1].toLowerCase();
+      lines.push(
+        `\n**Interactive:** Social media icon — wrap in \`<a href="https://${platform}.com" target="_blank" rel="noopener noreferrer">\``
+      );
+    } else if (interactivePattern.test(node.name)) {
+      lines.push(`\n**Interactive:** Likely a clickable element — use \`<button>\` or \`<a>\``);
+    }
+  }
+
   // Add corner radius
   if (node.cornerRadius && node.cornerRadius > 0) {
     lines.push(`\n**Border radius:** ${node.cornerRadius}px`);
@@ -691,7 +708,7 @@ function nodeToMarkdown(node: FigmaNode, depth: number, options?: SpecOptions): 
         );
       }
     }
-  } else if (node.children && depth < 6) {
+  } else if (node.children && depth < 8) {
     // Process children (limit depth for readability — deeper levels are more selective)
     const isDeep = depth >= 4;
     const meaningfulChildren = node.children.filter((child) => {
@@ -699,6 +716,10 @@ function nodeToMarkdown(node: FigmaNode, depth: number, options?: SpecOptions): 
       // At deep levels, only include nodes with actual content (text, images, large elements)
       if (isDeep) {
         if (child.type === 'TEXT') return true;
+        // Include containers that have text descendants (e.g. frames wrapping labels)
+        // This ensures small UI elements like slider labels, indicators, and
+        // decorative text in nested groups are never lost from the spec
+        if (containsText(child)) return true;
         if (child.fills?.some((f) => f.visible !== false && f.type === 'IMAGE')) return true;
         const bbox = child.absoluteBoundingBox;
         return bbox ? bbox.width >= 50 && bbox.height >= 50 : false;
@@ -1078,7 +1099,7 @@ function scaleModeToCSS(scaleMode: string, isBackground?: boolean): string {
     case 'FIT':
       return '`object-fit: contain`';
     case 'STRETCH':
-      return '`object-fit: fill`';
+      return '`object-fit: fill` (WARNING: use `object-fit: cover` instead for responsive layouts — `fill` distorts images when the container aspect ratio changes across breakpoints)';
     case 'TILE':
       return '`background-repeat: repeat` (use as CSS background)';
     default:
@@ -1399,8 +1420,12 @@ function formatEffect(effect: {
   switch (effect.type) {
     case 'DROP_SHADOW':
       return `Drop shadow: ${effect.offset?.x || 0}px ${effect.offset?.y || 0}px ${effect.radius}px${effect.spread ? ` spread ${effect.spread}px` : ''}${colorStr}`;
-    case 'INNER_SHADOW':
-      return `Inner shadow: ${effect.offset?.x || 0}px ${effect.offset?.y || 0}px ${effect.radius}px${colorStr}`;
+    case 'INNER_SHADOW': {
+      const ix = effect.offset?.x || 0;
+      const iy = effect.offset?.y || 0;
+      const spreadStr = effect.spread ? ` ${effect.spread}px` : '';
+      return `Inner shadow: \`box-shadow: inset ${ix}px ${iy}px ${effect.radius}px${spreadStr}${colorStr}\``;
+    }
     case 'LAYER_BLUR':
       return effect.blurType === 'PROGRESSIVE'
         ? `Progressive blur: ${effect.radius}px (approximate with gradient mask + filter: blur())`

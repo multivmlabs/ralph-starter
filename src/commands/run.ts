@@ -291,6 +291,8 @@ export interface RunCommandOptions {
   figmaMapping?: string;
   // Design reference
   designImage?: string;
+  // Visual comparison
+  visualCheck?: boolean;
 }
 
 export async function runCommand(
@@ -1081,6 +1083,31 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
     );
   }
 
+  // Collect Figma frame screenshot paths for visual comparison validation
+  let figmaScreenshotPaths: string[] | undefined;
+  let visualValidation = false;
+  const screenshotsDir = join(cwd, 'public', 'images', 'screenshots');
+  if (existsSync(screenshotsDir)) {
+    try {
+      const { readdirSync } = await import('node:fs');
+      const screenshots = readdirSync(screenshotsDir)
+        .filter((f: string) => f.endsWith('.png'))
+        .map((f: string) => join(screenshotsDir, f));
+      if (screenshots.length > 0) {
+        figmaScreenshotPaths = screenshots;
+        // Auto-enable when screenshots exist, unless explicitly disabled
+        visualValidation = options.visualCheck !== false;
+        if (visualValidation) {
+          console.log(
+            chalk.dim(`  Visual validation: ${screenshots.length} design screenshot(s) detected`)
+          );
+        }
+      }
+    } catch {
+      // Non-critical — skip visual validation
+    }
+  }
+
   // Apply preset values with CLI overrides
   const loopOptions: LoopOptions = {
     task: preset?.promptPrefix ? `${preset.promptPrefix}\n\n${finalTask}` : finalTask,
@@ -1127,6 +1154,8 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
     figmaImagesDownloaded: figmaImagesDownloaded ?? undefined,
     figmaFontSubstitutions: figmaFontSubstitutions ?? undefined,
     designImagePath,
+    visualValidation,
+    figmaScreenshotPaths,
   };
 
   const result = await runLoop(loopOptions);

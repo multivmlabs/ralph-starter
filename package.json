@@ -77,6 +77,8 @@
     "inquirer": "^13.2.2",
     "ora": "^9.1.0",
     "pdf-parse": "^2.4.5",
+    "pixelmatch": "^7.1.0",
+    "pngjs": "^7.0.0",
     "simple-git": "^3.27.0",
     "yaml": "^2.7.0",
     "zod": "^4.3.6"
@@ -90,6 +92,7 @@
     "@commitlint/config-conventional": "^20.3.1",
     "@types/inquirer": "^9.0.7",
     "@types/node": "^25.1.0",
+    "@types/pngjs": "^6.0.5",
     "@vitest/coverage-v8": "^4.0.18",
     "commitizen": "^4.3.1",
     "cz-conventional-changelog": "^3.3.0",
