@@ -1,7 +1,7 @@
 {
   "name": "ralph-starter Documentation",
   "baseUrl": "https://ralphstarter.ai",
-  "generatedAt": "2026-02-13T21:19:43.300Z",
+  "generatedAt": "2026-02-26T00:06:04.280Z",
   "navigation": [
     {
       "type": "category",
@@ -230,6 +230,14 @@
           "url": "https://ralphstarter.ai/docs/cli/source",
           "markdownUrl": "https://ralphstarter.ai/docs/cli/source.md",
           "description": "Manage input sources"
+        },
+        {
+          "type": "doc",
+          "label": "task",
+          "path": "/docs/cli/task",
+          "url": "https://ralphstarter.ai/docs/cli/task",
+          "markdownUrl": "https://ralphstarter.ai/docs/cli/task.md",
+          "description": "Manage tasks across GitHub and Linear"
         },
         {
           "type": "doc",
@@ -479,6 +487,12 @@
       "title": "source",
       "path": "/docs/cli/source",
       "url": "https://ralphstarter.ai/docs/cli/source",
+      "category": "Cli"
+    },
+    {
+      "title": "task",
+      "path": "/docs/cli/task",
+      "url": "https://ralphstarter.ai/docs/cli/task",
       "category": "Cli"
     },
     {

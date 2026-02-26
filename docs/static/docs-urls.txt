@@ -16,6 +16,7 @@ https://ralphstarter.ai/docs/cli/run.md
 https://ralphstarter.ai/docs/cli/setup.md
 https://ralphstarter.ai/docs/cli/skill.md
 https://ralphstarter.ai/docs/cli/source.md
+https://ralphstarter.ai/docs/cli/task.md
 https://ralphstarter.ai/docs/cli/template.md
 https://ralphstarter.ai/docs/community/changelog.md
 https://ralphstarter.ai/docs/community/contributing.md

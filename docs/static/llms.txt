@@ -24,6 +24,7 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [setup](https://ralphstarter.ai/docs/cli/setup): Interactive setup wizard to configure LLM and agents
 - [ralph-starter skill](https://ralphstarter.ai/docs/cli/skill): Manage agent skills for enhanced AI coding capabilities
 - [source](https://ralphstarter.ai/docs/cli/source): Manage input sources
+- [task](https://ralphstarter.ai/docs/cli/task): Manage tasks across GitHub and Linear
 - [template](https://ralphstarter.ai/docs/cli/template): Browse and use project templates
 - [Changelog](https://ralphstarter.ai/docs/community/changelog): Release notes and version history for ralph-starter
 - [Contributing](https://ralphstarter.ai/docs/community/contributing): How to contribute to ralph-starter

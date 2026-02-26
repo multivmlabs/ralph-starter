@@ -2,8 +2,8 @@
   "name": "ralph-starter - AI-Powered Autonomous Coding from Specs to Production",
   "description": "Connect your tools like GitHub, Linear, and Notion. Fetch specs from anywhere and let AI coding agents build production-ready code automatically with autonomous loops.",
   "baseUrl": "https://ralphstarter.ai",
-  "generatedAt": "2026-02-13T21:19:43.299Z",
-  "totalDocs": 40,
+  "generatedAt": "2026-02-26T00:06:04.279Z",
+  "totalDocs": 41,
   "access": {
     "llmsTxt": "https://ralphstarter.ai/llms.txt",
     "llmsFullTxt": "https://ralphstarter.ai/llms-full.txt",
@@ -168,7 +168,9 @@
         "command",
         "build errors",
         "lint",
-        "design"
+        "design",
+        "visual",
+        "css"
       ]
     },
     {
@@ -296,6 +298,24 @@
         "source",
         "command",
         "integrations"
+      ]
+    },
+    {
+      "title": "task",
+      "description": "Manage tasks across GitHub and Linear",
+      "path": "/docs/cli/task",
+      "markdownUrl": "https://ralphstarter.ai/docs/cli/task.md",
+      "htmlUrl": "https://ralphstarter.ai/docs/cli/task",
+      "category": "Cli",
+      "keywords": [
+        "cli",
+        "task",
+        "command",
+        "github",
+        "linear",
+        "issues",
+        "unified",
+        "assignee"
       ]
     },
     {
