@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.4.0] - 2026-02-26
+
+### Added
+- enhance Figma integration with full API property coverage (#251)
+- Figma-specific agent prompts, auto-inject tokens, spec cap (#248)
+- expose --max-cost CLI flag with cost threshold warnings (#247)
+- unified task management across GitHub & Linear (#196)
+
+### Fixed
+- show model name and cost in loop header (#249)
+- add Tailwind v4 @theme inline guidance to prevent v3 patterns (#246)
+- auto mode gets stuck in validation loop on pre-existing test failures (#245)
+- prevent PR targeting same branch and duplicated prefix (#244)
+- show task title instead of agent name in loop header (#242)
+
+### Changed
+- add context-builder and task-executor tests (#250)
+
 ## [0.3.1] - 2026-02-19
 
 ### Documentation & Blog
