@@ -288,7 +288,7 @@ ${
   * "Image (Background)" or "Image (Hero Background)" = container with content on top. Use \`position: relative\` on container, then either:
     - CSS \`background-image\` + \`background-size: cover\`, OR
     - \`<img>\` with \`position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0\` + content with \`position: relative; z-index: 1\`
-  * Scale mode FILL = \`object-fit: cover\` (crop to fill). FIT = \`object-fit: contain\`. STRETCH = \`object-fit: fill\`
+  * Scale mode FILL = \`object-fit: cover\` (crop to fill). FIT = \`object-fit: contain\`. STRETCH = use \`object-fit: cover\` (Figma's STRETCH only works at exact design dimensions — in responsive web layouts, \`object-fit: fill\` distorts the image when the container aspect ratio changes across breakpoints, so prefer \`object-fit: cover\` with the crop position from the spec)
   * For hero sections ("Hero Background"): the image MUST fill the entire section. Use \`min-height\` from the spec or \`100vh\`. Never let the image leave gaps.
   * Match the image to the correct element by checking the "Element:" name in the spec
 - IMAGE CROPPING: When the spec includes a "Crop position" line (e.g. \`object-position: 30% 20%\` or \`background-position: 30% 20%\`), you MUST apply it. This controls which part of the image is visible when cropped by \`object-fit: cover\`. Without it, CSS defaults to centering which may show the wrong region of the image.
@@ -298,21 +298,36 @@ ${
 - PARALLAX/LAYERED HEROES: When the spec describes a "Composite Background (visual layers only — text NOT included)", this means overlapping visual layers (mountains, gradients, photos) rendered as one image WITHOUT text baked in. Implement as:
   * Container: \`position: relative; overflow: hidden; min-height: [spec value]\`
   * Background: \`<img>\` or \`background-image\` with \`position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0\`
-  * ALL text/content elements: \`position: relative; z-index: 1\` to layer OVER the background
+  * ALL text/content elements: \`position: relative; z-index: 10\` (or higher) to layer OVER ALL background/image layers
   * The text elements in the spec that follow the composite section are the overlays — place them on top
+  * CRITICAL: When multiple background images are stacked (e.g. mountain layers at z-0, z-1, z-2, z-3, z-4), text MUST use a z-index HIGHER than the highest image layer. Use z-index: 10+ for text, never z-index: 1 or 2 which may be lower than stacked image layers
 - ALTERNATING CONTENT SECTIONS: When numbered sections (01, 02, 03) have images alternating left/right:
   * Use \`flex-direction: row\` for odd sections, \`flex-direction: row-reverse\` for even (or vice versa based on the spec)
   * Maintain consistent image dimensions across all sections (match the spec dimensions exactly)
   * Use consistent gap/spacing between text block and image across all sections
   * The large background numbers (01, 02, 03) should use \`position: absolute\` with large font-size and low opacity
+- SCROLL/SECTION INDICATORS: When the spec shows a "Slider" or scroll indicator component (typically a vertical bar with text labels on the hero right side), implement it as a section navigation indicator. If the design has numbered content sections (01, 02, 03), the scroll indicator should display these numbers alongside a progress bar to show the current scroll position. Include ALL elements from the slider spec: the progress bar, the section numbers, and any "Start" label. These are typically \`position: absolute\` or \`position: fixed\` on the right side of the hero section.
 - INFERRED LAYOUT: When the spec shows "Inferred Layout" (detected from positions, not Figma auto-layout), treat these CSS hints as reliable — they were algorithmically derived from exact pixel positions in the design. Use the suggested \`flex-direction\`, \`gap\`, \`padding\`, and \`justify\` values.
 - POSITIONING: The spec includes (x, y) positions for each element. Use these for:
   * Elements that overlap or layer on top of each other (use \`position: absolute\` + \`top/left\` or \`inset\`)
   * Verifying element order and spacing within flex/grid containers
   * The spec includes \`z-index\` comments for overlapping siblings — apply them as CSS z-index values
+  * Text/content layers marked "z-index: 10" MUST use z-index: 10 or higher — NEVER a value lower than any image layer's z-index
 - NAVIGATION: If the design has a fixed header/nav bar, implement it with \`position: fixed; top: 0; width: 100%; z-index: 50\` and add \`scroll-padding-top\` on \`<html>\` equal to the nav height so anchor links don't hide content behind the nav. For scroll-linked navigation (active section highlighting), use \`IntersectionObserver\` to detect which section is in view.
 - FIDELITY: Match the design EXACTLY — pixel-perfect implementation is the goal. Do not add extra elements, animations, hover effects, or decorations not described in the spec. Do not "improve" the design. The Figma spec is the single source of truth.
-- LAYER ORDER: The spec includes z-index comments (back/middle/front) for overlapping elements. Implement stacking with CSS z-index. Later elements in the spec = higher z-index = rendered on top.
+- COMPLETENESS: Implement EVERY element described in the spec — do not skip small UI components, decorative elements, or indicators. Common elements that get missed:
+  * Scroll/progress indicators (vertical bars with section numbers)
+  * Social media sidebars ("Follow us" + icons)
+  * Decorative numbers/labels (01, 02, 03 as large background text)
+  * Navigation items and account links
+  * Footer columns and links
+  * "Read more" CTAs with arrow icons
+  Read through the ENTIRE spec before starting to ensure nothing is overlooked. Check the spec heading structure — each heading (####, #####, ######) represents an element that must be implemented.
+- ABSOLUTE POSITIONING PRECISION: Elements in the spec that overlap siblings (marked with z-index comments) need \`position: absolute\` with EXACT positioning from the spec. Convert the spec's Position (x, y) coordinates to CSS:
+  * Calculate offset from the section/parent edge (e.g., if section starts at x=-720 and element is at x=1043, the offset from left is 1763px, from right = sectionWidth - 1763 - elementWidth)
+  * Use \`right: Npx\` or \`left: Npx\` + \`top: Npx\` to match the exact Figma position
+  * Match element dimensions exactly as specified
+- LAYER ORDER: The spec includes z-index comments (back/middle/front) for overlapping elements. Implement stacking with CSS z-index. Later elements in the spec = higher z-index = rendered on top. Text content layers are always z-index: 10+ to ensure they appear ABOVE all image/visual layers regardless of stacking order.
 - VISUAL REFERENCE (CRITICAL): ${opts.designImagePath ? `The design reference image at \`${opts.designImagePath}\` is your PRIMARY visual source of truth — read it FIRST and refer back to it constantly.` : ''} Frame screenshots from the Figma design are saved in \`public/images/screenshots/\`. You MUST use the Read tool to open these PNG files and visually inspect them BEFORE writing code. These are the ground truth for what the final result should look like. After implementing each major section, open the ${opts.designImagePath ? 'design reference image' : 'screenshot'} again and compare it to your code. Pay close attention to:
   * Image positioning, cropping, and aspect ratios
   * Overlapping/layered elements and their visual stacking

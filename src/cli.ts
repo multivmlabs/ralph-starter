@@ -111,6 +111,10 @@ program
     '--design-image <path>',
     'Design reference image (screenshot of the target design for pixel-perfect matching)'
   )
+  .option(
+    '--no-visual-check',
+    'Disable visual comparison validation (auto-enabled when Figma screenshots exist)'
+  )
   .action(runCommand);
 
 // ralph-starter fix - Fix build errors and code quality issues

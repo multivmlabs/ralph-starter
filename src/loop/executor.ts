@@ -45,6 +45,7 @@ import {
   runLintValidation,
   type ValidationResult,
 } from './validation.js';
+import { runVisualValidation } from './visual-validation.js';
 
 /**
  * Sleep for a given number of milliseconds
@@ -246,6 +247,8 @@ export interface LoopOptions {
   figmaImagesDownloaded?: boolean; // Whether Figma images were downloaded to public/images/
   figmaFontSubstitutions?: Array<{ original: string; substitute: string }>; // Font substitutions applied
   designImagePath?: string; // Path to design reference image (relative to cwd) for pixel-perfect matching
+  visualValidation?: boolean; // Enable visual comparison validation (compare implementation screenshots against Figma design)
+  figmaScreenshotPaths?: string[]; // Absolute paths to Figma frame screenshots for visual comparison
 }
 
 export interface LoopResult {
@@ -591,6 +594,10 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
   // When the build fails on the "final" iteration, we grant 2 extra iterations to fix it (once)
   let buildFixExtended = false;
   const BUILD_FIX_EXTRA_ITERATIONS = 2;
+
+  // Track whether we've already extended the loop for visual-fix retries
+  let visualFixExtended = false;
+  const VISUAL_FIX_EXTRA_ITERATIONS = 2;
 
   // Filesystem snapshot for git-independent change detection
   let previousSnapshot = await getFilesystemSnapshot(options.cwd);
@@ -1213,6 +1220,83 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
         );
         circuitBreaker.recordSuccess();
         lastValidationFeedback = '';
+      }
+    }
+
+    // --- Visual validation: compare implementation against Figma design screenshots ---
+    // Runs twice: first pass (normal) and second pass (strict) after agent fixes.
+    if (
+      isFinalIteration &&
+      options.visualValidation &&
+      options.figmaScreenshotPaths &&
+      options.figmaScreenshotPaths.length > 0
+    ) {
+      const isStrictPass = visualFixExtended;
+      const modeLabel = isStrictPass ? 'strict pixel' : 'visual';
+      spinner.start(chalk.yellow(`Loop ${i}: Running ${modeLabel} comparison...`));
+      try {
+        const visualResult = await runVisualValidation(options.cwd, options.figmaScreenshotPaths, {
+          log: (msg) => (spinner.text = chalk.yellow(`Loop ${i}: ${msg}`)),
+          strictMode: isStrictPass,
+        });
+
+        // Track vision API cost
+        if (visualResult.usage && costTracker) {
+          costTracker.recordVisionCall(visualResult.usage);
+        }
+
+        if (!visualResult.success) {
+          const diffPct = visualResult.diffRatio
+            ? ` (${(visualResult.diffRatio * 100).toFixed(1)}% pixel diff)`
+            : '';
+          spinner.fail(
+            chalk.red(
+              `Loop ${i}: ${isStrictPass ? 'Strict pixel' : 'Visual'} comparison found ${visualResult.issues.length} issue(s)${diffPct}`
+            )
+          );
+
+          // Format issues as validation feedback for the agent
+          const header = isStrictPass
+            ? '## Strict Pixel Comparison Failed\n\nThe implementation is close but not pixel-perfect. Fine-tune these remaining differences:\n'
+            : '## Visual Comparison Failed\n\nThe implementation does not visually match the Figma design. Fix these issues:\n';
+
+          const visualFeedback = [
+            header,
+            ...visualResult.issues.map((issue, idx) => `${idx + 1}. ${issue}`),
+            visualResult.diffImagePath
+              ? `\nA diff overlay has been saved to ${visualResult.diffImagePath} — red/magenta pixels show where the images differ.`
+              : '',
+            '\nRefer to the design spec in specs/ and screenshots in public/images/screenshots/ for reference.',
+          ].join('\n');
+
+          lastValidationFeedback = visualFeedback;
+
+          // First pass: extend loop for fixes. Second pass (strict): no further extension.
+          if (!visualFixExtended) {
+            const newMax = maxIterations + VISUAL_FIX_EXTRA_ITERATIONS;
+            console.log(
+              chalk.yellow(
+                `  Extending loop by ${VISUAL_FIX_EXTRA_ITERATIONS} iterations to fix visual issues (${maxIterations} → ${newMax})`
+              )
+            );
+            maxIterations = newMax;
+            finalIteration = maxIterations;
+            visualFixExtended = true;
+          }
+          continue;
+        }
+        spinner.succeed(
+          chalk.green(
+            `Loop ${i}: ${isStrictPass ? 'Strict pixel' : 'Visual'} comparison passed${visualResult.diffRatio !== undefined ? ` (${(visualResult.diffRatio * 100).toFixed(1)}% diff)` : ''}`
+          )
+        );
+      } catch (err) {
+        // Visual validation error is non-fatal — log and continue
+        spinner.warn(
+          chalk.yellow(
+            `Loop ${i}: Visual comparison skipped (${err instanceof Error ? err.message : 'unknown error'})`
+          )
+        );
       }
     }
 
