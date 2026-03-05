@@ -26,6 +26,17 @@ export interface SpecOptions {
   compositeImages?: Map<string, string>;
   /** Composite node IDs that have text overlays (visual-dominant composites) */
   compositeTextOverlays?: Set<string>;
+  /** Parent background colors for composites (nodeId → CSS color string).
+   *  When a composite is inside a parent frame with a solid fill, the composite
+   *  render only includes the inner node — not the parent's background. The agent
+   *  needs this color as `background-color` on the container so transparent/
+   *  semi-transparent areas in the composite render blend correctly. */
+  compositeBackgroundColors?: Map<string, string>;
+  /** Pixels cropped from the top of composite renders (nodeId → design px).
+   *  When a composite overflows above its clipping ancestor, the rendered image
+   *  is cropped to show only the visible area. This value is included in the spec
+   *  as a CSS fallback offset in case the crop wasn't perfectly applied. */
+  compositeClipCropTops?: Map<string, number>;
 }
 
 /**
@@ -58,6 +69,15 @@ export interface CompositeNodeResult {
   visualChildIds?: string[];
   /** Whether this composite has text overlays that should be positioned on top */
   hasTextOverlays?: boolean;
+  /** Background color of the PARENT frame (not the composite node itself).
+   *  The composite render only includes the inner node, so transparent areas
+   *  need this color as `background-color` on the container element. */
+  parentBackgroundColor?: string;
+  /** Pixels to crop from the top of the rendered image (at 1x design scale).
+   *  When a composite extends above its clipping ancestor (parent frame with
+   *  clipsContent=true), the Figma API still renders the full node bounds.
+   *  This value tells source.ts how much overflow to crop after download. */
+  clipCropTop?: number;
 }
 
 export function collectCompositeNodes(nodes: FigmaNode[]): CompositeNodeResult[] {
@@ -73,39 +93,115 @@ export function collectCompositeNodes(nodes: FigmaNode[]): CompositeNodeResult[]
     }
   }
 
-  function walk(node: FigmaNode) {
+  // When a top-level frame has a solid background fill and its visual children
+  // are in an inner group, we store the parent's background color here so the
+  // inner composite can instruct the agent to set `background-color` on the
+  // container (the composite render does NOT include the parent frame's fills,
+  // so transparent areas would otherwise show through to the page background).
+  let parentBackgroundColor: string | undefined;
+
+  function walk(node: FigmaNode, clipBounds?: { y: number; height: number }) {
     if (node.visible === false) return;
+
+    // Update clip bounds if this node clips its content
+    const childClip =
+      node.clipsContent && node.absoluteBoundingBox
+        ? { y: node.absoluteBoundingBox.y, height: node.absoluteBoundingBox.height }
+        : clipBounds;
+
     if (!node.children || node.children.length < 2) {
       // Recurse anyway to check deeper nodes
       if (node.children) {
-        for (const child of node.children) walk(child);
+        for (const child of node.children) walk(child, childClip);
       }
       return;
     }
 
-    // Never treat top-level frames (page sections) as composites —
-    // they contain layout structure the agent needs
+    // Top-level frames contain layout structure the agent needs, so don't
+    // treat the frame itself as a normal composite. BUT we check for visual-only
+    // sibling clusters (e.g., stacked mountain/gradient layers like VG, MG, HG)
+    // that should be flattened into a SINGLE background image. Without this,
+    // each layer gets implemented as a separate absolute-positioned element
+    // which distorts at different viewport sizes.
     if (topLevelFrameIds.has(node.id)) {
-      for (const child of node.children) walk(child);
+      const bbox = node.absoluteBoundingBox;
+      if (bbox && bbox.width >= 200 && bbox.height >= 200 && node.children) {
+        const visibleChildren = node.children.filter((c) => c.visible !== false);
+
+        if (visibleChildren.length >= 2) {
+          const visualLayers: FigmaNode[] = [];
+          const textLayers: FigmaNode[] = [];
+
+          for (const child of visibleChildren) {
+            if (child.type === 'TEXT' || containsText(child)) {
+              textLayers.push(child);
+            } else if (hasVisualContent(child)) {
+              visualLayers.push(child);
+            }
+          }
+
+          if (visualLayers.length >= 2) {
+            const visualBboxes = visualLayers
+              .map((c) => c.absoluteBoundingBox)
+              .filter((b): b is NonNullable<typeof b> => b != null);
+
+            if (visualBboxes.length >= 2 && hasSignificantOverlap(visualBboxes)) {
+              // Visual sibling cluster found — flatten into a single composite.
+              // The Figma API will render the parent node (including baked text),
+              // but the plan marks it as hasTextOverlays so the agent overlays
+              // real text elements on top of the background image.
+              results.push({
+                nodeId: node.id,
+                name: node.name,
+                width: Math.round(bbox.width),
+                height: Math.round(bbox.height),
+                visualChildIds: visualLayers.map((c) => c.id),
+                hasTextOverlays: textLayers.length > 0,
+                // Don't extract overlay gradients — they're already baked into the
+                // Figma API render of this node (its fills are part of the PNG).
+              });
+              // Recurse only into text/content children (visual layers are composited)
+              for (const child of textLayers) walk(child, childClip);
+              return;
+            }
+          }
+
+          // Check if a single visual child is a group/frame that itself contains
+          // overlapping visual layers (e.g., a "Background" group with mountain +
+          // gradient layers). The inner group will be detected as a composite when
+          // walk() recurses into it. We extract the parent frame's background color
+          // so the agent can set it on the container (since the inner composite render
+          // does NOT include the parent's fills — transparent areas would show through).
+          if (visualLayers.length >= 1) {
+            const bgColor = extractSolidBackground(node.fills);
+            if (bgColor) {
+              parentBackgroundColor = bgColor;
+            }
+          }
+        }
+      }
+
+      // No visual cluster found — recurse all children normally
+      for (const child of node.children) walk(child, childClip);
       return;
     }
 
     const bbox = node.absoluteBoundingBox;
     // Must be large enough to be a background element (at least 200px in both dimensions)
     if (!bbox || bbox.width < 200 || bbox.height < 200) {
-      for (const child of node.children) walk(child);
+      for (const child of node.children) walk(child, childClip);
       return;
     }
 
     // Must NOT have auto-layout (overlapping is intentional)
     if (node.layoutMode && node.layoutMode !== 'NONE') {
-      for (const child of node.children) walk(child);
+      for (const child of node.children) walk(child, childClip);
       return;
     }
 
     const visibleChildren = node.children.filter((c) => c.visible !== false);
     if (visibleChildren.length < 2) {
-      for (const child of node.children) walk(child);
+      for (const child of node.children) walk(child, childClip);
       return;
     }
 
@@ -125,7 +221,7 @@ export function collectCompositeNodes(nodes: FigmaNode[]): CompositeNodeResult[]
 
     // Need at least 2 visual layers to form a composite
     if (visualLayers.length < 2) {
-      for (const child of node.children) walk(child);
+      for (const child of node.children) walk(child, childClip);
       return;
     }
 
@@ -135,14 +231,25 @@ export function collectCompositeNodes(nodes: FigmaNode[]): CompositeNodeResult[]
       .filter((b): b is NonNullable<typeof b> => b != null);
 
     if (visualBboxes.length >= 2 && hasSignificantOverlap(visualBboxes)) {
+      // Compute how much of the composite overflows above the clipping ancestor.
+      // The Figma API renders the full node bounds, but the parent frame clips it.
+      const cropTop = childClip && bbox.y < childClip.y ? Math.round(childClip.y - bbox.y) : 0;
+      const visibleHeight = Math.round(bbox.height) - cropTop;
+
       if (textLayers.length === 0) {
-        // PURE composite: all visual, no text — render entire node as single image
+        // PURE composite: all visual, no text — render entire node as single image.
+        // Don't extract THIS node's gradient fills (they're baked into the render).
+        // But include parent background color if collected (it's NOT in the render
+        // since only this inner node is rendered, not the parent frame).
         results.push({
           nodeId: node.id,
           name: node.name,
           width: Math.round(bbox.width),
-          height: Math.round(bbox.height),
+          height: visibleHeight,
+          parentBackgroundColor: parentBackgroundColor ?? undefined,
+          clipCropTop: cropTop > 0 ? cropTop : undefined,
         });
+        parentBackgroundColor = undefined; // consumed
         // Don't recurse — children are handled as one unit
         return;
       }
@@ -155,17 +262,20 @@ export function collectCompositeNodes(nodes: FigmaNode[]): CompositeNodeResult[]
         nodeId: node.id,
         name: node.name,
         width: Math.round(bbox.width),
-        height: Math.round(bbox.height),
+        height: visibleHeight,
         visualChildIds: visualLayers.map((c) => c.id),
         hasTextOverlays: true,
+        parentBackgroundColor: parentBackgroundColor ?? undefined,
+        clipCropTop: cropTop > 0 ? cropTop : undefined,
       });
+      parentBackgroundColor = undefined; // consumed
       // Recurse into text layers so they appear in the spec as normal
-      for (const child of textLayers) walk(child);
+      for (const child of textLayers) walk(child, childClip);
       return;
     }
 
     // Recurse into children
-    for (const child of node.children) walk(child);
+    for (const child of node.children) walk(child, childClip);
   }
 
   for (const node of nodes) walk(node);
@@ -210,7 +320,8 @@ function hasSignificantOverlap(
       const overlapY = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
       const overlapArea = overlapX * overlapY;
       const smallerArea = Math.min(a.width * a.height, b.width * b.height);
-      if (smallerArea > 0 && overlapArea / smallerArea > 0.3) return true;
+      // 20% ratio OR >10,000px² absolute overlap (catches thin gradient overlays)
+      if (smallerArea > 0 && (overlapArea / smallerArea > 0.2 || overlapArea > 10000)) return true;
     }
   }
   return false;
@@ -301,6 +412,13 @@ function nodeToMarkdown(node: FigmaNode, depth: number, options?: SpecOptions): 
     lines.push(
       `*Dimensions: ${Math.round(width)} x ${Math.round(height)} px — Position: (${Math.round(x)}, ${Math.round(y)})*`
     );
+
+    // Tag thin elements as dividers/separators for the agent
+    const isThinRect = ['RECTANGLE', 'ELLIPSE'].includes(node.type) && (height <= 4 || width <= 4);
+    const isLine = node.type === 'LINE';
+    if (isThinRect || isLine) {
+      lines.push(`\n**Role:** Divider/separator line`);
+    }
   }
 
   // Add description if available (frame descriptions are great for specs)
@@ -464,9 +582,30 @@ function nodeToMarkdown(node: FigmaNode, depth: number, options?: SpecOptions): 
     lines.push(`\n**Opacity:** ${node.opacity}`);
   }
 
-  // Add rotation
+  // Add blend mode
+  if (node.blendMode && node.blendMode !== 'NORMAL' && node.blendMode !== 'PASS_THROUGH') {
+    lines.push(`\n**Blend mode:** \`mix-blend-mode: ${blendModeToCss(node.blendMode)}\``);
+  }
+
+  // Add rotation (Figma rotation is counter-clockwise positive, CSS is clockwise positive — negate)
   if (node.rotation && Math.abs(node.rotation) > 0.1) {
-    lines.push(`\n**Rotation:** \`transform: rotate(${Math.round(node.rotation)}deg)\``);
+    const cssDeg = Math.round(-node.rotation);
+    // For TEXT nodes rotated ~90°, suggest writing-mode for proper vertical text layout
+    if (node.type === 'TEXT' && Math.abs(Math.abs(cssDeg) - 90) < 5) {
+      if (cssDeg > 0) {
+        // 90° clockwise → text reads top-to-bottom
+        lines.push(
+          `\n**Vertical text:** \`writing-mode: vertical-rl\` (text flows top-to-bottom — do NOT use transform: rotate)`
+        );
+      } else {
+        // -90° (270°) → text reads bottom-to-top
+        lines.push(
+          `\n**Vertical text:** \`writing-mode: vertical-rl; transform: rotate(180deg)\` (text flows bottom-to-top — do NOT use transform: rotate(-90deg))`
+        );
+      }
+    } else {
+      lines.push(`\n**Rotation:** \`transform: rotate(${cssDeg}deg)\``);
+    }
   }
 
   // Mask indicator
@@ -503,6 +642,23 @@ function nodeToMarkdown(node: FigmaNode, depth: number, options?: SpecOptions): 
       } else if (def.type === 'INSTANCE_SWAP') {
         lines.push(`- ${name}: component swap`);
       }
+    }
+  }
+
+  // Detect likely interactive elements (social icons, buttons, CTAs)
+  if (node.type !== 'TEXT') {
+    const socialPattern =
+      /\b(instagram|twitter|facebook|linkedin|youtube|tiktok|github|discord)\b/i;
+    const interactivePattern =
+      /\b(cta|button|btn|link|action|submit|sign.?up|log.?in|subscribe)\b/i;
+    const socialMatch = node.name.match(socialPattern);
+    if (socialMatch) {
+      const platform = socialMatch[1].toLowerCase();
+      lines.push(
+        `\n**Interactive:** Social media icon — wrap in \`<a href="https://${platform}.com" target="_blank" rel="noopener noreferrer">\``
+      );
+    } else if (interactivePattern.test(node.name)) {
+      lines.push(`\n**Interactive:** Likely a clickable element — use \`<button>\` or \`<a>\``);
     }
   }
 
@@ -638,17 +794,35 @@ function nodeToMarkdown(node: FigmaNode, depth: number, options?: SpecOptions): 
       lines.push(
         `- This image contains ONLY the visual layers (mountains, gradients, images). Text content appears BELOW as separate elements — overlay them on top.`
       );
+      // Check for parent background color (from the parent frame's fills — not baked into the composite render)
+      const parentBgColor = options?.compositeBackgroundColors?.get(node.id);
+
       if (bbox && bbox.height >= 400) {
         lines.push(`- Implementation (HERO PARALLAX):`);
         lines.push(
           `  * Container: \`position: relative; overflow: hidden; min-height: ${Math.round(bbox.height)}px\``
         );
+        if (parentBgColor) {
+          lines.push(
+            `  * Container background: \`background-color: ${parentBgColor}\` — ensures transparent areas blend correctly`
+          );
+        }
+        const clipCrop = options?.compositeClipCropTops?.get(node.id);
+        // When the composite was cropped (overflow removed), don't use cover — the image
+        // is shorter than the container. Use 100% auto to fill width and let background-color
+        // handle the remaining space below.
+        const bgSize =
+          clipCrop && clipCrop > 0
+            ? 'background-size: 100% auto; background-repeat: no-repeat'
+            : 'background-size: cover';
         lines.push(
-          `  * Background image: \`position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0\``
+          `  * CSS: \`background-image: url(${compositeImagePath}); ${bgSize}; background-position: top center; min-height: ${Math.round(bbox.height)}px\``
         );
-        lines.push(
-          `  * CSS: \`background-image: url(${compositeImagePath}); background-size: cover; background-position: center; min-height: ${Math.round(bbox.height)}px\``
-        );
+        if (clipCrop && clipCrop > 0) {
+          lines.push(
+            `  * NOTE: Image cropped to visible frame area. If hero top doesn't match design, use \`background-position: 0 -${clipCrop}px\` to offset.`
+          );
+        }
         lines.push(
           `  * ALL text/content below must use \`position: relative; z-index: 1\` to layer OVER the background`
         );
@@ -656,6 +830,9 @@ function nodeToMarkdown(node: FigmaNode, depth: number, options?: SpecOptions): 
         lines.push(
           `- Implementation: Use as full-bleed \`background-image\` with \`background-size: cover\`, all content with \`position: relative; z-index: 1\``
         );
+        if (parentBgColor) {
+          lines.push(`- Container background: \`background-color: ${parentBgColor}\``);
+        }
       }
 
       // Recurse into text/content children (they were NOT rendered into the composite image)
@@ -664,6 +841,66 @@ function nodeToMarkdown(node: FigmaNode, depth: number, options?: SpecOptions): 
           if (child.visible === false) return false;
           return child.type === 'TEXT' || containsText(child);
         });
+
+        // Compute layout context for text children relative to the composite
+        if (textChildren.length >= 2 && bbox) {
+          const childPositions = textChildren
+            .map((c) => ({
+              name: c.name,
+              bbox: c.absoluteBoundingBox,
+            }))
+            .filter((c): c is { name: string; bbox: NonNullable<typeof c.bbox> } => c.bbox != null);
+
+          if (childPositions.length >= 2) {
+            const sorted = [...childPositions].sort((a, b) => a.bbox.y - b.bbox.y);
+
+            // Compute Y offsets relative to parent top
+            const offsets = sorted.map((c) => ({
+              name: c.name,
+              yOffset: Math.round(c.bbox.y - bbox.y),
+              height: Math.round(c.bbox.height),
+              xOffset: Math.round(c.bbox.x - bbox.x),
+              width: Math.round(c.bbox.width),
+            }));
+
+            // Compute vertical gaps between consecutive sections
+            const gaps: number[] = [];
+            for (let i = 1; i < offsets.length; i++) {
+              const prevBottom = offsets[i - 1].yOffset + offsets[i - 1].height;
+              gaps.push(Math.round(offsets[i].yOffset - prevBottom));
+            }
+
+            // Detect common horizontal padding (minimum left offset of content sections)
+            const leftOffsets = offsets.map((o) => o.xOffset);
+            const minLeft = Math.min(...leftOffsets);
+            const rightEdges = offsets.map((o) => o.xOffset + o.width);
+            const maxRight = Math.max(...rightEdges);
+            const rightPad = Math.round(bbox.width - maxRight);
+
+            lines.push(`\n**Content Layout (positioned OVER the background image):**`);
+            if (minLeft > 20 || rightPad > 20) {
+              lines.push(
+                `- Content area: \`max-width: ${maxRight - minLeft}px; margin-left: ${minLeft}px; margin-right: ${rightPad}px\` (or use centered container with \`max-width\` + \`margin: 0 auto\` + \`padding: 0 ${minLeft}px\`)`
+              );
+            }
+            lines.push(`- Section positions (Y offset from top of background):`);
+            for (const o of offsets) {
+              lines.push(
+                `  * "${o.name}": starts at ${o.yOffset}px from top, ${o.width}x${o.height}px`
+              );
+            }
+            if (gaps.length > 0) {
+              const avgGap = Math.round(gaps.reduce((s, g) => s + g, 0) / gaps.length);
+              const allSimilar = gaps.every((g) => Math.abs(g - avgGap) < 50);
+              if (allSimilar && avgGap > 0) {
+                lines.push(`- Vertical gap between sections: ~${avgGap}px`);
+              } else {
+                lines.push(`- Vertical gaps: ${gaps.map((g) => `${g}px`).join(', ')}`);
+              }
+            }
+          }
+        }
+
         for (let i = 0; i < textChildren.length; i++) {
           lines.push(nodeToMarkdown(textChildren[i], depth + 1, options));
         }
@@ -676,22 +913,46 @@ function nodeToMarkdown(node: FigmaNode, depth: number, options?: SpecOptions): 
       lines.push(
         `- This image combines multiple overlapping visual layers from the Figma design into a single background.`
       );
+
+      // Check for parent background color (from the parent frame's fills — not
+      // included in this composite render). Ensures transparent/semi-transparent
+      // areas blend correctly with the page.
+      const pureBgColor = options?.compositeBackgroundColors?.get(node.id);
+
       if (bbox && bbox.height >= 400) {
         lines.push(`- Implementation (HERO): This image MUST fill the entire section.`);
         lines.push(
-          `  * CSS: \`background-image: url(${compositeImagePath}); background-size: cover; background-position: center; min-height: ${Math.round(bbox.height)}px\``
+          `  * Container: \`position: relative; overflow: hidden\` — the container height should match the PARENT section, not just this image`
         );
+        if (pureBgColor) {
+          lines.push(
+            `  * Container background: \`background-color: ${pureBgColor}\` — ensures transparent areas blend correctly`
+          );
+        }
+        const pureClipCrop = options?.compositeClipCropTops?.get(node.id);
+        const pureBgSize =
+          pureClipCrop && pureClipCrop > 0
+            ? 'background-size: 100% auto; background-repeat: no-repeat'
+            : 'background-size: cover';
         lines.push(
-          `  * Or: \`<img src="${compositeImagePath}" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0" />\``
+          `  * CSS: \`background-image: url(${compositeImagePath}); ${pureBgSize}; background-position: top center; min-height: ${Math.round(bbox.height)}px\``
         );
+        if (pureClipCrop && pureClipCrop > 0) {
+          lines.push(
+            `  * NOTE: Image cropped to visible frame area. If hero top doesn't match design, use \`background-position: 0 -${pureClipCrop}px\` to offset.`
+          );
+        }
         lines.push(`  * All text/content on top must use \`position: relative; z-index: 1\``);
       } else {
         lines.push(
           `- Implementation: Use as \`background-image\` with \`background-size: cover\` or as an \`<img>\` with \`object-fit: cover\``
         );
+        if (pureBgColor) {
+          lines.push(`- Container background: \`background-color: ${pureBgColor}\``);
+        }
       }
     }
-  } else if (node.children && depth < 6) {
+  } else if (node.children && depth < 8) {
     // Process children (limit depth for readability — deeper levels are more selective)
     const isDeep = depth >= 4;
     const meaningfulChildren = node.children.filter((child) => {
@@ -699,6 +960,10 @@ function nodeToMarkdown(node: FigmaNode, depth: number, options?: SpecOptions): 
       // At deep levels, only include nodes with actual content (text, images, large elements)
       if (isDeep) {
         if (child.type === 'TEXT') return true;
+        // Include containers that have text descendants (e.g. frames wrapping labels)
+        // This ensures small UI elements like slider labels, indicators, and
+        // decorative text in nested groups are never lost from the spec
+        if (containsText(child)) return true;
         if (child.fills?.some((f) => f.visible !== false && f.type === 'IMAGE')) return true;
         const bbox = child.absoluteBoundingBox;
         return bbox ? bbox.width >= 50 && bbox.height >= 50 : false;
@@ -711,18 +976,24 @@ function nodeToMarkdown(node: FigmaNode, depth: number, options?: SpecOptions): 
       ) {
         return true;
       }
-      // Include shapes with fills (colors, gradients, images) that are large enough to be meaningful
+      // Include shapes with fills or strokes that are large enough to be meaningful
+      // Allow thin elements (dividers/separators) through: one dimension >= 20px is enough
       if (['RECTANGLE', 'ELLIPSE'].includes(child.type)) {
         const hasFill = child.fills?.some((f) => f.visible !== false) ?? false;
-        if (!hasFill) return false;
-        // Skip tiny spacer elements
+        const hasStroke = child.strokes?.some((s) => s.visible !== false) ?? false;
+        if (!hasFill && !hasStroke) return false;
         const bbox = child.absoluteBoundingBox;
-        return bbox ? bbox.width >= 20 && bbox.height >= 20 : false;
+        return bbox ? bbox.width >= 20 || bbox.height >= 20 : false;
       }
       // Include VECTOR/BOOLEAN_OPERATION nodes that were exported as icons
       if (['VECTOR', 'BOOLEAN_OPERATION'].includes(child.type)) {
         const bbox = child.absoluteBoundingBox;
         return bbox ? bbox.width >= 8 && bbox.height >= 8 : false;
+      }
+      // Include LINE nodes (dividers, separators) if at least 20px in one dimension
+      if (child.type === 'LINE') {
+        const bbox = child.absoluteBoundingBox;
+        return bbox ? Math.max(bbox.width, bbox.height) >= 20 : false;
       }
       return false;
     });
@@ -744,13 +1015,20 @@ function nodeToMarkdown(node: FigmaNode, depth: number, options?: SpecOptions): 
 
     for (let i = 0; i < meaningfulChildren.length; i++) {
       const child = meaningfulChildren[i];
-      // In overlapping contexts, text/content ALWAYS gets higher z-index than visual layers.
-      // This is a universal rule: text must be readable above backgrounds, images, and decorations.
+      // In overlapping contexts, text/content gets higher z-index than visual layers.
+      // Exception: low-opacity text (< 30%) is decorative (e.g., large "01" numbers) and
+      // should sit BEHIND content text but ABOVE background images.
       if (hasOverlap && meaningfulChildren.length > 1) {
         const isTextContent = child.type === 'TEXT' || containsText(child);
-        if (isTextContent) {
+        const isDecorativeText =
+          isTextContent && child.opacity !== undefined && child.opacity < 0.3;
+        if (isTextContent && !isDecorativeText) {
           lines.push(
             `<!-- z-index: 10 (text/content layer — MUST be above all visual layers: use position: relative; z-index: 10) -->`
+          );
+        } else if (isDecorativeText) {
+          lines.push(
+            `<!-- z-index: 1 (decorative text — low opacity background element, position BEHIND content text but ABOVE background images: use position: absolute; z-index: 1) -->`
           );
         } else {
           const isImage = child.fills?.some((f) => f.visible !== false && f.type === 'IMAGE');
@@ -1078,7 +1356,7 @@ function scaleModeToCSS(scaleMode: string, isBackground?: boolean): string {
     case 'FIT':
       return '`object-fit: contain`';
     case 'STRETCH':
-      return '`object-fit: fill`';
+      return '`object-fit: fill` (WARNING: use `object-fit: cover` instead for responsive layouts — `fill` distorts images when the container aspect ratio changes across breakpoints)';
     case 'TILE':
       return '`background-repeat: repeat` (use as CSS background)';
     default:
@@ -1146,6 +1424,32 @@ export function rgbaToCss(rgba: RGBA, paintOpacity?: number): string {
 }
 
 /**
+ * Convert Figma BlendMode to CSS mix-blend-mode value
+ */
+function blendModeToCss(mode: string): string {
+  const map: Record<string, string> = {
+    MULTIPLY: 'multiply',
+    SCREEN: 'screen',
+    OVERLAY: 'overlay',
+    DARKEN: 'darken',
+    LIGHTEN: 'lighten',
+    COLOR_DODGE: 'color-dodge',
+    LINEAR_DODGE: 'color-dodge',
+    COLOR_BURN: 'color-burn',
+    LINEAR_BURN: 'color-burn',
+    HARD_LIGHT: 'hard-light',
+    SOFT_LIGHT: 'soft-light',
+    DIFFERENCE: 'difference',
+    EXCLUSION: 'exclusion',
+    HUE: 'hue',
+    SATURATION: 'saturation',
+    COLOR: 'color',
+    LUMINOSITY: 'luminosity',
+  };
+  return map[mode] || mode.toLowerCase().replace(/_/g, '-');
+}
+
+/**
  * Format fills (solid colors and gradients) for display
  */
 function formatFills(fills: Paint[]): string {
@@ -1153,9 +1457,17 @@ function formatFills(fills: Paint[]): string {
 
   for (const fill of fills) {
     if (fill.type === 'SOLID' && fill.color) {
-      parts.push(`- Background: ${rgbaToCss(fill.color, fill.opacity)}`);
+      let line = `- Background: ${rgbaToCss(fill.color, fill.opacity)}`;
+      if (fill.blendMode && fill.blendMode !== 'NORMAL' && fill.blendMode !== 'PASS_THROUGH') {
+        line += ` (mix-blend-mode: ${blendModeToCss(fill.blendMode)})`;
+      }
+      parts.push(line);
     } else if (fill.type.startsWith('GRADIENT_') && fill.gradientStops) {
-      parts.push(`- Background: ${formatGradient(fill)}`);
+      let line = `- Background: ${formatGradient(fill)}`;
+      if (fill.blendMode && fill.blendMode !== 'NORMAL' && fill.blendMode !== 'PASS_THROUGH') {
+        line += ` (mix-blend-mode: ${blendModeToCss(fill.blendMode)})`;
+      }
+      parts.push(line);
     }
   }
 
@@ -1173,8 +1485,25 @@ export function formatGradient(paint: Paint): string {
     .join(', ');
 
   switch (paint.type) {
-    case 'GRADIENT_LINEAR':
-      return `linear-gradient(${stopsStr})`;
+    case 'GRADIENT_LINEAR': {
+      // Compute angle from gradientHandlePositions if available
+      // Figma provides [start, end, ...] as normalized coordinates (0-1)
+      let angle = '';
+      if (paint.gradientHandlePositions && paint.gradientHandlePositions.length >= 2) {
+        const [start, end] = paint.gradientHandlePositions;
+        const dx = end.x - start.x;
+        const dy = end.y - start.y;
+        // CSS gradient angle: 0deg = bottom-to-top, 90deg = left-to-right
+        const radians = Math.atan2(dy, dx);
+        const degrees = Math.round((radians * 180) / Math.PI + 90);
+        const normalized = ((degrees % 360) + 360) % 360;
+        // Only include angle if it's not the default (180deg = top-to-bottom)
+        if (normalized !== 180) {
+          angle = `${normalized}deg, `;
+        }
+      }
+      return `linear-gradient(${angle}${stopsStr})`;
+    }
     case 'GRADIENT_RADIAL':
       return `radial-gradient(${stopsStr})`;
     case 'GRADIENT_ANGULAR':
@@ -1184,6 +1513,22 @@ export function formatGradient(paint: Paint): string {
     default:
       return `gradient(${stopsStr})`;
   }
+}
+
+/**
+ * Extract the first visible solid background color from a node's fills.
+ * Returns the CSS color string (hex or rgba), or undefined if no solid fill found.
+ * Used to capture the parent frame's background for composite containers.
+ */
+function extractSolidBackground(fills: Paint[] | undefined): string | undefined {
+  if (!fills) return undefined;
+  for (const fill of fills) {
+    if (fill.visible === false) continue;
+    if (fill.type === 'SOLID' && fill.color) {
+      return rgbaToCss(fill.color, fill.opacity);
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -1344,6 +1689,15 @@ function formatTypography(style: TypeStyle, fontSubstitutions?: Map<string, stri
   if (style.textAlignHorizontal) {
     parts.push(`- Align: ${style.textAlignHorizontal.toLowerCase()}`);
   }
+  if (style.paragraphSpacing && style.paragraphSpacing > 0) {
+    parts.push(`- Paragraph spacing: ${style.paragraphSpacing}px`);
+  }
+  if (style.textAlignVertical && style.textAlignVertical !== 'TOP') {
+    const vAlignMap: Record<string, string> = { CENTER: 'center', BOTTOM: 'end' };
+    parts.push(
+      `- Vertical align: ${vAlignMap[style.textAlignVertical] || style.textAlignVertical.toLowerCase()}`
+    );
+  }
   // Text transform
   if (style.textCase && style.textCase !== 'ORIGINAL') {
     const caseMap: Record<string, string> = {
@@ -1399,8 +1753,12 @@ function formatEffect(effect: {
   switch (effect.type) {
     case 'DROP_SHADOW':
       return `Drop shadow: ${effect.offset?.x || 0}px ${effect.offset?.y || 0}px ${effect.radius}px${effect.spread ? ` spread ${effect.spread}px` : ''}${colorStr}`;
-    case 'INNER_SHADOW':
-      return `Inner shadow: ${effect.offset?.x || 0}px ${effect.offset?.y || 0}px ${effect.radius}px${colorStr}`;
+    case 'INNER_SHADOW': {
+      const ix = effect.offset?.x || 0;
+      const iy = effect.offset?.y || 0;
+      const spreadStr = effect.spread ? ` ${effect.spread}px` : '';
+      return `Inner shadow: \`box-shadow: inset ${ix}px ${iy}px ${effect.radius}px${spreadStr}${colorStr}\``;
+    }
     case 'LAYER_BLUR':
       return effect.blurType === 'PROGRESSIVE'
         ? `Progressive blur: ${effect.radius}px (approximate with gradient mask + filter: blur())`

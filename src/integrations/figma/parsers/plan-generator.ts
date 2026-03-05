@@ -11,6 +11,27 @@ import { formatGradient, rgbaToCss, selectPrimaryFrames } from './design-spec.js
 
 // ─── Types ──────────────────────────────────────────────────
 
+export interface NotableComponent {
+  /** Component name from Figma */
+  name: string;
+  /** Semantic category */
+  category: 'indicator' | 'sidebar' | 'nav' | 'footer' | 'decorative' | 'other';
+  /** Absolute position within the section */
+  position: { x: number; y: number } | null;
+  /** Element dimensions */
+  dimensions: { width: number; height: number } | null;
+  /** All text content found within this component */
+  textContent: string[];
+  /** Whether the element overlaps siblings (needs absolute/fixed positioning) */
+  isOverlapping: boolean;
+  /** Position hint relative to section (e.g. "right-80 top-326") */
+  positionHint: string | null;
+  /** Scroll behavior if the element or a child has FIXED/STICKY positioning */
+  scrollBehavior?: 'fixed' | 'sticky';
+  /** Computed opacity (cumulative with parents) for decorative elements */
+  opacity?: number;
+}
+
 export interface SectionSummary {
   name: string;
   dimensions: { width: number; height: number } | null;
@@ -30,7 +51,12 @@ export interface SectionSummary {
     isHero: boolean;
     dimensions: string;
   }>;
-  compositeImage: { path: string; dimensions: string; hasTextOverlays?: boolean } | null;
+  compositeImage: {
+    path: string;
+    dimensions: string;
+    hasTextOverlays?: boolean;
+    parentBackgroundColor?: string;
+  } | null;
   icons: string[];
   typography: Array<{
     font: string;
@@ -39,6 +65,9 @@ export interface SectionSummary {
     lineHeight: number | null;
     color: string | null;
     usage: string;
+    letterSpacing?: number;
+    textDecoration?: string;
+    textTransform?: string;
   }>;
   borderRadius: string | null;
   overflow: string | null;
@@ -46,6 +75,19 @@ export interface SectionSummary {
   effects: string[];
   border: string | null;
   childCount: number;
+  /** Notable sub-components that need explicit implementation (indicators, sidebars, etc.) */
+  notableComponents: NotableComponent[];
+  /** Content sub-sections detected within this frame (e.g., "01 - Get Started", "02 - Essentials") */
+  contentSections: Array<{
+    name: string;
+    position: { x: number; y: number };
+    dimensions: { width: number; height: number };
+    images: SectionSummary['images'];
+    typography: SectionSummary['typography'];
+    notableComponents: NotableComponent[];
+    /** Whether the image is placed left or right within this sub-section */
+    imagePosition?: 'left' | 'right' | null;
+  }>;
 }
 
 export interface SectionSummaryOptions {
@@ -53,6 +95,8 @@ export interface SectionSummaryOptions {
   compositeImages?: Map<string, string>;
   /** Node IDs of composites that have text overlays (visual-dominant composites) */
   compositeTextOverlays?: Set<string>;
+  /** Parent background colors for composites (nodeId → CSS color string) */
+  compositeBackgroundColors?: Map<string, string>;
   exportedIcons?: Map<string, string>;
   fontSubstitutions?: Map<string, string>;
 }
@@ -113,6 +157,18 @@ export function extractSectionSummaries(
 function extractOneSection(node: FigmaNode, options?: SectionSummaryOptions): SectionSummary {
   const bbox = node.absoluteBoundingBox;
 
+  // Collect notable components, then merge in decorative text (deduplicated)
+  const notableComponents = extractNotableComponents(node);
+  if (bbox) {
+    const decorative = extractDecorativeText(node, bbox);
+    const existingTexts = new Set(notableComponents.flatMap((nc) => nc.textContent));
+    for (const dec of decorative) {
+      if (!dec.textContent.some((t) => existingTexts.has(t))) {
+        notableComponents.push(dec);
+      }
+    }
+  }
+
   return {
     name: node.name,
     dimensions: bbox ? { width: Math.round(bbox.width), height: Math.round(bbox.height) } : null,
@@ -128,6 +184,8 @@ function extractOneSection(node: FigmaNode, options?: SectionSummaryOptions): Se
     effects: extractEffects(node),
     border: extractBorder(node),
     childCount: node.children?.filter((c) => c.visible !== false).length ?? 0,
+    notableComponents,
+    contentSections: detectContentSubSections(node, options),
   };
 }
 
@@ -226,6 +284,7 @@ function extractCompositeImage(
       path,
       dimensions: bbox ? `${Math.round(bbox.width)}x${Math.round(bbox.height)}` : '',
       hasTextOverlays: options.compositeTextOverlays?.has(node.id),
+      parentBackgroundColor: options.compositeBackgroundColors?.get(node.id),
     };
   }
 
@@ -240,6 +299,7 @@ function extractCompositeImage(
           path: childPath,
           dimensions: bbox ? `${Math.round(bbox.width)}x${Math.round(bbox.height)}` : '',
           hasTextOverlays: options.compositeTextOverlays?.has(child.id),
+          parentBackgroundColor: options.compositeBackgroundColors?.get(child.id),
         };
       }
     }
@@ -306,6 +366,19 @@ function walkForTypography(
       }
     }
 
+    // Text transform from textCase
+    let textTransform: string | undefined;
+    if (s.textCase && s.textCase !== 'ORIGINAL') {
+      const caseMap: Record<string, string> = {
+        UPPER: 'uppercase',
+        LOWER: 'lowercase',
+        TITLE: 'capitalize',
+        SMALL_CAPS: 'small-caps',
+        SMALL_CAPS_FORCED: 'small-caps',
+      };
+      textTransform = caseMap[s.textCase];
+    }
+
     styles.push({
       font: fontName,
       size: s.fontSize,
@@ -313,6 +386,12 @@ function walkForTypography(
       lineHeight: s.lineHeightPx ? Math.round(s.lineHeightPx) : null,
       color,
       usage: node.name || 'text',
+      letterSpacing: s.letterSpacing && s.letterSpacing !== 0 ? s.letterSpacing : undefined,
+      textDecoration:
+        s.textDecoration && s.textDecoration !== 'NONE'
+          ? s.textDecoration.toLowerCase()
+          : undefined,
+      textTransform,
     });
   }
 
@@ -372,6 +451,11 @@ function extractEffects(node: FigmaNode): string[] {
       results.push(
         `box-shadow: ${effect.offset.x}px ${effect.offset.y}px ${effect.radius}px${effect.spread ? ` ${effect.spread}px` : ''} ${color}`
       );
+    } else if (effect.type === 'INNER_SHADOW' && effect.color && effect.offset) {
+      const color = rgbaToCss(effect.color);
+      results.push(
+        `box-shadow: inset ${effect.offset.x}px ${effect.offset.y}px ${effect.radius}px${effect.spread ? ` ${effect.spread}px` : ''} ${color}`
+      );
     } else if (effect.type === 'BACKGROUND_BLUR') {
       results.push(`backdrop-filter: blur(${effect.radius}px)`);
     }
@@ -404,6 +488,364 @@ function extractBorder(node: FigmaNode): string | null {
   return null;
 }
 
+// ─── Notable Component Detection ────────────────────────────
+
+/**
+ * Keyword patterns for classifying notable sub-components.
+ */
+const CATEGORY_PATTERNS: Array<{ pattern: RegExp; category: NotableComponent['category'] }> = [
+  { pattern: /\b(slider|indicator|progress|scroll|stepper)\b/i, category: 'indicator' },
+  { pattern: /\b(social|sidebar|follow)\b/i, category: 'sidebar' },
+  { pattern: /\b(nav|header|menu|logo|navigation|toolbar)\b/i, category: 'nav' },
+  { pattern: /\b(footer|copyright|links)\b/i, category: 'footer' },
+  { pattern: /\b(number|label|badge|decorative|step.*num)\b/i, category: 'decorative' },
+];
+
+/**
+ * Detect notable sub-components that need explicit implementation guidance.
+ *
+ * These are elements that overlap siblings (absolutely positioned), sit on
+ * the edges of a section (sidebars, indicators), or contain interactive/decorative
+ * content that might be missed if the plan only describes top-level layout.
+ *
+ * Examples: scroll indicators, social sidebars, fixed headers, progress bars.
+ */
+function extractNotableComponents(sectionNode: FigmaNode): NotableComponent[] {
+  const results: NotableComponent[] = [];
+  const sectionBbox = sectionNode.absoluteBoundingBox;
+  if (!sectionBbox || !sectionNode.children) return results;
+
+  // Only look at direct children of the section (depth 1 sub-components)
+  // that are NOT the main content flow (they overlap or sit at edges)
+  const visibleChildren = sectionNode.children.filter((c) => c.visible !== false);
+  if (visibleChildren.length < 2) return results;
+
+  // If the section has auto-layout, all children are in flow — skip detection
+  if (sectionNode.layoutMode && sectionNode.layoutMode !== 'NONE') {
+    // Still check for absolutely-positioned children within auto-layout
+    for (const child of visibleChildren) {
+      if (child.layoutPositioning === 'ABSOLUTE') {
+        const component = buildNotableComponent(child, sectionBbox);
+        if (component) results.push(component);
+      }
+    }
+    return results;
+  }
+
+  // No auto-layout — children overlap. Look for notable sub-components
+  // by checking if they have text content and sit at the edges/corners.
+  for (const child of visibleChildren) {
+    const childBbox = child.absoluteBoundingBox;
+    if (!childBbox) continue;
+
+    // Skip very large children that are likely backgrounds or main content containers
+    const areaRatio =
+      (childBbox.width * childBbox.height) / (sectionBbox.width * sectionBbox.height);
+    if (areaRatio > 0.4) continue;
+
+    // Check if this child has text, positioned at an edge, or has fixed scroll
+    const textContent = collectAllText(child);
+    const hasFixedScroll =
+      child.scrollBehavior === 'FIXED' ||
+      child.scrollBehavior === 'STICKY_SCROLLS' ||
+      child.children?.some(
+        (c) => c.scrollBehavior === 'FIXED' || c.scrollBehavior === 'STICKY_SCROLLS'
+      );
+    if (textContent.length === 0 && !hasFixedScroll) continue;
+
+    // Classify by name and position
+    const component = buildNotableComponent(child, sectionBbox);
+    if (component) results.push(component);
+  }
+
+  return results;
+}
+
+/**
+ * Build a NotableComponent from a node, computing position hints and text content.
+ */
+function buildNotableComponent(
+  node: FigmaNode,
+  sectionBbox: { x: number; y: number; width: number; height: number }
+): NotableComponent | null {
+  const bbox = node.absoluteBoundingBox;
+  if (!bbox) return null;
+
+  const textContent = collectAllText(node);
+  // Must have text, notable keyword, or fixed/sticky scroll behavior
+  const hasFixedScroll =
+    node.scrollBehavior === 'FIXED' ||
+    node.scrollBehavior === 'STICKY_SCROLLS' ||
+    node.children?.some(
+      (c) => c.scrollBehavior === 'FIXED' || c.scrollBehavior === 'STICKY_SCROLLS'
+    );
+  if (textContent.length === 0 && !hasNotableKeyword(node.name) && !hasFixedScroll) return null;
+
+  // Compute position relative to section
+  const relX = Math.round(bbox.x - sectionBbox.x);
+  const relY = Math.round(bbox.y - sectionBbox.y);
+  const rightOffset = Math.round(sectionBbox.width - (relX + bbox.width));
+  const bottomOffset = Math.round(sectionBbox.height - (relY + bbox.height));
+
+  // Generate a CSS-like position hint
+  const posHints: string[] = [];
+  if (relX < sectionBbox.width / 2) {
+    posHints.push(`left: ${relX}px`);
+  } else {
+    posHints.push(`right: ${rightOffset}px`);
+  }
+  if (relY < sectionBbox.height / 2) {
+    posHints.push(`top: ${relY}px`);
+  } else {
+    posHints.push(`bottom: ${bottomOffset}px`);
+  }
+
+  // Determine category
+  let category: NotableComponent['category'] = 'other';
+  for (const { pattern, category: cat } of CATEGORY_PATTERNS) {
+    if (pattern.test(node.name)) {
+      category = cat;
+      break;
+    }
+  }
+
+  // Check if it overlaps with siblings (no auto-layout parent = overlapping)
+  const isOverlapping = !node.layoutPositioning
+    ? true // Parent has no auto-layout → elements overlap
+    : node.layoutPositioning === 'ABSOLUTE';
+
+  // Detect scroll behavior on the node itself or any immediate child
+  let scrollBehavior: 'fixed' | 'sticky' | undefined;
+  if (node.scrollBehavior === 'FIXED') {
+    scrollBehavior = 'fixed';
+  } else if (node.scrollBehavior === 'STICKY_SCROLLS') {
+    scrollBehavior = 'sticky';
+  } else if (node.children) {
+    for (const child of node.children) {
+      if (child.scrollBehavior === 'FIXED') {
+        scrollBehavior = 'fixed';
+        break;
+      } else if (child.scrollBehavior === 'STICKY_SCROLLS') {
+        scrollBehavior = 'sticky';
+        break;
+      }
+    }
+  }
+
+  return {
+    name: node.name,
+    category,
+    position: { x: relX, y: relY },
+    dimensions: { width: Math.round(bbox.width), height: Math.round(bbox.height) },
+    textContent,
+    isOverlapping,
+    positionHint: posHints.join('; '),
+    scrollBehavior,
+  };
+}
+
+function hasNotableKeyword(name: string): boolean {
+  return CATEGORY_PATTERNS.some(({ pattern }) => pattern.test(name));
+}
+
+/**
+ * Collect all text content strings from a node tree (depth-limited to 6).
+ */
+function collectAllText(node: FigmaNode, depth = 0): string[] {
+  if (depth > 6 || node.visible === false) return [];
+  const texts: string[] = [];
+  if (node.type === 'TEXT' && node.characters) {
+    texts.push(node.characters.trim());
+  }
+  if (node.children) {
+    for (const child of node.children) {
+      texts.push(...collectAllText(child, depth + 1));
+    }
+  }
+  return texts;
+}
+
+// ─── Decorative Text Detection ───────────────────────────────
+
+/**
+ * Detect large decorative text elements (e.g., "01", "02", "03" at 200px+ font size
+ * with low opacity). These are ghost-text background numbers commonly used in modern
+ * landing pages for section numbering.
+ *
+ * Walks the tree up to depth 4 to find TEXT nodes that:
+ * 1. Have fontSize >= 100px, AND
+ * 2. Have opacity < 0.5 (on the node itself or cumulative with parents), OR
+ * 3. Match a short numeric pattern (single/double digit number)
+ */
+function extractDecorativeText(
+  sectionNode: FigmaNode,
+  sectionBbox: { x: number; y: number; width: number; height: number }
+): NotableComponent[] {
+  const results: NotableComponent[] = [];
+
+  function walk(node: FigmaNode, depth: number, parentOpacity: number) {
+    if (depth > 4 || node.visible === false) return;
+
+    const nodeOpacity = (node.opacity ?? 1) * parentOpacity;
+
+    if (node.type === 'TEXT' && node.style && node.characters) {
+      const fontSize = node.style.fontSize;
+      const text = node.characters.trim();
+      const isLargeText = fontSize >= 100;
+      const isLowOpacity = nodeOpacity < 0.5;
+      const isNumberPattern = /^0?\d{1,2}$/.test(text);
+
+      if (isLargeText && (isLowOpacity || isNumberPattern)) {
+        // Skip effectively invisible text (cumulative opacity < 3%)
+        if (nodeOpacity < 0.03) return;
+
+        const bbox = node.absoluteBoundingBox;
+        if (!bbox) return;
+
+        const relX = Math.round(bbox.x - sectionBbox.x);
+        const relY = Math.round(bbox.y - sectionBbox.y);
+        const rightOffset = Math.round(sectionBbox.width - (relX + bbox.width));
+
+        const posHints: string[] = [];
+        if (relX < sectionBbox.width / 2) {
+          posHints.push(`left: ${relX}px`);
+        } else {
+          posHints.push(`right: ${rightOffset}px`);
+        }
+        posHints.push(`top: ${relY}px`);
+
+        // Compute percentage position from left for responsive guidance
+        const leftPct = Math.round((relX / sectionBbox.width) * 100);
+
+        results.push({
+          name: node.name || text,
+          category: 'decorative',
+          position: { x: relX, y: relY },
+          dimensions: { width: Math.round(bbox.width), height: Math.round(bbox.height) },
+          textContent: [text],
+          isOverlapping: true,
+          positionHint: `${posHints.join('; ')} (~${leftPct}% from left)`,
+          scrollBehavior: undefined,
+          opacity: nodeOpacity,
+        });
+      }
+    }
+
+    if (node.children) {
+      for (const child of node.children) {
+        walk(child, depth + 1, nodeOpacity);
+      }
+    }
+  }
+
+  walk(sectionNode, 0, 1);
+  return results;
+}
+
+// ─── Content Sub-Section Detection ───────────────────────────
+
+/** Check if a node or descendants contain a TEXT node */
+function containsTextNode(node: FigmaNode): boolean {
+  if (node.type === 'TEXT') return true;
+  if (node.children) {
+    for (const child of node.children) {
+      if (child.visible !== false && containsTextNode(child)) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Detect content sub-sections within a frame.
+ *
+ * When a single Figma frame contains a full page (Hero + numbered content sections),
+ * this function identifies the content sub-sections by looking for direct children
+ * that are large enough to be sections (>20% parent width, >150px tall) and
+ * contain both text and non-text content (images or sizeable sub-frames).
+ */
+function detectContentSubSections(
+  sectionNode: FigmaNode,
+  options?: SectionSummaryOptions
+): SectionSummary['contentSections'] {
+  const results: SectionSummary['contentSections'] = [];
+  const parentBbox = sectionNode.absoluteBoundingBox;
+  if (!parentBbox || !sectionNode.children) return results;
+
+  const minWidth = parentBbox.width * 0.2;
+  const minHeight = 150;
+
+  for (const child of sectionNode.children) {
+    if (child.visible === false) continue;
+    const bbox = child.absoluteBoundingBox;
+    if (!bbox) continue;
+
+    // Must be a sizeable container (not a small UI element)
+    if (bbox.width < minWidth || bbox.height < minHeight) continue;
+
+    // Must be a container type
+    if (!['FRAME', 'GROUP', 'COMPONENT', 'INSTANCE', 'SECTION'].includes(child.type)) continue;
+
+    // Must contain text (otherwise it's a visual-only element like a background)
+    if (!containsTextNode(child)) continue;
+
+    // Must also contain non-text content (images or sub-frames) to be a "content section"
+    const hasNonText = child.children?.some(
+      (gc) =>
+        gc.visible !== false &&
+        (gc.fills?.some((f) => f.type === 'IMAGE' && f.visible !== false) ||
+          (gc.type === 'FRAME' &&
+            gc.absoluteBoundingBox &&
+            gc.absoluteBoundingBox.width >= 100 &&
+            gc.absoluteBoundingBox.height >= 100))
+    );
+    if (!hasNonText && (child.children?.length ?? 0) < 3) continue;
+
+    // Compute relative position
+    const relX = Math.round(bbox.x - parentBbox.x);
+    const relY = Math.round(bbox.y - parentBbox.y);
+
+    // Extract images and typography for this sub-section
+    const images = extractImages(child, options);
+    const typography = extractTypography(child, options);
+    const notableComponents = extractNotableComponents(child);
+
+    // Also detect decorative text within this sub-section
+    const decorative = extractDecorativeText(child, bbox);
+    const existingTexts = new Set(notableComponents.flatMap((nc) => nc.textContent));
+    for (const dec of decorative) {
+      if (!dec.textContent.some((t) => existingTexts.has(t))) {
+        notableComponents.push(dec);
+      }
+    }
+
+    // Determine image placement (left or right)
+    let imagePosition: 'left' | 'right' | null = null;
+    if (images.length > 0 && child.children) {
+      const imageChild = child.children.find((gc) =>
+        gc.fills?.some((f) => f.type === 'IMAGE' && f.visible !== false)
+      );
+      if (imageChild?.absoluteBoundingBox) {
+        const imgRelX = imageChild.absoluteBoundingBox.x - bbox.x;
+        imagePosition = imgRelX < bbox.width / 2 ? 'left' : 'right';
+      }
+    }
+
+    results.push({
+      name: child.name,
+      position: { x: relX, y: relY },
+      dimensions: { width: Math.round(bbox.width), height: Math.round(bbox.height) },
+      images,
+      typography,
+      notableComponents,
+      imagePosition,
+    });
+  }
+
+  // Sort by Y position (top to bottom)
+  results.sort((a, b) => a.position.y - b.position.y);
+  return results;
+}
+
 // ─── Plan Generation ────────────────────────────────────────
 
 /**
@@ -427,8 +869,13 @@ export function extractFigmaPlan(sections: SectionSummary[], options: FigmaPlanO
   lines.push(``);
   lines.push(`**Z-Index Stacking (mandatory):**`);
   lines.push(`- Text and content elements ALWAYS get a higher z-index than visual/image layers`);
-  lines.push(`- Background images/decorations: z-index 0`);
-  lines.push(`- Content containers with text: position: relative; z-index: 1 (minimum)`);
+  lines.push(`- Background images/decorations: z-index 0–9 (ascending for stacked layers)`);
+  lines.push(
+    `- Content containers with text: position: relative; z-index: 10 (minimum) — MUST be higher than the highest image layer`
+  );
+  lines.push(
+    `- In parallax/layered heroes with multiple stacked images (e.g. z-0 through z-4), text MUST use z-index: 10+ — never z-1 or z-2 which would be behind higher image layers`
+  );
   lines.push(`- Never let a background or decorative image cover text at any viewport size`);
   lines.push(``);
   lines.push(`**Image Responsive Priority:**`);
@@ -515,10 +962,14 @@ export function extractFigmaPlan(sections: SectionSummary[], options: FigmaPlanO
 
     // Composite image
     if (section.compositeImage) {
-      const isHero = section.dimensions && section.dimensions.height >= 400;
+      // Use composite image height (not full frame height) for min-height
+      const compositeHeight = section.compositeImage.dimensions
+        ? Number(section.compositeImage.dimensions.split('x')[1]) || section.dimensions?.height
+        : section.dimensions?.height;
+      const isHero = compositeHeight != null && compositeHeight >= 400;
       if (section.compositeImage.hasTextOverlays) {
         lines.push(
-          `- [ ] Add parallax hero background: ${section.compositeImage.path} (${section.compositeImage.dimensions}), full-bleed cover${isHero ? `, min-height ${section.dimensions?.height}px` : ''}`
+          `- [ ] Add parallax hero background: ${section.compositeImage.path} (${section.compositeImage.dimensions}), full-bleed cover${isHero ? `, min-height ${compositeHeight}px` : ''}`
         );
         lines.push(
           `- [ ] Layer ALL text content over hero background with z-index stacking (text is NOT in the composite image)`
@@ -528,9 +979,16 @@ export function extractFigmaPlan(sections: SectionSummary[], options: FigmaPlanO
         }
       } else {
         lines.push(
-          `- [ ] Add composite background: ${section.compositeImage.path} (${section.compositeImage.dimensions}), cover${isHero ? `, min-height ${section.dimensions?.height}px` : ''}`
+          `- [ ] Add composite background: ${section.compositeImage.path} (${section.compositeImage.dimensions}), cover${isHero ? `, min-height ${compositeHeight}px` : ''}`
         );
         lines.push(`- [ ] Position content over background with z-index layering`);
+      }
+
+      // Parent background color (from parent frame fills, not in the composite render)
+      if (section.compositeImage.parentBackgroundColor) {
+        lines.push(
+          `- [ ] Set container \`background-color: ${section.compositeImage.parentBackgroundColor}\` behind composite image (ensures transparent areas blend correctly)`
+        );
       }
     } else if (section.images.length > 0) {
       // Detect overlapping full-width images that should create depth/parallax
@@ -543,17 +1001,24 @@ export function extractFigmaPlan(sections: SectionSummary[], options: FigmaPlanO
 
       if (fullWidthImages.length > 1) {
         lines.push(
-          `- [ ] Layer ${fullWidthImages.length} overlapping images to create depth/parallax effect`
+          `- [ ] Use a SINGLE background image approach for the ${fullWidthImages.length} overlapping visual layers`
         );
-        lines.push(`  * Stack images using absolute positioning with ascending z-index`);
-        lines.push(`  * Later images in the list are on top (higher z-index)`);
-        for (const img of fullWidthImages) {
-          const [w, h] = img.dimensions.split('x').map(Number);
-          const aspectRatio = w && h ? ` (aspect-ratio: ${(w / h).toFixed(2)})` : '';
-          lines.push(
-            `  * ${img.path} (${img.dimensions})${aspectRatio}, ${img.scaleMode.toLowerCase()}`
-          );
-        }
+        lines.push(
+          `  * **DO NOT** implement as separate absolute-positioned \`<img>\` elements — this causes distortion at different viewport sizes`
+        );
+        lines.push(`  * Stack all layers using CSS \`background-image\` on the section container:`);
+        const bgUrls = fullWidthImages.map((img) => `url(${img.path})`).join(', ');
+        const bgSizes = fullWidthImages.map(() => 'cover').join(', ');
+        const bgPositions = fullWidthImages.map(() => 'center bottom').join(', ');
+        lines.push(
+          `  * \`background-image: ${bgUrls}; background-size: ${bgSizes}; background-position: ${bgPositions}\``
+        );
+        lines.push(
+          `  * All layers scale together with the container — no distortion across breakpoints`
+        );
+        lines.push(
+          `  * Content must use \`position: relative; z-index: 10\` to sit above the background`
+        );
       }
 
       for (const img of section.images) {
@@ -593,6 +1058,53 @@ export function extractFigmaPlan(sections: SectionSummary[], options: FigmaPlanO
       }
     }
 
+    // Notable sub-components (indicators, sidebars, nav elements, decorative text)
+    if (section.notableComponents.length > 0) {
+      for (const comp of section.notableComponents) {
+        if (comp.category === 'decorative') {
+          // Specialized output for decorative background numbers
+          const textLabel = comp.textContent.length > 0 ? `"${comp.textContent[0]}"` : comp.name;
+          const sizeHint = comp.dimensions ? `~${comp.dimensions.width}px` : '';
+          const exactOpacity = comp.opacity != null ? comp.opacity.toFixed(2) : '0.15';
+          lines.push(
+            `- [ ] [decorative] Add background number ${textLabel} (${sizeHint}, opacity: ${exactOpacity}) — position: absolute at ${comp.positionHint || 'center'}`
+          );
+          lines.push(`  * Place BEHIND text content column, not at container edge`);
+          lines.push(
+            `  * Required CSS: \`position: absolute; pointer-events: none; user-select: none; opacity: ${exactOpacity}\``
+          );
+          continue;
+        }
+
+        const dimStr = comp.dimensions
+          ? ` (${comp.dimensions.width}x${comp.dimensions.height}px)`
+          : '';
+        const posStr = comp.positionHint ? `, positioned at ${comp.positionHint}` : '';
+        const label = comp.category !== 'other' ? `[${comp.category}] ` : '';
+        lines.push(`- [ ] ${label}Implement "${comp.name}"${dimStr}${posStr}`);
+        if (comp.textContent.length > 0) {
+          const textPreview =
+            comp.textContent.length <= 6
+              ? comp.textContent.map((t) => `"${t}"`).join(', ')
+              : `${comp.textContent
+                  .slice(0, 6)
+                  .map((t) => `"${t}"`)
+                  .join(', ')} (+${comp.textContent.length - 6} more)`;
+          lines.push(`  * Text content: ${textPreview}`);
+        }
+        if (comp.scrollBehavior === 'fixed') {
+          lines.push(`  * Uses position: fixed — stays visible during scroll (z-index: 50)`);
+        } else if (comp.scrollBehavior === 'sticky') {
+          lines.push(`  * Uses position: sticky; top: 0 — sticks during scroll`);
+        } else if (comp.isOverlapping) {
+          lines.push(`  * Uses absolute positioning — match exact position from the design spec`);
+        }
+        if (comp.category === 'sidebar') {
+          lines.push(`  * Social icons should be clickable links (wrap in \`<a>\` with href)`);
+        }
+      }
+    }
+
     // Typography
     if (section.typography.length > 0) {
       for (const t of section.typography) {
@@ -601,6 +1113,9 @@ export function extractFigmaPlan(sections: SectionSummary[], options: FigmaPlanO
         if (t.lineHeight) parts.push(`/${t.lineHeight}px`);
         parts.push(`weight ${t.weight}`);
         if (t.color) parts.push(`color ${t.color}`);
+        if (t.letterSpacing) parts.push(`letter-spacing ${t.letterSpacing.toFixed(1)}px`);
+        if (t.textTransform) parts.push(`text-transform: ${t.textTransform}`);
+        if (t.textDecoration) parts.push(`text-decoration: ${t.textDecoration}`);
         lines.push(`- [ ] ${t.usage}: ${parts.join(' ')}`);
       }
     } else {
@@ -641,6 +1156,83 @@ export function extractFigmaPlan(sections: SectionSummary[], options: FigmaPlanO
       );
     } else {
       lines.push(`- [ ] Add responsive breakpoints`);
+    }
+
+    // Content sub-sections with detailed per-section tasks
+    if (section.contentSections.length >= 2) {
+      lines.push(``);
+      lines.push(`**Content Sub-Sections:**`);
+
+      // Detect alternating image pattern within sub-sections
+      const subSectionsWithImages = section.contentSections.filter(
+        (cs) => cs.imagePosition != null
+      );
+      if (subSectionsWithImages.length >= 2) {
+        const positions = subSectionsWithImages.map((cs) => cs.imagePosition);
+        const isAlternating = positions.every((pos, i) => i === 0 || pos !== positions[i - 1]);
+        if (isAlternating) {
+          lines.push(
+            `> **Alternating Layout:** Sub-sections alternate image placement (${positions.join(' → ')}). Use \`flex-direction: row\` / \`row-reverse\` to achieve this pattern.`
+          );
+        }
+      }
+
+      for (const cs of section.contentSections) {
+        const imgInfo = cs.images.length > 0 ? `, image ${cs.imagePosition || 'present'}` : '';
+        lines.push(
+          `- [ ] Implement sub-section "${cs.name}" (Y=${cs.position.y}px, ${cs.dimensions.width}x${cs.dimensions.height}px${imgInfo})`
+        );
+
+        // Image details
+        for (const img of cs.images) {
+          lines.push(`  * Image: ${img.path} (${img.dimensions})`);
+        }
+
+        // Top typography style
+        if (cs.typography.length > 0) {
+          const top = cs.typography[0];
+          lines.push(
+            `  * Heading: ${top.font} ${top.size}px/${top.lineHeight ?? ''}px weight ${top.weight}`
+          );
+        }
+
+        // Notable components within sub-section
+        for (const nc of cs.notableComponents) {
+          if (nc.category === 'decorative') {
+            const textLabel = nc.textContent.length > 0 ? `"${nc.textContent[0]}"` : nc.name;
+            lines.push(
+              `  * [decorative] Background number ${textLabel} — position: absolute at ${nc.positionHint || 'behind text column'}`
+            );
+          }
+        }
+      }
+
+      // Section transition guidance: content overlapping hero composite
+      if (section.compositeImage && section.contentSections.length > 0) {
+        const compositeHeight = section.compositeImage.dimensions
+          ? Number(section.compositeImage.dimensions.split('x')[1]) || 0
+          : 0;
+
+        if (compositeHeight > 0) {
+          // Find the main content section (has images or decorative numbers) — skip hero text
+          // Hero text sub-sections are small and positioned inside the hero with absolute pos.
+          // The "overlap" instruction should be for the larger content area below.
+          const mainContent = section.contentSections.find(
+            (cs) => cs.images.length > 0 || cs.notableComponents.length > 0
+          );
+          const contentY = mainContent
+            ? mainContent.position.y
+            : section.contentSections[0].position.y;
+
+          if (contentY < compositeHeight) {
+            const overlap = compositeHeight - contentY;
+            lines.push(``);
+            lines.push(
+              `- [ ] Content sections overlap hero by ~${overlap}px — use negative margin-top or position content within the hero container`
+            );
+          }
+        }
+      }
     }
   }
 

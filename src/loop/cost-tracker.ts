@@ -176,6 +176,8 @@ export class CostTracker {
   private config: CostTrackerConfig;
   private pricing: ModelPricing;
   private iterations: IterationCost[] = [];
+  private _visionCalls = 0;
+  private _visionCost = 0;
 
   constructor(config: CostTrackerConfig) {
     this.config = config;
@@ -254,6 +256,35 @@ export class CostTracker {
 
     this.iterations.push(iterationCost);
     return iterationCost;
+  }
+
+  /**
+   * Record a vision API call (visual comparison) and add its cost to the running total.
+   */
+  recordVisionCall(usage: { inputTokens: number; outputTokens: number }): void {
+    this._visionCalls++;
+    const cost = calculateCost(
+      {
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        totalTokens: usage.inputTokens + usage.outputTokens,
+      },
+      this.pricing
+    );
+    this._visionCost += cost.totalCost;
+
+    // Also record as a regular iteration so it's counted in total cost/tokens
+    this.recordIterationWithUsage(usage);
+  }
+
+  /** Number of vision API calls made */
+  get visionCalls(): number {
+    return this._visionCalls;
+  }
+
+  /** Total cost of vision API calls */
+  get visionCost(): number {
+    return this._visionCost;
   }
 
   /**

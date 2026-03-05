@@ -20,6 +20,19 @@ export function sanitizeAssetFilename(input: string): string {
 }
 
 /**
+ * Generate a consistent composite image filename from a Figma node name.
+ * Used by both source.ts (plan path) and run.ts (disk write) to ensure match.
+ */
+export function compositeImageFilename(name: string): string {
+  const safeName = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  return `composite-${safeName}.png`;
+}
+
+/**
  * Validate that a URL points to an expected Figma CDN domain.
  * Prevents SSRF if the API returned a malicious URL.
  */
@@ -168,6 +181,12 @@ function isAlphaNum(ch: string): boolean {
 
 /** PNG file signature (first 8 bytes). */
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+/** JPEG file signature (first 3 bytes: FF D8 FF). */
+const JPEG_MAGIC = Buffer.from([0xff, 0xd8, 0xff]);
+/** WebP container starts with "RIFF" header. */
+const WEBP_RIFF = Buffer.from([0x52, 0x49, 0x46, 0x46]);
+/** WebP type identifier at bytes 8-12: "WEBP". */
+const WEBP_TYPE = Buffer.from([0x57, 0x45, 0x42, 0x50]);
 
 /**
  * Validate that a buffer starts with the PNG magic bytes.
@@ -175,4 +194,33 @@ const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
  */
 export function isValidPngBuffer(buf: Buffer): boolean {
   return buf.length >= 8 && buf.subarray(0, 8).equals(PNG_MAGIC);
+}
+
+/**
+ * Validate that a buffer is a recognized image format (PNG, JPEG, or WebP).
+ * Use for image fill downloads where the Figma API returns original uploaded files
+ * which can be any common image format (not just PNG).
+ */
+export function isValidImageBuffer(buf: Buffer): boolean {
+  if (buf.length < 12) return false;
+  if (buf.subarray(0, 8).equals(PNG_MAGIC)) return true;
+  if (buf.subarray(0, 3).equals(JPEG_MAGIC)) return true;
+  if (buf.subarray(0, 4).equals(WEBP_RIFF) && buf.subarray(8, 12).equals(WEBP_TYPE)) return true;
+  return false;
+}
+
+/**
+ * Detect the actual image format from buffer magic bytes and return the file extension.
+ * Use when saving downloaded Figma images to ensure the extension matches the content.
+ */
+export function detectImageExtension(buf: Buffer): string {
+  if (buf.length >= 8 && buf.subarray(0, 8).equals(PNG_MAGIC)) return '.png';
+  if (buf.length >= 3 && buf.subarray(0, 3).equals(JPEG_MAGIC)) return '.jpg';
+  if (
+    buf.length >= 12 &&
+    buf.subarray(0, 4).equals(WEBP_RIFF) &&
+    buf.subarray(8, 12).equals(WEBP_TYPE)
+  )
+    return '.webp';
+  return '.png'; // fallback to PNG for unknown formats
 }

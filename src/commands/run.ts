@@ -24,11 +24,15 @@ import { fetchFromSource } from '../sources/index.js';
 import type { SourceOptions } from '../sources/types.js';
 import { detectPackageManager, formatRunCommand, getRunCommand } from '../utils/package-manager.js';
 import {
+  compositeImageFilename,
+  detectImageExtension,
   isValidFigmaCdnUrl,
+  isValidImageBuffer,
   isValidPngBuffer,
   sanitizeAssetFilename,
   sanitizeSvgContent,
 } from '../utils/sanitize.js';
+import { ensureSharp } from '../utils/sharp.js';
 import { showWelcome } from '../wizard/ui.js';
 
 /** Default fallback repo for GitHub issues when no project is specified */
@@ -291,6 +295,8 @@ export interface RunCommandOptions {
   figmaMapping?: string;
   // Design reference
   designImage?: string;
+  // Visual comparison
+  visualCheck?: boolean;
 }
 
 export async function runCommand(
@@ -437,6 +443,8 @@ export async function runCommand(
 
         // Auto-download images from Figma
         const imageFillUrls = result.metadata?.imageFillUrls as Record<string, string> | undefined;
+        // Track actual image format extensions (ref → '.jpg' | '.png' | '.webp')
+        const imageExtensions: Record<string, string> = {};
         if (imageFillUrls && Object.keys(imageFillUrls).length > 0) {
           try {
             const imagesDir = join(cwd, 'public', 'images');
@@ -452,12 +460,28 @@ export async function runCommand(
                 const batch = downloads.slice(idx, idx + BATCH_SIZE);
                 const results = await Promise.allSettled(
                   batch.map(async ([ref, url]) => {
-                    if (!isValidFigmaCdnUrl(url)) return false;
+                    if (!isValidFigmaCdnUrl(url)) {
+                      console.log(chalk.dim(`  Skipped image ${ref}: invalid CDN URL`));
+                      return false;
+                    }
                     const response = await fetch(url);
-                    if (!response.ok) return false;
+                    if (!response.ok) {
+                      console.log(chalk.dim(`  Skipped image ${ref}: HTTP ${response.status}`));
+                      return false;
+                    }
                     const buffer = Buffer.from(await response.arrayBuffer());
-                    if (!isValidPngBuffer(buffer)) return false;
-                    writeFileSync(join(imagesDir, `${sanitizeAssetFilename(ref)}.png`), buffer);
+                    if (!isValidImageBuffer(buffer)) {
+                      console.log(
+                        chalk.dim(
+                          `  Skipped image ${ref}: unrecognized format (${buffer.length} bytes)`
+                        )
+                      );
+                      return false;
+                    }
+                    const ext = detectImageExtension(buffer);
+                    const safeName = sanitizeAssetFilename(ref);
+                    writeFileSync(join(imagesDir, `${safeName}${ext}`), buffer);
+                    imageExtensions[ref] = ext;
                     return true;
                   })
                 );
@@ -471,6 +495,15 @@ export async function runCommand(
             }
           } catch {
             console.log(chalk.dim('  Image download skipped \u2014 will use placehold.co'));
+          }
+        }
+
+        // Fix image extensions in spec: replace hardcoded .png with actual format
+        if (Object.keys(imageExtensions).length > 0) {
+          for (const [ref, ext] of Object.entries(imageExtensions)) {
+            if (ext !== '.png') {
+              sourceSpec = sourceSpec.replaceAll(`/${ref}.png`, `/${ref}${ext}`);
+            }
           }
         }
 
@@ -490,12 +523,28 @@ export async function runCommand(
               const ssTimeout = AbortSignal.timeout(30_000);
               const ssResults = await Promise.allSettled(
                 validScreenshots.map(async ([nodeId, url]) => {
-                  if (!isValidFigmaCdnUrl(url!)) return false;
+                  if (!isValidFigmaCdnUrl(url!)) {
+                    console.log(chalk.dim(`  Skipped screenshot ${nodeId}: invalid CDN URL`));
+                    return false;
+                  }
                   const response = await fetch(url!, { signal: ssTimeout });
-                  if (!response.ok) return false;
+                  if (!response.ok) {
+                    console.log(
+                      chalk.dim(`  Skipped screenshot ${nodeId}: HTTP ${response.status}`)
+                    );
+                    return false;
+                  }
                   const buffer = Buffer.from(await response.arrayBuffer());
-                  if (!isValidPngBuffer(buffer)) return false;
-                  const filename = `frame-${sanitizeAssetFilename(nodeId.replace(/:/g, '-'))}.png`;
+                  if (!isValidImageBuffer(buffer)) {
+                    console.log(
+                      chalk.dim(
+                        `  Skipped screenshot ${nodeId}: unrecognized image format (${buffer.length} bytes)`
+                      )
+                    );
+                    return false;
+                  }
+                  const ssExt = detectImageExtension(buffer);
+                  const filename = `frame-${sanitizeAssetFilename(nodeId.replace(/:/g, '-'))}${ssExt}`;
                   writeFileSync(join(screenshotsDir, filename), buffer);
                   return true;
                 })
@@ -556,7 +605,13 @@ export async function runCommand(
           | Record<string, string | null>
           | undefined;
         const compositeNodes = result.metadata?.compositeNodes as
-          | Array<{ nodeId: string; name: string }>
+          | Array<{
+              nodeId: string;
+              name: string;
+              width: number;
+              height: number;
+              clipCropTop?: number;
+            }>
           | undefined;
         if (compositeRenderUrls && compositeNodes) {
           try {
@@ -567,13 +622,71 @@ export async function runCommand(
             const compResults = await Promise.allSettled(
               compositeNodes.map(async (comp) => {
                 const url = compositeRenderUrls[comp.nodeId];
-                if (!url || !isValidFigmaCdnUrl(url)) return false;
+                if (!url || !isValidFigmaCdnUrl(url)) {
+                  console.log(
+                    chalk.dim(
+                      `  Skipped composite ${comp.name}: ${!url ? 'no render URL' : 'invalid CDN URL'}`
+                    )
+                  );
+                  return false;
+                }
                 const response = await fetch(url, { signal: compTimeout });
-                if (!response.ok) return false;
-                const buffer = Buffer.from(await response.arrayBuffer());
-                if (!isValidPngBuffer(buffer)) return false;
-                const safeName = sanitizeAssetFilename(comp.name);
-                writeFileSync(join(imagesDir, `composite-${safeName}.png`), buffer);
+                if (!response.ok) {
+                  console.log(
+                    chalk.dim(`  Skipped composite ${comp.name}: HTTP ${response.status}`)
+                  );
+                  return false;
+                }
+                let buffer = Buffer.from(await response.arrayBuffer());
+                if (!isValidPngBuffer(buffer)) {
+                  console.log(
+                    chalk.dim(
+                      `  Skipped composite ${comp.name}: invalid PNG (${buffer.length} bytes)`
+                    )
+                  );
+                  return false;
+                }
+                // Crop overflow above the parent frame's clip boundary.
+                // The Figma API renders the full node bounds, but the parent frame
+                // clips content — so the top portion may contain invisible overflow.
+                if (comp.clipCropTop && comp.clipCropTop > 0) {
+                  try {
+                    const sharpMod = await ensureSharp(undefined, cwd);
+                    if (sharpMod?.default) {
+                      const sharp = sharpMod.default;
+                      const meta = await sharp(buffer).metadata();
+                      if (meta.width && meta.height) {
+                        // Compute actual render scale from image metadata.
+                        // Figma API caps at 4096px per side, so the effective scale
+                        // may be less than the requested 2x for large composites.
+                        const fullDesignHeight = comp.height + comp.clipCropTop;
+                        const actualScale = meta.height / fullDesignHeight;
+                        const cropPixels = Math.round(comp.clipCropTop * actualScale);
+                        if (cropPixels < meta.height) {
+                          buffer = Buffer.from(
+                            await sharp(buffer)
+                              .extract({
+                                left: 0,
+                                top: cropPixels,
+                                width: meta.width,
+                                height: meta.height - cropPixels,
+                              })
+                              .png()
+                              .toBuffer()
+                          );
+                          console.log(
+                            chalk.dim(
+                              `  Cropped ${comp.clipCropTop}px overflow from ${comp.name} (scale: ${actualScale.toFixed(2)}x)`
+                            )
+                          );
+                        }
+                      }
+                    }
+                  } catch {
+                    // Crop failed — use uncropped image as fallback
+                  }
+                }
+                writeFileSync(join(imagesDir, compositeImageFilename(comp.name)), buffer);
                 return true;
               })
             );
@@ -599,10 +712,11 @@ export async function runCommand(
             const allImageFiles: string[] = [];
 
             // Collect image files from public/images/ (not subdirectories)
+            const OPT_IMAGE_EXTS = ['.png', '.jpg', '.jpeg'];
             const imagesDir = join(cwd, 'public', 'images');
             if (existsSync(imagesDir)) {
               for (const file of readdirSync(imagesDir)) {
-                if (file.endsWith('.png')) {
+                if (OPT_IMAGE_EXTS.some((ext) => file.toLowerCase().endsWith(ext))) {
                   allImageFiles.push(join(imagesDir, file));
                 }
               }
@@ -611,7 +725,7 @@ export async function runCommand(
             const screenshotsDir = join(cwd, 'public', 'images', 'screenshots');
             if (existsSync(screenshotsDir)) {
               for (const file of readdirSync(screenshotsDir)) {
-                if (file.endsWith('.png')) {
+                if (OPT_IMAGE_EXTS.some((ext) => file.toLowerCase().endsWith(ext))) {
                   allImageFiles.push(join(screenshotsDir, file));
                 }
               }
@@ -686,6 +800,29 @@ export async function runCommand(
       const specPath = join(specsDir, specFilename);
       writeFileSync(specPath, sourceSpec);
       console.log(chalk.dim(`  Written to: ${specPath}`));
+
+      // Save Figma source metadata for later spec regeneration (e.g., by `fix` command)
+      if (options.from?.toLowerCase() === 'figma' && result.metadata?.fileKey) {
+        const ralphDir = join(cwd, '.ralph');
+        mkdirSync(ralphDir, { recursive: true });
+        writeFileSync(
+          join(ralphDir, 'figma-source.json'),
+          JSON.stringify(
+            {
+              fileKey: result.metadata.fileKey as string,
+              nodeIds: options.figmaNodes?.split(',').map((s) => s.trim()) || [],
+              mode: options.figmaMode || 'spec',
+              framework: options.figmaFramework,
+              format: options.figmaFormat,
+              scale: options.figmaScale,
+              specFilename,
+              timestamp: new Date().toISOString(),
+            },
+            null,
+            2
+          )
+        );
+      }
 
       // Cap spec size for agent context (full spec remains on disk in specs/)
       // Figma specs include richer visual data (fills, gradients, strokes) — allow more room
@@ -1081,6 +1218,32 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
     );
   }
 
+  // Collect Figma frame screenshot paths for visual comparison validation
+  let figmaScreenshotPaths: string[] | undefined;
+  let visualValidation = false;
+  const screenshotsDir = join(cwd, 'public', 'images', 'screenshots');
+  if (existsSync(screenshotsDir)) {
+    try {
+      const { readdirSync } = await import('node:fs');
+      const IMAGE_EXTS = ['.png', '.jpg', '.jpeg'];
+      const screenshots = readdirSync(screenshotsDir)
+        .filter((f: string) => IMAGE_EXTS.some((ext) => f.toLowerCase().endsWith(ext)))
+        .map((f: string) => join(screenshotsDir, f));
+      if (screenshots.length > 0) {
+        figmaScreenshotPaths = screenshots;
+        // Auto-enable when screenshots exist, unless explicitly disabled
+        visualValidation = options.visualCheck !== false;
+        if (visualValidation) {
+          console.log(
+            chalk.dim(`  Visual validation: ${screenshots.length} design screenshot(s) detected`)
+          );
+        }
+      }
+    } catch {
+      // Non-critical — skip visual validation
+    }
+  }
+
   // Apply preset values with CLI overrides
   const loopOptions: LoopOptions = {
     task: preset?.promptPrefix ? `${preset.promptPrefix}\n\n${finalTask}` : finalTask,
@@ -1127,6 +1290,8 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
     figmaImagesDownloaded: figmaImagesDownloaded ?? undefined,
     figmaFontSubstitutions: figmaFontSubstitutions ?? undefined,
     designImagePath,
+    visualValidation,
+    figmaScreenshotPaths,
   };
 
   const result = await runLoop(loopOptions);
