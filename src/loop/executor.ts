@@ -1223,6 +1223,55 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       }
     }
 
+    // --- Early visual check: catch major structural issues before final iteration ---
+    // Runs once around iteration 3 (when basic layout exists) with a lenient threshold.
+    // This prevents the agent from spending all iterations on a fundamentally wrong layout.
+    const EARLY_VISUAL_CHECK_ITERATION = 3;
+    if (
+      i === EARLY_VISUAL_CHECK_ITERATION &&
+      !isFinalIteration &&
+      options.visualValidation &&
+      options.figmaScreenshotPaths &&
+      options.figmaScreenshotPaths.length > 0
+    ) {
+      try {
+        spinner.start(chalk.yellow(`Loop ${i}: Running early visual check...`));
+        const earlyResult = await runVisualValidation(options.cwd, options.figmaScreenshotPaths, {
+          log: (msg) => (spinner.text = chalk.yellow(`Loop ${i}: ${msg}`)),
+          strictMode: false,
+        });
+
+        if (earlyResult.skipped) {
+          spinner.warn(
+            chalk.yellow(`Loop ${i}: Early visual check skipped — ${earlyResult.skipReason}`)
+          );
+        } else if (!earlyResult.success && earlyResult.diffRatio && earlyResult.diffRatio > 0.08) {
+          // >8% diff = structural issue — feed back immediately
+          spinner.warn(
+            chalk.yellow(
+              `Loop ${i}: Major visual mismatch (${(earlyResult.diffRatio * 100).toFixed(0)}% diff) — feeding back to agent`
+            )
+          );
+          const earlyFeedback = [
+            '## Early Visual Check — Major Mismatch\n',
+            `The implementation has ${(earlyResult.diffRatio * 100).toFixed(0)}% pixel difference from the Figma design. Fix these structural issues NOW before continuing:\n`,
+            ...earlyResult.issues.map((issue, idx) => `${idx + 1}. ${issue}`),
+            earlyResult.diffImagePath ? `\nDiff overlay saved to ${earlyResult.diffImagePath}` : '',
+            '\nRefer to design screenshots in public/images/screenshots/ for the target layout.',
+          ].join('\n');
+          lastValidationFeedback = earlyFeedback;
+        } else {
+          spinner.succeed(
+            chalk.green(
+              `Loop ${i}: Early visual check OK${earlyResult.diffRatio !== undefined ? ` (${(earlyResult.diffRatio * 100).toFixed(0)}% diff)` : ''}`
+            )
+          );
+        }
+      } catch {
+        // Non-critical early check — don't block the loop
+      }
+    }
+
     // --- Visual validation: compare implementation against Figma design screenshots ---
     // Runs twice: first pass (normal) and second pass (strict) after agent fixes.
     if (
@@ -1238,6 +1287,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
         const visualResult = await runVisualValidation(options.cwd, options.figmaScreenshotPaths, {
           log: (msg) => (spinner.text = chalk.yellow(`Loop ${i}: ${msg}`)),
           strictMode: isStrictPass,
+          alwaysUseLLM: !isStrictPass, // Always use LLM on first pass (final iteration)
         });
 
         // Track vision API cost
@@ -1245,7 +1295,17 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
           costTracker.recordVisionCall(visualResult.usage);
         }
 
-        if (!visualResult.success) {
+        if (visualResult.skipped) {
+          spinner.warn(
+            chalk.yellow(`Loop ${i}: Visual validation skipped — ${visualResult.skipReason}`)
+          );
+        } else if (visualResult.success) {
+          spinner.succeed(
+            chalk.green(
+              `Loop ${i}: ${isStrictPass ? 'Strict pixel' : 'Visual'} comparison passed${visualResult.diffRatio !== undefined ? ` (${(visualResult.diffRatio * 100).toFixed(1)}% diff)` : ''}`
+            )
+          );
+        } else {
           const diffPct = visualResult.diffRatio
             ? ` (${(visualResult.diffRatio * 100).toFixed(1)}% pixel diff)`
             : '';
@@ -1285,11 +1345,6 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
           }
           continue;
         }
-        spinner.succeed(
-          chalk.green(
-            `Loop ${i}: ${isStrictPass ? 'Strict pixel' : 'Visual'} comparison passed${visualResult.diffRatio !== undefined ? ` (${(visualResult.diffRatio * 100).toFixed(1)}% diff)` : ''}`
-          )
-        );
       } catch (err) {
         // Visual validation error is non-fatal — log and continue
         spinner.warn(

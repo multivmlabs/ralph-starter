@@ -1,4 +1,11 @@
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { join, resolve } from 'node:path';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -72,6 +79,58 @@ export async function fixCommand(customTask: string | undefined, options: FixOpt
     if (commands.length === 0) commands = detectBuildCommands(cwd);
   }
 
+  // Regenerate Figma spec AND plan if source metadata exists (picks up parser improvements)
+  let specRegenerated = false;
+  const figmaSourcePath = join(cwd, '.ralph', 'figma-source.json');
+  if (existsSync(figmaSourcePath)) {
+    try {
+      const figmaSource = JSON.parse(readFileSync(figmaSourcePath, 'utf-8'));
+      if (figmaSource.fileKey) {
+        const regenSpinner = ora('Regenerating Figma spec & plan...').start();
+        try {
+          const { fetchFromSource } = await import('../sources/index.js');
+          const result = await fetchFromSource('figma', figmaSource.fileKey, {
+            figmaMode: figmaSource.mode || 'spec',
+            figmaFramework: figmaSource.framework,
+            figmaFormat: figmaSource.format,
+            figmaNodes: figmaSource.nodeIds?.join(',') || undefined,
+            figmaScale: figmaSource.scale,
+          });
+
+          // Regenerate spec
+          const regenSpecsDir = join(cwd, 'specs');
+          mkdirSync(regenSpecsDir, { recursive: true });
+          const specFilename = figmaSource.specFilename || 'source-spec.md';
+          writeFileSync(join(regenSpecsDir, specFilename), result.content);
+
+          // Regenerate IMPLEMENTATION_PLAN.md (critical: contains layout values like overlap px)
+          const sectionSummaries = result.metadata?.sectionSummaries as
+            | import('../integrations/figma/parsers/plan-generator.js').SectionSummary[]
+            | undefined;
+          if (sectionSummaries && sectionSummaries.length > 0) {
+            const { extractFigmaPlan } = await import(
+              '../integrations/figma/parsers/plan-generator.js'
+            );
+            const plan = extractFigmaPlan(sectionSummaries, {
+              fileName: result.title || 'Figma Design',
+              imagesDownloaded: true,
+            });
+            if (plan) {
+              writeFileSync(join(cwd, 'IMPLEMENTATION_PLAN.md'), plan);
+            }
+          }
+
+          regenSpinner.succeed('Regenerated Figma spec & plan with latest parser');
+          specRegenerated = true;
+        } catch {
+          regenSpinner.fail(chalk.dim('Could not regenerate Figma spec — using existing spec'));
+        }
+      }
+    } catch {
+      // figma-source.json unreadable — skip regeneration
+    }
+  }
+
   // Run validations if we have commands
   if (commands.length > 0) {
     const spinner = ora(
@@ -83,7 +142,7 @@ export async function fixCommand(customTask: string | undefined, options: FixOpt
     const results = await runAllValidations(cwd, commands);
     const failures = results.filter((r) => !r.success);
 
-    if (failures.length === 0 && !customTask && !options.design) {
+    if (failures.length === 0 && !customTask && !options.design && !specRegenerated) {
       spinner.succeed(chalk.green('All checks passed — nothing to fix!'));
       return;
     }
@@ -143,6 +202,9 @@ export async function fixCommand(customTask: string | undefined, options: FixOpt
     fixTask = feedback
       ? `${customTask}\n\nAlso fix any build/validation errors found during the scan.`
       : customTask;
+  } else if (specRegenerated && !feedback) {
+    fixTask =
+      'The design spec has been regenerated with updated instructions. Compare the current implementation against the updated spec below and fix any visual discrepancies. Focus on: background-size, z-index layering, element positioning, and spacing to match the design exactly.';
   } else if (mode === 'activity') {
     fixTask =
       'Fix the build/validation errors in this project. Study the error output below, identify the root cause, and implement the minimal fix. Do not refactor or make unnecessary changes.';

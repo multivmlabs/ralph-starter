@@ -25,12 +25,13 @@ import {
   type LLMProvider,
   PROVIDERS,
 } from '../llm/providers.js';
+import { ensureSharp } from '../utils/sharp.js';
 import { type DevServerInfo, startDevServer } from './dev-server.js';
 
 // --- Thresholds ---
 
 /** Pixel diff ratio above which we invoke LLM vision for semantic analysis */
-const PIXEL_DIFF_LLM_THRESHOLD = 0.05; // 5%
+const PIXEL_DIFF_LLM_THRESHOLD = 0.02; // 2% — catch subtle issues (was 5%)
 
 /** Pixel diff ratio for strict final gate (very tight) */
 const PIXEL_DIFF_STRICT_THRESHOLD = 0.02; // 2%
@@ -42,6 +43,10 @@ const PIXELMATCH_THRESHOLD = 0.1;
 
 export interface VisualValidationResult {
   success: boolean;
+  /** Whether validation was skipped (not the same as passing) */
+  skipped?: boolean;
+  /** Reason validation was skipped */
+  skipReason?: string;
   issues: string[];
   /** Pixel diff ratio (0–1) from pixelmatch */
   diffRatio?: number;
@@ -63,6 +68,8 @@ export interface VisualValidationOptions {
   log?: (msg: string) => void;
   /** Whether this is a re-check after fixes (enables strict final gate) */
   strictMode?: boolean;
+  /** Force LLM vision analysis regardless of pixel diff ratio (for final iteration) */
+  alwaysUseLLM?: boolean;
 }
 
 // --- Prompts ---
@@ -115,29 +122,48 @@ async function tryImportPlaywright(): Promise<any | null> {
  * along with the Chromium browser.
  */
 // biome-ignore lint: any is needed for optional dynamic import
-async function ensurePlaywright(log?: (msg: string) => void): Promise<any | null> {
+async function ensurePlaywright(log?: (msg: string) => void, cwd?: string): Promise<any | null> {
   const pw = await tryImportPlaywright();
   if (pw) return pw;
 
   const print = log || (() => {});
+  const installDir = cwd || process.cwd();
   print('Installing playwright for visual validation...');
 
   try {
-    await execa('npm', ['install', '-g', 'playwright'], {
+    // Install in the target project's node_modules so ESM import() can resolve it
+    await execa('npm', ['install', '--no-save', 'playwright'], {
+      cwd: installDir,
       timeout: 120_000,
       reject: true,
     });
 
     print('Installing Chromium browser...');
     await execa('npx', ['playwright', 'install', 'chromium'], {
+      cwd: installDir,
       timeout: 180_000,
       reject: true,
     });
 
+    // Try importing from the target project's node_modules via createRequire
     const pwAfterInstall = await tryImportPlaywright();
     if (pwAfterInstall) {
       print('Playwright installed successfully');
       return pwAfterInstall;
+    }
+
+    // Fallback: import from the project's node_modules using createRequire
+    try {
+      const { createRequire } = await import('node:module');
+      const { join } = await import('node:path');
+      const projectRequire = createRequire(join(installDir, 'package.json'));
+      const pwFromProject = projectRequire('playwright');
+      if (pwFromProject) {
+        print('Playwright installed successfully');
+        return pwFromProject;
+      }
+    } catch {
+      // createRequire fallback failed
     }
   } catch {
     print('Failed to auto-install playwright — visual validation will be skipped');
@@ -168,7 +194,7 @@ export async function captureScreenshot(
     browser = await pw.chromium.launch({ headless: true });
     const context = await browser.newContext({
       viewport,
-      deviceScaleFactor: 1,
+      deviceScaleFactor: 2, // Match Figma's scale=2 rendering for accurate pixel comparison
     });
     const page = await context.newPage();
 
@@ -203,17 +229,43 @@ export interface PixelDiffResult {
 
 /**
  * Compare two PNG images at the pixel level using pixelmatch.
- * Images are resized to match dimensions if needed (uses the smaller dimensions).
+ * When dimensions differ significantly (>15%), resizes the implementation
+ * screenshot to match the design screenshot using sharp. This handles the
+ * case where Figma API caps frame screenshots at 4096px (reducing scale)
+ * while Playwright captures at full 2x resolution.
  */
-export function pixelDiff(designPng: Buffer, implPng: Buffer): PixelDiffResult {
+export async function pixelDiff(designPng: Buffer, implPng: Buffer): Promise<PixelDiffResult> {
   const design = PNG.sync.read(designPng);
-  const impl = PNG.sync.read(implPng);
+  let implBuffer = implPng;
+
+  // If dimensions differ significantly, resize impl to match design using sharp.
+  // This handles scale mismatches between Figma screenshots (capped at 4096px)
+  // and Playwright screenshots (no cap, full 2x resolution).
+  const implRaw = PNG.sync.read(implPng);
+  const widthRatio = implRaw.width / design.width;
+  const heightRatio = implRaw.height / design.height;
+  if (Math.abs(widthRatio - 1) > 0.15 || Math.abs(heightRatio - 1) > 0.15) {
+    try {
+      const sharpMod = await ensureSharp();
+      if (sharpMod?.default) {
+        implBuffer = await sharpMod
+          .default(implPng)
+          .resize(design.width, design.height, { fit: 'fill' })
+          .png()
+          .toBuffer();
+      }
+    } catch {
+      // Resize failed — fall through to crop behavior
+    }
+  }
+
+  const impl = PNG.sync.read(implBuffer);
 
   // Use the smaller dimensions to compare the overlapping region
   const width = Math.min(design.width, impl.width);
   const height = Math.min(design.height, impl.height);
 
-  // If dimensions differ significantly, crop both to the common area
+  // If dimensions still differ, crop both to the common area
   const designCropped = cropPngData(design, width, height);
   const implCropped = cropPngData(impl, width, height);
 
@@ -487,16 +539,26 @@ export async function runVisualValidation(
 ): Promise<VisualValidationResult> {
   const print = options.log || (() => {});
 
-  // Ensure Playwright is available — auto-install if missing
-  const pw = await ensurePlaywright(options.log);
+  // Ensure Playwright is available — auto-install in target project if missing
+  const pw = await ensurePlaywright(options.log, cwd);
   if (!pw) {
-    return { success: true, issues: [] };
+    return {
+      success: true,
+      skipped: true,
+      skipReason: 'Playwright not available — install with: npm install playwright',
+      issues: [],
+    };
   }
 
   // Filter to only existing design screenshot files
   const existingScreenshots = designScreenshots.filter((p) => existsSync(p));
   if (existingScreenshots.length === 0) {
-    return { success: true, issues: [] };
+    return {
+      success: true,
+      skipped: true,
+      skipReason: 'No design screenshots found on disk',
+      issues: [],
+    };
   }
 
   // Start dev server
@@ -504,10 +566,10 @@ export async function runVisualValidation(
   try {
     server = await startDevServer(cwd, options.serverTimeout ?? 30_000);
   } catch {
-    return { success: true, issues: [] };
+    return { success: true, skipped: true, skipReason: 'Dev server failed to start', issues: [] };
   }
   if (!server) {
-    return { success: true, issues: [] };
+    return { success: true, skipped: true, skipReason: 'Dev server failed to start', issues: [] };
   }
 
   const allIssues: string[] = [];
@@ -523,7 +585,12 @@ export async function runVisualValidation(
 
     const implScreenshot = await captureScreenshot(server.url, viewport, pw);
     if (!implScreenshot) {
-      return { success: true, issues: [] };
+      return {
+        success: true,
+        skipped: true,
+        skipReason: 'Failed to capture implementation screenshot',
+        issues: [],
+      };
     }
 
     for (const designPath of existingScreenshots) {
@@ -531,7 +598,7 @@ export async function runVisualValidation(
 
       // --- Layer 1: pixelmatch ---
       print('Running pixel comparison...');
-      const diff = pixelDiff(designBuffer, implScreenshot);
+      const diff = await pixelDiff(designBuffer, implScreenshot);
       const pct = (diff.diffRatio * 100).toFixed(1);
 
       if (diff.diffRatio > worstDiffRatio) {
@@ -555,7 +622,7 @@ export async function runVisualValidation(
       // Strict mode (Layer 3): tight threshold after previous fixes
       const threshold = options.strictMode ? PIXEL_DIFF_STRICT_THRESHOLD : PIXEL_DIFF_LLM_THRESHOLD;
 
-      if (diff.diffRatio <= threshold) {
+      if (diff.diffRatio <= threshold && !options.alwaysUseLLM) {
         print(
           `Pixel diff: ${pct}% — ${options.strictMode ? 'strict check passed' : 'within tolerance'}`
         );

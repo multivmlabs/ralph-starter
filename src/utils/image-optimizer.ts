@@ -2,10 +2,11 @@
  * Image Optimizer
  *
  * Compresses and resizes downloaded Figma images to reduce file sizes.
- * Uses `sharp` as an optional dependency — gracefully degrades when unavailable.
+ * Uses sharp (auto-installed if needed) for image processing.
  */
 
 import { readFileSync, writeFileSync } from 'node:fs';
+import { ensureSharp } from './sharp.js';
 
 const MAX_IMAGE_BYTES = 1_000_000; // 1MB target
 const MAX_IMAGE_DIMENSION = 2048; // Max width or height in pixels
@@ -35,16 +36,7 @@ export async function optimizeImage(
   }
 
   try {
-    // Dynamic import — sharp is an optional dependency.
-    // Using Function constructor to prevent TypeScript from resolving the module at compile time.
-    // biome-ignore lint/security/noGlobalEval: dynamic optional dependency import
-    const sharpModule = (await new Function('return import("sharp")')().catch(() => null)) as {
-      default: (input: string | Buffer) => {
-        metadata: () => Promise<{ width?: number; height?: number }>;
-        resize: (...args: unknown[]) => unknown;
-        png: (opts: unknown) => { toBuffer: () => Promise<Buffer> };
-      };
-    } | null;
+    const sharpModule = await ensureSharp();
     if (!sharpModule) {
       return { optimized: false, originalSize, newSize: originalSize };
     }
@@ -67,8 +59,11 @@ export async function optimizeImage(
       });
     }
 
-    // Compress PNG
-    const buffer = await pipeline.png({ compressionLevel: 9, adaptiveFiltering: true }).toBuffer();
+    // Compress in the appropriate format
+    const isJpeg = filePath.endsWith('.jpg') || filePath.endsWith('.jpeg');
+    const buffer = isJpeg
+      ? await pipeline.jpeg({ quality: 80 }).toBuffer()
+      : await pipeline.png({ compressionLevel: 9, adaptiveFiltering: true }).toBuffer();
 
     // Only write if it actually got smaller
     if (buffer.length < originalSize) {

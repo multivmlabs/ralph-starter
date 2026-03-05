@@ -66,32 +66,30 @@ function stackToFramework(stack: string): RunCommandOptions['figmaFramework'] | 
 }
 
 /** Build model choices based on detected agents */
-async function buildModelChoices(): Promise<Array<{ name: string; value: string; short: string }>> {
+async function buildModelChoices(): Promise<Array<{ name: string; value: string }>> {
   const agents = await detectAvailableAgents();
   const hasClaude = agents.some((a) => a.type === 'claude-code' && a.available);
   const hasCodex = agents.some((a) => a.type === 'codex' && a.available);
 
-  const choices: Array<{ name: string; value: string; short: string }> = [];
+  const choices: Array<{ name: string; value: string }> = [];
 
   if (hasClaude) {
     choices.push(
       {
-        name: 'Claude Opus 4.6 (maximum quality) (Recommended)',
+        name: 'Claude Opus 4.6 — maximum quality (Recommended)',
         value: 'claude-opus-4-6',
-        short: 'Opus 4.6',
       },
       {
-        name: 'Claude Sonnet 4.5 (fast + cost-effective)',
+        name: 'Claude Sonnet 4.5 — fast + cost-effective',
         value: 'claude-sonnet-4-5-20250929',
-        short: 'Sonnet 4.5',
       }
     );
   }
 
   if (hasCodex) {
     choices.push(
-      { name: 'o3 (OpenAI)', value: 'o3', short: 'o3' },
-      { name: 'o4-mini (OpenAI)', value: 'o4-mini', short: 'o4-mini' }
+      { name: 'o3 (OpenAI)', value: 'o3' },
+      { name: 'o4-mini (OpenAI)', value: 'o4-mini' }
     );
   }
 
@@ -101,12 +99,10 @@ async function buildModelChoices(): Promise<Array<{ name: string; value: string;
       {
         name: 'Claude Opus 4.6 (Recommended)',
         value: 'claude-opus-4-6',
-        short: 'Opus 4.6',
       },
       {
         name: 'Claude Sonnet 4.5',
         value: 'claude-sonnet-4-5-20250929',
-        short: 'Sonnet 4.5',
       }
     );
   }
@@ -114,13 +110,16 @@ async function buildModelChoices(): Promise<Array<{ name: string; value: string;
   choices.push({
     name: 'Custom model ID',
     value: 'custom',
-    short: 'Custom',
   });
 
   return choices;
 }
 
 export async function figmaCommand(options: FigmaWizardOptions): Promise<void> {
+  // Detect available agents BEFORE any interactive prompts
+  // (spawning subprocesses mid-wizard can corrupt TTY state and break list prompts)
+  const modelChoices = await buildModelChoices();
+
   console.log(chalk.cyan.bold('  Figma to Code'));
   console.log(chalk.dim('  Design to code in one command'));
   console.log();
@@ -212,20 +211,32 @@ export async function figmaCommand(options: FigmaWizardOptions): Promise<void> {
     techStack = customStack.trim();
   }
 
-  // Step 4: Model selection (smart per-agent)
-  const modelChoices = await buildModelChoices();
+  // Step 4: Model selection (printed menu + number input — inquirer list is unreliable)
+  console.log(chalk.bold('  Which model?'));
+  for (let idx = 0; idx < modelChoices.length; idx++) {
+    const c = modelChoices[idx];
+    const num = chalk.cyan(`  ${idx + 1})`);
+    console.log(`${num} ${c.name}`);
+  }
 
-  const { modelChoice } = await inquirer.prompt([
+  const { modelNum } = await inquirer.prompt([
     {
-      type: 'list',
-      name: 'modelChoice',
-      message: 'Which model?',
-      choices: modelChoices,
+      type: 'input',
+      name: 'modelNum',
+      message: 'Select model (number):',
+      default: '1',
+      validate: (input: string) => {
+        const n = Number(input.trim());
+        if (!Number.isNaN(n) && n >= 1 && n <= modelChoices.length) return true;
+        return `Enter a number between 1 and ${modelChoices.length}`;
+      },
     },
   ]);
 
-  let model = modelChoice;
-  if (modelChoice === 'custom') {
+  const selectedChoice = modelChoices[Number(modelNum.trim()) - 1];
+  let model = selectedChoice.value;
+
+  if (model === 'custom') {
     const { customModel } = await inquirer.prompt([
       {
         type: 'input',
@@ -236,7 +247,17 @@ export async function figmaCommand(options: FigmaWizardOptions): Promise<void> {
       },
     ]);
     model = customModel.trim();
+
+    const validModelPattern = /^(claude-|gpt-|o[0-9]|gemini-)/;
+    if (!validModelPattern.test(model)) {
+      console.log(
+        chalk.red(`  Invalid model ID: "${model}". Use a full model ID like claude-opus-4-6`)
+      );
+      return;
+    }
   }
+
+  console.log(chalk.green(`  Using: ${selectedChoice.name}`));
 
   console.log();
 

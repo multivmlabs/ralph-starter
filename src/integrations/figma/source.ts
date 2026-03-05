@@ -14,6 +14,7 @@ import { createHash } from 'node:crypto';
 import { closeSync, fstatSync, mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { compositeImageFilename } from '../../utils/sanitize.js';
 import {
   type AuthMethod,
   BaseIntegration,
@@ -143,7 +144,7 @@ export class FigmaIntegration extends BaseIntegration {
       try {
         imageFillUrls = await this.fetchImageFillUrls(fileKey, token);
       } catch {
-        // Image fill URL fetch failed — proceed without images
+        console.log('  Image fill URLs unavailable — will use placehold.co');
       }
     }
 
@@ -160,13 +161,25 @@ export class FigmaIntegration extends BaseIntegration {
     const compositeIdSet = new Set(compositeNodes.map((c) => c.nodeId));
     const compositeImages = new Map<string, string>();
     const compositeTextOverlays = new Set<string>();
+    const compositeBackgroundColors = new Map<string, string>();
+    const compositeClipCropTops = new Map<string, number>();
+    for (const comp of compositeNodes) {
+      if (comp.parentBackgroundColor) {
+        compositeBackgroundColors.set(comp.nodeId, comp.parentBackgroundColor);
+      }
+      if (comp.clipCropTop && comp.clipCropTop > 0) {
+        compositeClipCropTops.set(comp.nodeId, comp.clipCropTop);
+      }
+    }
     let compositeRenderUrls: Record<string, string | null> = {};
 
     // The /images endpoint has very strict rate limits (~10 req/min).
     // Icons + screenshots are best-effort: we combine all node IDs into
     // a single /images call to minimize API usage.
     // On low-budget plans (starter/free, 6 req/month), skip entirely to conserve budget.
-    if (!this.lowBudget) {
+    if (this.lowBudget) {
+      console.log('  Skipping icon/screenshot/composite renders (rate-limited plan)');
+    } else {
       const topFrameIds = this.collectTopLevelFrameIds(nodes, 3);
       // Deduplicate: skip frame screenshots for nodes that are also composites
       const screenshotFrameIds = topFrameIds.filter((id) => !compositeIdSet.has(id));
@@ -232,14 +245,12 @@ export class FigmaIntegration extends BaseIntegration {
             compositeRenderUrls = compositeResponse.images;
             for (const comp of compositeNodes) {
               if (compositeRenderUrls[comp.nodeId]) {
-                const safeName = comp.name
-                  .toLowerCase()
-                  .replace(/[^a-z0-9]+/g, '-')
-                  .replace(/-+/g, '-');
-                compositeImages.set(comp.nodeId, `/images/composite-${safeName}.png`);
+                compositeImages.set(comp.nodeId, `/images/${compositeImageFilename(comp.name)}`);
                 if (comp.hasTextOverlays) {
                   compositeTextOverlays.add(comp.nodeId);
                 }
+              } else {
+                console.log(`  Composite render unavailable for: ${comp.name}`);
               }
             }
           }
@@ -255,6 +266,9 @@ export class FigmaIntegration extends BaseIntegration {
       exportedIcons,
       compositeImages: compositeImages.size > 0 ? compositeImages : undefined,
       compositeTextOverlays: compositeTextOverlays.size > 0 ? compositeTextOverlays : undefined,
+      compositeBackgroundColors:
+        compositeBackgroundColors.size > 0 ? compositeBackgroundColors : undefined,
+      compositeClipCropTops: compositeClipCropTops.size > 0 ? compositeClipCropTops : undefined,
     };
     const content = nodesToSpec(nodes, fileName, specOptions);
 
@@ -263,6 +277,8 @@ export class FigmaIntegration extends BaseIntegration {
       imageFillUrls,
       compositeImages: compositeImages.size > 0 ? compositeImages : undefined,
       compositeTextOverlays: compositeTextOverlays.size > 0 ? compositeTextOverlays : undefined,
+      compositeBackgroundColors:
+        compositeBackgroundColors.size > 0 ? compositeBackgroundColors : undefined,
       exportedIcons: exportedIcons.size > 0 ? exportedIcons : undefined,
       fontSubstitutions: fontSubstitutions.size > 0 ? fontSubstitutions : undefined,
     });
