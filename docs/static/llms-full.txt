@@ -1690,7 +1690,9 @@ The `fix` command runs a focused AI loop to fix project issues. It scans for bui
 When given a custom task describing a visual or design problem (e.g., "fix the paddings and make the colors brighter"), the fix command detects CSS/design keywords and:
 
 - Auto-applies installed design skills (frontend-design, ui-ux-designer, etc.)
-- Instructs the agent to visually verify changes using the `/web-design-reviewer` skill with browser screenshots
+- Instructs the agent to visually verify changes using browser screenshots
+
+For structured visual fix passes, use the `--design` flag — see [Design Mode](#design-mode) below.
 
 ## Arguments
 
@@ -1703,9 +1705,10 @@ When given a custom task describing a visual or design problem (e.g., "fix the p
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--scan` | Force full project scan (build + lint + typecheck + tests) | false |
+| `--design` | Structured visual fix mode with screenshot verification | false |
 | `--agent <name>` | Specify agent (claude-code, cursor, codex, opencode) | auto-detect |
 | `--commit` | Auto-commit the fix | false |
-| `--max-iterations <n>` | Maximum fix iterations | 3 |
+| `--max-iterations <n>` | Maximum fix iterations | 3 (scan), 4 (design keywords), 7 (--design) |
 | `--output-dir <path>` | Project directory | cwd |
 
 ## Examples
@@ -1723,14 +1726,17 @@ ralph-starter fix --scan
 ### Fix Design Issues
 
 ```bash
-# Fix visual/CSS problems
+# Structured visual fix pass (recommended for design work)
+ralph-starter fix --design
+
+# Design mode with specific notes
+ralph-starter fix --design "the hero section spacing is off and colors are too muted"
+
+# Ad-hoc CSS/design fix (auto-detected as design task)
 ralph-starter fix "fix the paddings and make the colors brighter"
 
 # Fix responsive layout
 ralph-starter fix "make the layout responsive on mobile"
-
-# Fix color theme
-ralph-starter fix "change the color scheme to darker tones"
 ```
 
 ### With Options
@@ -1744,6 +1750,9 @@ ralph-starter fix "fix lint errors" --agent claude-code
 
 # Allow more iterations for complex fixes
 ralph-starter fix "fix all test failures" --max-iterations 5
+
+# Design fix with more room to iterate
+ralph-starter fix --design --max-iterations 10
 ```
 
 ## Behavior
@@ -1759,7 +1768,7 @@ ralph-starter fix "fix all test failures" --max-iterations 5
    - Searches skills.sh for complementary skills if needed
 
 3. **Fix Loop**:
-   - Agent works on fixing issues (default: 3 iterations)
+   - Agent works on fixing issues (default: 3 iterations for scan, 7 for `--design`)
    - Lint checks run between iterations (fast feedback)
    - Full build check runs on final iteration
    - If build fails on final iteration → extends loop by 2 extra iterations
@@ -1767,6 +1776,49 @@ ralph-starter fix "fix all test failures" --max-iterations 5
 4. **Verification**:
    - Re-runs original validation commands after the loop
    - Reports success only if all checks pass (not just agent completion)
+
+## Design Mode
+
+The `--design` flag enables a structured visual fix workflow specifically designed for CSS, layout, and styling issues. It runs the agent through a 5-phase process:
+
+### Phase 1: Visual Audit
+
+The agent's **first action** is to start the dev server and take screenshots at 3 viewports:
+- Desktop (1440px)
+- Tablet (768px)
+- Mobile (375px)
+
+### Phase 2: Issue Identification
+
+The agent analyzes screenshots against the project spec and checks for issues in priority order:
+
+0. **CSS cascade conflicts** — Detects unlayered CSS resets (e.g., `* { margin: 0; padding: 0; }`) that silently override Tailwind v4 utilities. This is the most common cause of "classes are correct but nothing works."
+1. **Page structure** — Content centering, max-width wrappers, empty gaps
+2. **Layout & positioning** — Grid/flex rendering, column balance, overlaps
+3. **Responsive issues** — Viewport breakage, overflow, clipping
+4. **Spacing** — Vertical rhythm, abnormal gaps
+5. **Typography & colors** — Font loading, readability, consistency
+
+### Phase 3: Fix Plan
+
+The agent creates a `DESIGN_FIX_PLAN.md` with specific issues, exact files, and CSS properties to change.
+
+### Phase 4: Execute & Verify
+
+Fixes are applied in priority order (structural first, cosmetic last). The agent re-screenshots after each structural fix to verify improvement.
+
+### Phase 5: Completion
+
+The loop requires the agent to output `DESIGN_VERIFIED` after taking final verification screenshots. The loop will **not** accept generic completion signals like "All tasks completed" — only `DESIGN_VERIFIED` after visual confirmation.
+
+### Why Design Mode Exists
+
+Without `--design`, agents often:
+- Read code and see "correct" Tailwind classes, then declare victory without visual verification
+- Add more CSS classes on top of cascade conflicts instead of fixing the root cause
+- Complete in 1 iteration without actually verifying the visual result
+
+Design mode forces visual-first debugging and prevents premature exit.
 
 ## Exit Codes
 
@@ -3250,6 +3302,185 @@ ralph-starter run --from linear --label "in-progress"
 
 ---
 
+## task
+
+# ralph-starter task
+
+Unified task management across GitHub and Linear. Issues stay where they are -- ralph-starter detects the platform from the ID format and routes operations accordingly.
+
+## Synopsis
+
+```bash
+ralph-starter task list [options]
+ralph-starter task create --title "..." [options]
+ralph-starter task update <id> [options]
+ralph-starter task close <id> [options]
+ralph-starter task comment <id> "message" [options]
+```
+
+## Description
+
+The `task` command provides a single interface for managing issues on both GitHub and Linear. Instead of switching between `gh issue` and Linear's UI, you can:
+
+- **List** tasks from both platforms in a unified table
+- **Create** issues on either platform
+- **Update** status, priority, or assignee
+- **Close** issues with optional comments
+- **Comment** on issues
+
+### Smart ID Detection
+
+ralph-starter automatically detects which platform an issue belongs to based on the ID format:
+
+| Format | Platform | Example |
+|--------|----------|---------|
+| `#123` or `123` | GitHub | `ralph-starter task close #42` |
+| `TEAM-123` | Linear | `ralph-starter task update ENG-42 --status "In Progress"` |
+
+You can always override detection with `--source github` or `--source linear`.
+
+## Actions
+
+### `task list`
+
+List tasks from all configured integrations.
+
+```bash
+# List from all sources
+ralph-starter task list
+
+# List from GitHub only
+ralph-starter task list --source github --project owner/repo
+
+# List from Linear only
+ralph-starter task list --source linear
+
+# Filter by label and status
+ralph-starter task list --label "bug" --status "open" --limit 10
+```
+
+### `task create`
+
+Create a new issue on GitHub or Linear.
+
+```bash
+# Create on GitHub (default)
+ralph-starter task create --title "Add dark mode" --project owner/repo
+
+# Create on Linear
+ralph-starter task create --title "Add dark mode" --source linear --priority P1
+
+# Create with assignee and labels
+ralph-starter task create --title "Fix auth bug" --source github \
+  --project owner/repo --assignee octocat --label "bug,urgent"
+```
+
+### `task update`
+
+Update an existing issue.
+
+```bash
+# Update status on Linear (auto-detected from ID)
+ralph-starter task update ENG-42 --status "In Progress"
+
+# Assign a task
+ralph-starter task update ENG-42 --assignee ruben
+
+# Update priority
+ralph-starter task update ENG-42 --priority P0
+
+# Update a GitHub issue
+ralph-starter task update #123 --assignee octocat --project owner/repo
+```
+
+### `task close`
+
+Close an issue with an optional comment.
+
+```bash
+# Close a Linear issue
+ralph-starter task close ENG-42
+
+# Close with a comment
+ralph-starter task close #123 --comment "Fixed in PR #456" --project owner/repo
+```
+
+### `task comment`
+
+Add a comment to an issue.
+
+```bash
+ralph-starter task comment ENG-42 "Working on this now"
+ralph-starter task comment #123 "Needs design review" --project owner/repo
+```
+
+## Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--source <source>` | Filter by source: `github`, `linear`, or `all` | `all` (list) / `github` (create) |
+| `--project <name>` | Project filter (`owner/repo` for GitHub, team name for Linear) | - |
+| `--label <name>` | Filter by label or set labels (comma-separated) | - |
+| `--status <status>` | Filter by status or set status on update | - |
+| `--limit <n>` | Max tasks to fetch | `50` |
+| `--title <title>` | Task title (for create) | - |
+| `--body <body>` | Task description (for create) | - |
+| `--priority ` | Priority: `P0`, `P1`, `P2`, `P3` | - |
+| `--assignee <name>` | Assign to team member (GitHub username or Linear display name) | - |
+| `--comment <text>` | Comment text (for close/update) | - |
+
+## Assignee Resolution
+
+### GitHub
+
+Pass a GitHub username directly:
+
+```bash
+ralph-starter task update #123 --assignee octocat --project owner/repo
+```
+
+### Linear
+
+ralph-starter resolves display names, full names, and email prefixes to Linear user IDs:
+
+```bash
+# Match by display name
+ralph-starter task update ENG-42 --assignee "Ruben"
+
+# Match by email prefix
+ralph-starter task update ENG-42 --assignee "ruben"
+```
+
+Matching is case-insensitive. If no match is found, ralph-starter shows available team members.
+
+## Prerequisites
+
+At least one integration must be configured:
+
+```bash
+# GitHub (via GitHub CLI)
+gh auth login
+
+# Linear (via API key)
+ralph-starter config set linear.apiKey lin_api_xxxxxxxxxxxx
+```
+
+Check integration status:
+
+```bash
+ralph-starter integrations list
+```
+
+## See Also
+
+- [`ralph-starter auto`](auto.md) -- Batch-process tasks autonomously
+- [`ralph-starter integrations`](integrations.md) -- Manage integrations
+- [`ralph-starter auth`](auth.md) -- Authenticate with services
+- [GitHub Source](../sources/github.md) -- GitHub integration details
+- [Linear Source](../sources/linear.md) -- Linear integration details
+
+---
+
 ## template
 
 # ralph-starter template
@@ -3409,6 +3640,24 @@ To contribute templates, see the [ralph-templates repository](https://github.com
 
 
 All notable changes to ralph-starter are documented here. This project follows [Semantic Versioning](https://semver.org/).
+
+---
+
+## [0.1.1-beta.17] - 2026-02-14
+
+### Added
+- **`fix --design` mode**: Structured 5-phase visual fix workflow with screenshot verification, CSS cascade conflict detection, and `DESIGN_VERIFIED` completion token
+- **Smart UI defaults**: Web projects now default to Tailwind CSS + shadcn/ui + motion-primitives when no styling is specified (framework-aware: shadcn-vue for Vue, shadcn-svelte for Svelte)
+- **`uiLibrary` field** in TechStack for explicit UI component library selection
+- **Rich spec generation**: Specs and AGENTS.md now include Tailwind v4 setup notes, CSS cascade layer warnings, and shadcn component setup instructions
+
+### Fixed
+- Design loop premature exit — `fix --design` now requires explicit `DESIGN_VERIFIED` token after visual confirmation (prevents 1-iteration false completions)
+- Design loop stall detection — screenshot/viewport analysis no longer falsely triggers idle detection
+- Default design iterations increased from 5 to 7 for more thorough visual fixes
+
+### Changed
+- Completion instruction in agent preamble is now conditional — design mode uses task-specific completion flow instead of generic "All tasks completed"
 
 ---
 
@@ -6531,6 +6780,10 @@ After installation:
 
 > **Ralph Wiggum made easy.** One command to run autonomous AI coding loops.
 
+import DownloadDocs from '@site/src/components/DownloadDocs'
+
+<DownloadDocs />
+
 ## What is Ralph Wiggum?
 
 Ralph Wiggum is a technique for running AI coding agents in autonomous loops until tasks are completed. Instead of prompting back and forth, you give the AI a task and let it iterate until done.
@@ -7065,6 +7318,7 @@ Create a custom mapping file to control how Figma content maps to your component
 | `--figma-target` | Target directory (content mode) | Path (e.g., `src/pages`) |
 | `--figma-preview` | Preview without applying (content mode) | Flag |
 | `--figma-mapping` | Custom mapping file (content mode) | File path (e.g., `mapping.json`) |
+| `--model` | AI model for the coding agent | Model ID (e.g., `claude-sonnet-4-5-20250929`) |
 
 ## Figma URL Formats
 
@@ -7113,6 +7367,30 @@ ralph-starter integrations fetch figma "ABC123" --figma-mode assets
 # Run the generated curl commands to download
 ```
 
+### Choose Your Model
+
+Use `--model` to pick which AI model implements the design. Sonnet is fast and cost-effective for most UI work; Opus produces more nuanced implementations for complex layouts:
+
+```bash
+# Fast iteration with Sonnet (recommended for most Figma workflows)
+ralph-starter run --from figma \
+  --project "https://figma.com/file/ABC123/Dashboard" \
+  --figma-mode components \
+  --model claude-sonnet-4-5-20250929 \
+  --max-iterations 5
+
+# Maximum quality with Opus
+ralph-starter run --from figma \
+  --project "https://figma.com/file/ABC123/Dashboard" \
+  --figma-mode components \
+  --model claude-opus-4-6 \
+  --max-iterations 3
+```
+
+:::tip Model Selection for Figma
+**Sonnet** is the sweet spot for Figma-to-code. It handles component structure, layout, and styling accurately at ~5x lower cost and faster iteration speed. Use **Opus** when you need complex state logic or intricate responsive behavior alongside the UI.
+:::
+
 ## Test Connection
 
 Verify your authentication:
@@ -7121,7 +7399,71 @@ Verify your authentication:
 ralph-starter integrations test figma
 ```
 
+## Rate Limits & Caching
+
+### Figma API Rate Limits
+
+Figma enforces rate limits based on your **plan tier** and **seat type**. This matters because it determines how many API requests you can make per minute (or per month).
+
+| Seat Type | Starter | Professional | Enterprise |
+|-----------|---------|-------------|------------|
+| Collab/Viewer (low) | 6/month | 5/min | 10/min |
+| Dev/Full (high) | 10/min | 15-50/min | 20-100/min |
+
+:::warning Free & Starter Plans
+On the **Starter plan with a Collab/Viewer seat** (`limit-type=low`), you get only **6 requests per month**. Each `ralph-starter run --from figma` uses 2-4 API calls, so you can exhaust your budget in 1-2 runs. Upgrade to a **Professional plan with a Dev seat** ($12/month) for 10+ requests per minute.
+:::
+
+### Community Files
+
+When you access a **community file** (duplicated from the Figma Community), the **file owner's plan** determines your rate limits -- not your own plan. If the original author is on a free/starter plan, you'll be limited to 6 requests per month regardless of your plan.
+
+**Fix:** Duplicate the file to your own workspace. This makes you the owner and applies your plan's limits.
+
+### Response Caching
+
+ralph-starter automatically caches Figma API responses in `~/.ralph/figma-cache/` with a 1-hour TTL. This means:
+
+- **First run** fetches from the API and populates the cache
+- **Subsequent runs** (within 1 hour) use the cache with zero API calls
+- **Rate limited (429)?** Falls back to stale cache if available
+
+This is especially useful for iterative development -- fetch once, then run the coding loop as many times as you want without touching the API.
+
+To clear the cache and force a fresh fetch:
+
+```bash
+rm -rf ~/.ralph/figma-cache/
+```
+
+### Debugging API Issues
+
+Use the `RALPH_DEBUG` environment variable to see every API request, response status, and rate limit headers:
+
+```bash
+RALPH_DEBUG=1 ralph-starter run --from figma --project "your-figma-url"
+```
+
+This shows:
+- Each API endpoint being called
+- HTTP status codes and retry-after values
+- Plan tier (`x-figma-plan-tier`) and limit type (`x-figma-rate-limit-type`)
+- Cache hits and stale cache fallbacks
+
 ## Troubleshooting
+
+### "Figma API blocked for ~N day(s)"
+
+This means CloudFront (Figma's CDN) has blocked your IP after too many rate-limited requests. The `retry-after` header shows days, not minutes.
+
+**Solutions (pick one):**
+1. **Upgrade your Figma plan** to Professional with a Dev seat ($12/month) -- gives you 10+ req/min instead of 6/month
+2. **Use a VPN** to get a fresh IP, fetch once to populate the cache, then disconnect
+3. **Wait** for the block to expire (shown in the error message)
+
+### "Figma API rate limit hit"
+
+A transient rate limit (not a CDN block). ralph-starter will automatically retry once after respecting the `retry-after` header. If it fails again, wait 1-2 minutes and try again.
 
 ### "Invalid Figma token"
 
@@ -7144,6 +7486,7 @@ Assets are detected by name patterns. Rename your icon frames to include "icon",
 - **Variables API** requires Figma Enterprise plan (falls back to styles)
 - **Image export URLs** expire after 30 days
 - **Large files** may be slow; use `--figma-nodes` to target specific frames
+- **Starter plan (Collab seat)** limited to 6 API requests/month -- use caching or upgrade to Professional
 
 ---
 
@@ -7319,6 +7662,26 @@ Verify your authentication:
 ralph-starter source test github
 ```
 
+## Task Management
+
+Beyond fetching specs, you can create, update, and close GitHub issues directly from the CLI:
+
+```bash
+# List open issues
+ralph-starter task list --source github --project owner/repo
+
+# Create an issue
+ralph-starter task create --title "Add dark mode" --project owner/repo --assignee octocat
+
+# Update an issue
+ralph-starter task update #42 --assignee octocat --project owner/repo
+
+# Close an issue
+ralph-starter task close #42 --comment "Fixed in PR #100" --project owner/repo
+```
+
+See [`ralph-starter task`](/docs/cli/task) for full details.
+
 ## Tips
 
 1. **Use labels effectively** - Create a "ready-to-build" or "ralph" label for issues that are well-specified
@@ -7459,6 +7822,31 @@ Create these labels in Linear:
 1. Move issues to "In Progress" when ralph-starter starts
 2. Add comments with build progress
 3. Close issues when build succeeds
+
+## Task Management
+
+Beyond fetching specs, you can create, update, close, and assign Linear issues from the CLI:
+
+```bash
+# List issues from Linear
+ralph-starter task list --source linear
+
+# Create an issue on a specific team
+ralph-starter task create --title "Add dark mode" --source linear --priority P1
+
+# Assign an issue (resolves display name to user ID automatically)
+ralph-starter task update ENG-42 --assignee ruben
+
+# Update status
+ralph-starter task update ENG-42 --status "In Progress"
+
+# Close an issue
+ralph-starter task close ENG-42 --comment "Shipped in v1.2"
+```
+
+Assignee resolution is case-insensitive and matches against display name, full name, and email prefix. If no match is found, ralph-starter shows available team members.
+
+See [`ralph-starter task`](/docs/cli/task) for full details.
 
 ## Tips
 
@@ -7982,9 +8370,11 @@ Once you describe your idea (e.g., "a habit tracker app"), the AI:
 You can then customize:
 
 - **Project Type** - Web, API, CLI, Mobile, Library, Automation
-- **Tech Stack** - Frontend, backend, database choices
+- **Tech Stack** - Frontend, backend, database, styling, UI library choices
 - **Features** - Select which features to include
 - **Complexity** - Prototype, MVP, or Full-featured
+
+**Smart UI defaults**: For web projects, if you don't specify a styling or UI library, ralph-starter defaults to **Tailwind CSS + shadcn/ui + motion-primitives**. The shadcn variant is framework-aware: shadcn/ui for React/Next.js, shadcn-vue for Vue, and shadcn-svelte for Svelte. These defaults produce richer specs with Tailwind v4 setup notes that prevent common CSS cascade conflicts.
 
 ### Step 4: Execution Options
 
@@ -8031,9 +8421,11 @@ $ ralph-starter
   Type: Web Application
 
   Tech Stack:
-    Frontend: react
-    Backend: nodejs
-    Database: sqlite
+    Frontend: React
+    Backend: Node.js
+    Database: SQLite
+    Styling: Tailwind CSS
+    UI Library: shadcn/ui
 
   Key Features:
     • Transaction tracking
