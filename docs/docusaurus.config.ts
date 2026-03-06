@@ -41,7 +41,7 @@ const config: Config = {
       tagName: 'meta',
       attributes: {
         name: 'keywords',
-        content: 'ralph wiggum, autonomous AI coding, claude code, AI code generation, coding loops, MCP server, developer tools',
+        content: 'ralph wiggum, autonomous AI coding, claude code, AI code generation, coding loops, MCP server, developer tools, visual validation, Figma to code, pixel comparison, design to code',
       },
     },
     {
@@ -109,7 +109,7 @@ const config: Config = {
         '@context': 'https://schema.org',
         '@type': 'SoftwareApplication',
         name: 'ralph-starter',
-        description: 'AI-powered autonomous coding tool. Connect GitHub, Linear, Notion and run AI coding loops from specs to production.',
+        description: 'AI-powered autonomous coding tool. Connect Figma, GitHub, Linear, Notion and run AI coding loops with visual validation from specs to production.',
         url: siteUrl,
         applicationCategory: 'DeveloperApplication',
         operatingSystem: 'macOS, Linux, Windows',
@@ -127,7 +127,7 @@ const config: Config = {
         downloadUrl: 'https://www.npmjs.com/package/ralph-starter',
         codeRepository: 'https://github.com/multivmlabs/ralph-starter',
         programmingLanguage: 'TypeScript',
-        keywords: ['AI coding', 'autonomous coding', 'claude code', 'MCP server', 'developer tools'],
+        keywords: ['AI coding', 'autonomous coding', 'claude code', 'MCP server', 'developer tools', 'visual validation', 'Figma to code', 'pixel comparison', 'design to code'],
       }),
     },
     // JSON-LD: Organization schema for stronger search understanding
@@ -177,7 +177,7 @@ const config: Config = {
         '@context': 'https://schema.org',
         '@type': 'TechArticle',
         headline: 'ralph-starter Documentation',
-        description: 'Complete documentation for ralph-starter - AI-powered autonomous coding tool. Learn how to connect Figma, GitHub, Linear, and Notion to run AI coding loops from specs to production.',
+        description: 'Complete documentation for ralph-starter - AI-powered autonomous coding tool with visual validation. Learn how to connect Figma, GitHub, Linear, and Notion to run AI coding loops from specs to production.',
         url: `${siteUrl}/docs/intro`,
         author: {
           '@type': 'Person',
@@ -193,7 +193,7 @@ const config: Config = {
         articleSection: 'Documentation',
         proficiencyLevel: 'Beginner',
         dependencies: 'Node.js 18+',
-        keywords: ['AI coding', 'autonomous coding', 'claude code', 'MCP server', 'Figma integration', 'GitHub integration', 'Linear integration', 'Notion integration'],
+        keywords: ['AI coding', 'autonomous coding', 'claude code', 'MCP server', 'Figma integration', 'GitHub integration', 'Linear integration', 'Notion integration', 'visual validation', 'pixel comparison', 'Figma wizard', 'design fidelity'],
         about: [
           {
             '@type': 'Thing',
@@ -204,6 +204,117 @@ const config: Config = {
             '@type': 'Thing',
             name: 'Developer Tools',
             description: 'CLI tools for software development automation',
+          },
+          {
+            '@type': 'Thing',
+            name: 'Visual Validation',
+            description: 'Pixel-by-pixel comparison between Figma designs and AI-generated code implementations',
+          },
+        ],
+      }),
+    },
+    // JSON-LD: FAQPage schema for rich FAQ snippets
+    {
+      tagName: 'script',
+      attributes: {
+        type: 'application/ld+json',
+      },
+      innerHTML: JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        mainEntity: [
+          {
+            '@type': 'Question',
+            name: 'What is ralph-starter?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'ralph-starter is a CLI tool that runs autonomous AI coding loops. Give it a task or specification, and it will build production-ready code automatically using Claude Code or other AI coding agents.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Is ralph-starter free?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'ralph-starter is open source and free to use. Costs come from the AI agent you choose — typically $0.10 to $1.00 per feature depending on complexity and model.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Can ralph-starter convert Figma designs to code?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Yes. ralph-starter has a dedicated Figma wizard (ralph-starter figma) that converts Figma designs to production-ready code with three-layer visual validation achieving 98%+ pixel match accuracy.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Which AI coding agents does ralph-starter support?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'ralph-starter supports Claude Code, Cursor, OpenAI Codex, Gemini CLI, GitHub Copilot, OpenCode, Amp, and Openclaw. It auto-detects which agents are installed and lets you choose the model.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'What integrations does ralph-starter support?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'ralph-starter integrates with Figma (design specs and visual validation), GitHub (issues and PRs), Linear (tickets and projects), and Notion (pages and databases). It can also read from URLs, PDFs, and local files.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Do I need to be a developer to use ralph-starter?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'No. ralph-starter includes an interactive wizard that guides anyone through creating projects. Just run ralph-starter with no arguments and follow the prompts.',
+            },
+          },
+        ],
+      }),
+    },
+    // JSON-LD: HowTo schema for Figma-to-code workflow
+    {
+      tagName: 'script',
+      attributes: {
+        type: 'application/ld+json',
+      },
+      innerHTML: JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'HowTo',
+        name: 'How to convert Figma designs to code with AI',
+        description: 'Use ralph-starter to automatically generate production-ready code from Figma designs with pixel-by-pixel visual validation.',
+        totalTime: 'PT5M',
+        tool: {
+          '@type': 'SoftwareApplication',
+          name: 'ralph-starter',
+          url: siteUrl,
+        },
+        step: [
+          {
+            '@type': 'HowToStep',
+            position: 1,
+            name: 'Install ralph-starter',
+            text: 'Run npm install -g ralph-starter to install globally, or use npx ralph-starter for one-time use.',
+          },
+          {
+            '@type': 'HowToStep',
+            position: 2,
+            name: 'Run the Figma wizard',
+            text: 'Run ralph-starter figma and paste your Figma design URL when prompted.',
+          },
+          {
+            '@type': 'HowToStep',
+            position: 3,
+            name: 'Describe what to build',
+            text: 'Describe the component or page in natural language. ralph-starter auto-detects your tech stack from package.json.',
+          },
+          {
+            '@type': 'HowToStep',
+            position: 4,
+            name: 'Get pixel-perfect code',
+            text: 'ralph-starter generates code, runs visual validation comparing against the Figma design, fixes mismatches, and commits the result.',
           },
         ],
       }),
@@ -272,10 +383,10 @@ const config: Config = {
       { property: 'og:type', content: 'website' },
       { property: 'og:site_name', content: 'ralph-starter' },
       { property: 'og:title', content: 'ralph-starter - AI-Powered Autonomous Coding' },
-      { property: 'og:description', content: 'Connect your tools like GitHub, Linear, and Notion. Fetch specs from anywhere and let AI coding agents build production-ready code automatically.' },
+      { property: 'og:description', content: 'Connect Figma, GitHub, Linear, and Notion. Run AI coding loops with visual validation — pixel-perfect code from design to production.' },
       { property: 'og:image', content: `${siteUrl}/img/thumbnail.png` },
       { name: 'twitter:title', content: 'ralph-starter - AI-Powered Autonomous Coding' },
-      { name: 'twitter:description', content: 'Connect your tools like GitHub, Linear, and Notion. Fetch specs from anywhere and let AI coding agents build production-ready code automatically.' },
+      { name: 'twitter:description', content: 'Connect Figma, GitHub, Linear, and Notion. Run AI coding loops with visual validation — pixel-perfect code from design to production.' },
       { name: 'twitter:image', content: `${siteUrl}/img/thumbnail.png` },
       { name: 'twitter:site', content: '@ralphstarter' },
     ],
