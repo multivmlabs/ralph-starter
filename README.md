@@ -31,6 +31,10 @@
   <a href="https://ralphstarter.ai">Docs</a>
 </p>
 
+<p align="center">
+  <img src="https://ralphstarter.ai/img/demos/figma-demo.gif" alt="ralph-starter Figma demo" width="700" />
+</p>
+
 ---
 
 
