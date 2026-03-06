@@ -1,0 +1,147 @@
+/* Demo Showcase Section */
+.section {
+  position: relative;
+  padding: 6rem 0;
+  background: #08080A;
+  border-bottom: 1px solid #28282E;
+  overflow: hidden;
+}
+
+.gridBg {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(152, 152, 159, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(152, 152, 159, 0.02) 1px, transparent 1px);
+  background-size: 4rem 4rem;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+
+.container.visible .animateIn {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.animateIn {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.delay1 { transition-delay: 0.1s; }
+.delay2 { transition-delay: 0.2s; }
+.delay3 { transition-delay: 0.3s; }
+
+.sectionLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8B5CF6;
+  margin-bottom: 0.75rem;
+}
+
+.title {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #F4F4F5;
+  margin-bottom: 0.75rem;
+  line-height: 1.2;
+}
+
+.subtitle {
+  font-size: 1.05rem;
+  color: #71717A;
+  max-width: 560px;
+  margin: 0 auto 2rem;
+  line-height: 1.6;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.tab {
+  background: transparent;
+  border: 1px solid #28282E;
+  color: #71717A;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.5rem 1.25rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab:hover {
+  color: #F4F4F5;
+  border-color: #3F3F46;
+}
+
+.tabActive {
+  background: #8B5CF6;
+  border-color: #8B5CF6;
+  color: #fff;
+}
+
+.tabActive:hover {
+  background: #7C3AED;
+  border-color: #7C3AED;
+  color: #fff;
+}
+
+/* Demo frame */
+.demoFrame {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #28282E;
+  background: #111113;
+}
+
+.demoGif {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Caption */
+.caption {
+  font-size: 0.95rem;
+  color: #71717A;
+  margin-top: 1.25rem;
+  line-height: 1.5;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .section {
+    padding: 4rem 0;
+  }
+
+  .title {
+    font-size: 1.6rem;
+  }
+
+  .tabs {
+    flex-wrap: wrap;
+  }
+
+  .tab {
+    font-size: 0.8rem;
+    padding: 0.4rem 1rem;
+  }
+}

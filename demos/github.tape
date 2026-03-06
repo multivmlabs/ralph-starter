@@ -31,7 +31,7 @@ Show
 Sleep 1.5s
 
 Hide
-Type "echo '  Found: \"Add user authentication\"'"
+Type "echo '  Found: Add user authentication'"
 Enter
 Type "echo '  Labels: feature, auth'"
 Enter

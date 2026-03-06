@@ -39,7 +39,7 @@ Sleep 1s
 
 # Simulate processing
 Hide
-Type "echo '→ Processing RAL-42: \"Dark mode toggle\"'"
+Type "echo '→ Processing RAL-42: Dark mode toggle'"
 Enter
 Sleep 100ms
 Show

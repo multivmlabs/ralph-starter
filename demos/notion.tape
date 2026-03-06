@@ -24,7 +24,7 @@ Sleep 1s
 
 # Simulate fetching Notion page
 Hide
-Type "echo '→ Fetching Notion page: \"REST API Spec\"...'"
+Type "echo '→ Fetching Notion page: REST API Spec...'"
 Enter
 Sleep 100ms
 Show

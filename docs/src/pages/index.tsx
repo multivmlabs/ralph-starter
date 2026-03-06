@@ -13,6 +13,7 @@ import SkillsShowcase from '@site/src/components/SkillsShowcase';
 import UseCases from '@site/src/components/UseCases';
 import AgentEcosystem from '@site/src/components/AgentEcosystem';
 import IntegrationShowcase from '@site/src/components/IntegrationShowcase';
+import DemoShowcase from '@site/src/components/DemoShowcase';
 
 export default function Home(): ReactNode {
   useDocusaurusContext();
@@ -31,6 +32,7 @@ export default function Home(): ReactNode {
       description="AI-powered autonomous coding from specs to production. Connect Figma, GitHub, Linear, and Notion to run AI coding loops with visual validation.">
       <HeroSection />
       <main>
+        <DemoShowcase />
         <FigmaShowcase />
         <VisualValidation />
         <FeatureSections />
