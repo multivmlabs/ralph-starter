@@ -5,6 +5,7 @@ Output demos/output/github-demo.gif
 Output demos/output/github-demo.mp4
 
 Require echo
+Require ralph-starter
 
 Set Shell "bash"
 Set FontSize 18
@@ -19,19 +20,69 @@ Set TypingSpeed 40ms
 Type "ralph-starter run --from github --project acme/webapp --issue 42 --commit"
 Sleep 500ms
 Enter
-Sleep 2s
-
-# Simulate fetching
 Sleep 1s
 
+# Simulate fetching
+Hide
+Type "echo '→ Fetching GitHub issue #42...'"
+Enter
+Sleep 100ms
+Show
+Sleep 1.5s
+
+Hide
+Type "echo '  Found: \"Add user authentication\"'"
+Enter
+Type "echo '  Labels: feature, auth'"
+Enter
+Type "echo '  3 linked files loaded'"
+Enter
+Sleep 100ms
+Show
+Sleep 1.5s
+
 # Simulate loop iterations
-Sleep 2s
+Hide
+Type "echo '→ Loop 1/5: Analyzing requirements...'"
+Enter
+Sleep 100ms
+Show
+Sleep 1.5s
+
+Hide
+Type "echo '→ Loop 2/5: Generating auth module...'"
+Enter
+Sleep 100ms
+Show
+Sleep 1.5s
+
+Hide
+Type "echo '→ Loop 3/5: Adding tests and validation...'"
+Enter
+Sleep 100ms
+Show
+Sleep 1.5s
 
 # Show validation passing
-Sleep 2s
+Hide
+Type "echo '→ Validation passed: 12 tests, lint clean'"
+Enter
+Sleep 100ms
+Show
+Sleep 1.5s
 
 # Show PR creation
-Sleep 2s
+Hide
+Type "echo '→ Creating pull request...'"
+Enter
+Sleep 100ms
+Show
+Sleep 1s
 
-# Show completion
-Sleep 4s
+# Success
+Hide
+Type "echo '✓ Done in 4m 18s | Cost: \$0.38 | PR #87 created'"
+Enter
+Sleep 100ms
+Show
+Sleep 3s
