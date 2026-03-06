@@ -4,8 +4,8 @@
   "name": "ralph-starter - AI-Powered Autonomous Coding from Specs to Production",
   "description": "Connect your tools like GitHub, Linear, and Notion. Fetch specs from anywhere and let AI coding agents build production-ready code automatically with autonomous loops.",
   "url": "https://ralphstarter.ai",
-  "version": "1.0.0",
-  "generatedAt": "2026-02-13T21:19:43.300Z",
+  "version": "0.4.0",
+  "generatedAt": "2026-03-05T00:00:00.000Z",
   "summary": {
     "purpose": "ralph-starter is an AI-powered CLI tool that fetches specs from tools like Figma, GitHub, Linear, and Notion, then runs autonomous AI coding loops to build production-ready code.",
     "primaryUseCase": "Developers use ralph-starter to automate coding tasks by providing natural language specs or importing requirements from external tools.",
@@ -15,7 +15,12 @@
       "Pull requirements from Notion",
       "Run AI coding loops with Claude",
       "Automatic git commits and PR creation",
-      "MCP server for Claude Desktop integration"
+      "MCP server for Claude Desktop integration",
+      "Visual validation with pixel-by-pixel Figma comparison",
+      "Interactive Figma wizard (ralph-starter figma)",
+      "Unified task management across GitHub & Linear",
+      "Cost threshold warnings with --max-cost flag",
+      "Auto-installed agent skills per tech stack"
     ]
   },
   "topics": [
@@ -65,6 +70,14 @@
       "entryPoints": [
         "/docs/advanced/ralph-playbook",
         "/docs/advanced/validation"
+      ]
+    },
+    {
+      "name": "Visual Validation",
+      "description": "Three-layer pixel comparison pipeline: pixelmatch, LLM Vision, and strict gate for Figma design fidelity",
+      "entryPoints": [
+        "/docs/advanced/validation",
+        "/docs/cli/figma"
       ]
     }
   ],
@@ -144,7 +157,7 @@
     },
     {
       "name": "Cli",
-      "documentCount": 14,
+      "documentCount": 15,
       "documents": [
         {
           "title": "auth",
@@ -207,6 +220,21 @@
           ]
         },
         {
+          "title": "figma",
+          "description": "Interactive Figma-to-code wizard with auto-detected tech stack and model selection",
+          "url": "https://ralphstarter.ai/docs/cli/figma",
+          "markdownUrl": "https://ralphstarter.ai/docs/cli/figma.md",
+          "keywords": [
+            "cli",
+            "figma",
+            "command",
+            "wizard",
+            "design-to-code",
+            "interactive",
+            "visual validation"
+          ]
+        },
+        {
           "title": "fix",
           "description": "Fix build errors, lint issues, or design problems",
           "url": "https://ralphstarter.ai/docs/cli/fix",
@@ -218,6 +246,20 @@
             "build errors",
             "lint",
             "design"
+          ]
+        },
+        {
+          "title": "github",
+          "description": "Interactive GitHub issue-to-code wizard with auto-detected tech stack and model selection",
+          "url": "https://ralphstarter.ai/docs/cli/github",
+          "markdownUrl": "https://ralphstarter.ai/docs/cli/github.md",
+          "keywords": [
+            "cli",
+            "github",
+            "command",
+            "wizard",
+            "issue-to-code",
+            "interactive"
           ]
         },
         {
@@ -653,8 +695,8 @@
     "sitemap": "https://ralphstarter.ai/sitemap.xml"
   },
   "stats": {
-    "totalDocuments": 40,
+    "totalDocuments": 41,
     "totalCategories": 8,
-    "lastUpdated": "2026-02-13T21:19:43.300Z"
+    "lastUpdated": "2026-03-05T00:00:00.000Z"
   }
 }
