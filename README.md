@@ -17,11 +17,11 @@
 </p>
 
 <h3 align="center">
-  <strong>Connect your tools. Run AI coding loops. Ship faster.</strong>
+  <strong>The most complete Ralph Wiggum implementation.<br/>Connect your tools. Run AI coding loops. Ship faster.</strong>
 </h3>
 
 <p align="center">
-  <em>Pull specs from GitHub, Linear, Notion, Figma, and more — then let AI build it autonomously.</em>
+  <em>The easiest way to run Ralph Wiggum autonomous coding loops — pull specs from GitHub, Linear, Notion, Figma, and more, then let AI build it.</em>
 </p>
 
 <p align="center">
@@ -36,7 +36,7 @@
 
 Most AI coding tools work in isolation. You describe a task, AI builds it, done.
 
-**ralph-starter** is different. It **connects to your existing workflow** — pulling specs from GitHub issues, Linear tickets, Notion docs, or any URL — then runs autonomous AI loops until the task is complete.
+**ralph-starter** brings the [Ralph Wiggum technique](https://ghuntley.com/ralph/) to production. It **connects to your existing workflow** — pulling specs from GitHub issues, Linear tickets, Notion docs, or any URL — then runs autonomous Ralph Wiggum loops until the task is complete. One command to go from spec to shipped code.
 
 ```bash
 # Build from a GitHub issue
@@ -128,7 +128,16 @@ ralph-starter
 
 ## What is Ralph Wiggum?
 
-Learn about the Ralph Wiggum technique at [ghuntley.com/ralph](https://ghuntley.com/ralph/).
+The **Ralph Wiggum technique** is an autonomous AI coding pattern where you run a coding agent (like Claude Code, Codex, or Cursor) in a loop — feeding errors back into the agent until the task is complete. Originally described by [Geoffrey Huntley](https://ghuntley.com/ralph/), the Ralph Wiggum loop has become one of the most popular approaches for autonomous AI development.
+
+**ralph-starter** is the production-grade Ralph Wiggum implementation — it adds integrations, safety controls (circuit breakers, rate limiting, cost tracking), git automation, validation backpressure, and multi-agent support on top of the core Ralph Wiggum loop pattern. Instead of a bare bash script, you get a full orchestration engine.
+
+**Why ralph-starter over a raw Ralph Wiggum script?**
+- **Spec-driven**: Pull tasks from GitHub, Linear, Notion, Figma — not just manual prompts
+- **Safe**: Circuit breakers stop stuck loops, rate limiters control costs
+- **Multi-agent**: Works with 8+ coding agents, not just one
+- **Observable**: Cost tracking, progress logs, iteration history
+- **Automated**: Auto-commit, push, and PR creation built in
 
 ## Installation
 
