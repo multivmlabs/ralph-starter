@@ -61,6 +61,8 @@
     "!dist/**/*.js.map",
     "!dist/**/*.d.ts.map",
     "templates",
+    ".claude-plugin",
+    "skills",
     "README.md"
   ],
   "publishConfig": {

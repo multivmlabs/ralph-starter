@@ -1,0 +1,24 @@
+{
+  "name": "ralph-starter",
+  "version": "0.4.0",
+  "description": "Autonomous AI coding loops — orchestrate coding agents to build software from specs automatically.",
+  "author": {
+    "name": "Ruben Marcus",
+    "email": "ruben@rubenmarcus.dev"
+  },
+  "homepage": "https://ralphstarter.ai",
+  "repository": "https://github.com/multivmlabs/ralph-starter",
+  "license": "MIT",
+  "keywords": [
+    "autonomous",
+    "coding-loop",
+    "orchestrator",
+    "ai-coding"
+  ],
+  "mcpServers": {
+    "ralph-starter": {
+      "command": "npx",
+      "args": ["ralph-starter", "mcp"]
+    }
+  }
+}
