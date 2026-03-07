@@ -327,7 +327,8 @@
   transition: all 0.3s ease;
 }
 
-.integrationLogo:hover {
+.integrationLogo:hover,
+.integrationLogoActive {
   opacity: 0.8;
   filter: grayscale(0%) brightness(1);
 }
