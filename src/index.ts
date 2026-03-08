@@ -13,9 +13,23 @@ export { skillCommand } from './commands/skill.js';
 export { sourceCommand } from './commands/source.js';
 // Config
 export { getApiKey, readConfig, writeConfig } from './config/manager.js';
+export type { LLMProvider } from './llm/providers.js';
+// LLM
+export { OPENROUTER_MODEL_ALIASES, resolveOpenRouterModel } from './llm/providers.js';
 export type { Agent, AgentType } from './loop/agents.js';
 export { detectAvailableAgents, detectBestAgent } from './loop/agents.js';
+export type { CircuitBreakerConfig, CircuitBreakerState } from './loop/circuit-breaker.js';
 // Loop
+export { CircuitBreaker } from './loop/circuit-breaker.js';
+export type {
+  CostTrackerConfig,
+  CostTrackerStats,
+  IterationCost,
+  ModelPricing,
+  PlanBudget,
+} from './loop/cost-tracker.js';
+export { CostTracker } from './loop/cost-tracker.js';
+export type { IterationUpdate, LoopOptions, LoopResult } from './loop/executor.js';
 export { runLoop } from './loop/executor.js';
 export { detectValidationCommands, runAllValidations, runValidation } from './loop/validation.js';
 export type { InitCoreOptions, InitCoreResult } from './mcp/core/init.js';

@@ -11,28 +11,62 @@ export interface ModelPricing {
   cacheReadPricePerMillion?: number; // USD per 1M cache read tokens (0.1x input)
 }
 
-// Pricing as of January 2026 (approximate)
+// Pricing as of March 2026 (approximate)
 export const MODEL_PRICING: Record<string, ModelPricing> = {
+  // Anthropic
+  'claude-opus-4': {
+    name: 'Claude Opus 4',
+    inputPricePerMillion: 15,
+    outputPricePerMillion: 75,
+    cacheWritePricePerMillion: 18.75,
+    cacheReadPricePerMillion: 1.5,
+  },
+  'claude-sonnet-4': {
+    name: 'Claude Sonnet 4',
+    inputPricePerMillion: 3,
+    outputPricePerMillion: 15,
+    cacheWritePricePerMillion: 3.75,
+    cacheReadPricePerMillion: 0.3,
+  },
+  'claude-haiku-4': {
+    name: 'Claude Haiku 4.5',
+    inputPricePerMillion: 0.8,
+    outputPricePerMillion: 4,
+    cacheWritePricePerMillion: 1,
+    cacheReadPricePerMillion: 0.08,
+  },
+  // Legacy Anthropic (keep for backward compat)
   'claude-3-opus': {
     name: 'Claude 3 Opus',
     inputPricePerMillion: 15,
     outputPricePerMillion: 75,
-    cacheWritePricePerMillion: 18.75, // 1.25x input
-    cacheReadPricePerMillion: 1.5, // 0.1x input
+    cacheWritePricePerMillion: 18.75,
+    cacheReadPricePerMillion: 1.5,
   },
   'claude-3-sonnet': {
     name: 'Claude 3.5 Sonnet',
     inputPricePerMillion: 3,
     outputPricePerMillion: 15,
-    cacheWritePricePerMillion: 3.75, // 1.25x input
-    cacheReadPricePerMillion: 0.3, // 0.1x input
+    cacheWritePricePerMillion: 3.75,
+    cacheReadPricePerMillion: 0.3,
   },
   'claude-3-haiku': {
     name: 'Claude 3.5 Haiku',
     inputPricePerMillion: 0.25,
     outputPricePerMillion: 1.25,
-    cacheWritePricePerMillion: 0.3125, // 1.25x input
-    cacheReadPricePerMillion: 0.025, // 0.1x input
+    cacheWritePricePerMillion: 0.3125,
+    cacheReadPricePerMillion: 0.025,
+  },
+  // OpenAI
+  'gpt-4o': {
+    name: 'GPT-4o',
+    inputPricePerMillion: 2.5,
+    outputPricePerMillion: 10,
+  },
+  'gpt-4o-mini': {
+    name: 'GPT-4o Mini',
+    inputPricePerMillion: 0.15,
+    outputPricePerMillion: 0.6,
   },
   'gpt-4': {
     name: 'GPT-4',
@@ -43,6 +77,23 @@ export const MODEL_PRICING: Record<string, ModelPricing> = {
     name: 'GPT-4 Turbo',
     inputPricePerMillion: 10,
     outputPricePerMillion: 30,
+  },
+  // Google
+  'gemini-pro': {
+    name: 'Gemini 2.5 Pro',
+    inputPricePerMillion: 1.25,
+    outputPricePerMillion: 10,
+  },
+  'gemini-flash': {
+    name: 'Gemini 2.5 Flash',
+    inputPricePerMillion: 0.15,
+    outputPricePerMillion: 0.6,
+  },
+  // DeepSeek
+  deepseek: {
+    name: 'DeepSeek V3',
+    inputPricePerMillion: 0.27,
+    outputPricePerMillion: 1.1,
   },
   // Default for unknown models (conservative estimate)
   default: {

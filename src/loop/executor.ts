@@ -209,6 +209,15 @@ async function waitForFilesystemQuiescence(dir: string, timeoutMs = 3000): Promi
   }
 }
 
+export interface IterationUpdate {
+  iteration: number;
+  totalIterations: number;
+  success: boolean;
+  output?: string;
+  cost?: import('./cost-tracker.js').IterationCost;
+  validationResults?: ValidationResult[];
+}
+
 export interface LoopOptions {
   task: string;
   cwd: string;
@@ -249,12 +258,15 @@ export interface LoopOptions {
   designImagePath?: string; // Path to design reference image (relative to cwd) for pixel-perfect matching
   visualValidation?: boolean; // Enable visual comparison validation (compare implementation screenshots against Figma design)
   figmaScreenshotPaths?: string[]; // Absolute paths to Figma frame screenshots for visual comparison
+  headless?: boolean; // Suppress all console output (spinners, chalk, progress bars) for programmatic/SDK usage
+  onIterationComplete?: (update: IterationUpdate) => void; // Callback fired after each iteration completes
 }
 
 export interface LoopResult {
   success: boolean;
   iterations: number;
   commits: string[];
+  output?: string; // Final agent output text from the last iteration
   error?: string;
   exitReason?:
     | 'completed'
@@ -465,7 +477,23 @@ function summarizeChanges(output: string): string {
 }
 
 export async function runLoop(options: LoopOptions): Promise<LoopResult> {
-  const spinner = ora();
+  const headless = options.headless ?? false;
+
+  // In headless mode, suppress all console output by replacing console.log
+  // and creating a no-op spinner. All logic remains identical.
+  const log = headless ? (..._args: unknown[]) => {} : console.log.bind(console);
+  const spinner = headless
+    ? {
+        start: (_text?: string) => spinner,
+        stop: () => spinner,
+        succeed: (_text?: string) => spinner,
+        fail: (_text?: string) => spinner,
+        warn: (_text?: string) => spinner,
+        info: (_text?: string) => spinner,
+        text: '',
+        isSpinning: false,
+      }
+    : ora();
   let maxIterations = options.maxIterations || 50;
   const commits: string[] = [];
   const startTime = Date.now();
@@ -473,6 +501,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
   let exitReason: LoopResult['exitReason'] = 'max_iterations';
   let finalIteration = maxIterations;
   let consecutiveIdleIterations = 0;
+  let lastAgentOutput: string | undefined;
 
   // Initialize circuit breaker
   const circuitBreaker = new CircuitBreaker(options.circuitBreaker);
@@ -562,12 +591,12 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     startupLines.push(`  Rate limit:  ${chalk.white(`${options.rateLimit}/hour`)}`);
   }
 
-  console.log();
-  console.log(drawBox(startupLines, { color: chalk.cyan }));
+  log();
+  log(drawBox(startupLines, { color: chalk.cyan }));
 
   // Show task count and estimates if we have tasks
   if (initialTaskCount.total > 0) {
-    console.log(
+    log(
       chalk.dim(
         `  Tasks: ${initialTaskCount.pending} pending, ${initialTaskCount.completed} completed`
       )
@@ -575,16 +604,14 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
 
     // Show estimate
     const estimate = estimateLoop(initialTaskCount);
-    console.log();
+    log();
     for (const line of formatEstimateDetailed(estimate)) {
-      console.log(chalk.dim(`  ${line}`));
+      log(chalk.dim(`  ${line}`));
     }
   } else {
-    console.log(
-      chalk.dim(`  Task: ${options.task.slice(0, 60)}${options.task.length > 60 ? '...' : ''}`)
-    );
+    log(chalk.dim(`  Task: ${options.task.slice(0, 60)}${options.task.length > 60 ? '...' : ''}`));
   }
-  console.log();
+  log();
 
   // Track completed tasks to show progress diff between iterations
   let previousCompletedTasks = initialTaskCount.completed;
@@ -619,8 +646,8 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       const waitTimeMs = rateLimiter.getWaitTime();
       const waitTimeSec = Math.ceil(waitTimeMs / 1000);
 
-      console.log(chalk.yellow(`\n⏳ Rate limited. Waiting ${waitTimeSec}s...`));
-      console.log(chalk.dim(rateLimiter.formatStats()));
+      log(chalk.yellow(`\n⏳ Rate limited. Waiting ${waitTimeSec}s...`));
+      log(chalk.dim(rateLimiter.formatStats()));
 
       // Show countdown
       const countdownInterval = setInterval(() => {
@@ -635,12 +662,12 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       process.stdout.write(`\r${' '.repeat(40)}\r`); // Clear countdown line
 
       if (!acquired) {
-        console.log(chalk.red('✗ Rate limit timeout - stopping loop'));
+        log(chalk.red('✗ Rate limit timeout - stopping loop'));
         finalIteration = i - 1;
         exitReason = 'rate_limit';
         break;
       }
-      console.log(chalk.green('✓ Rate limit cleared, continuing...\n'));
+      log(chalk.green('✓ Rate limit cleared, continuing...\n'));
     } else if (rateLimiter) {
       rateLimiter.recordCall();
     }
@@ -661,7 +688,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     if (costTracker) {
       const overBudget = costTracker.isOverBudget();
       if (overBudget) {
-        console.log(
+        log(
           chalk.red(
             `\n  Cost ceiling reached: ${formatCost(overBudget.currentCost)} >= ${formatCost(overBudget.maxCost)} budget`
           )
@@ -675,9 +702,9 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     // Log iteration warnings
     const progressPercent = (i / maxIterations) * 100;
     if (progressPercent >= 90 && progressPercent < 95) {
-      console.log(chalk.yellow(`⚠️  Warning: 90% of iterations used (${i}/${maxIterations})`));
+      log(chalk.yellow(`⚠️  Warning: 90% of iterations used (${i}/${maxIterations})`));
     } else if (progressPercent >= 80 && progressPercent < 85) {
-      console.log(chalk.yellow(`⚠️  Warning: 80% of iterations used (${i}/${maxIterations})`));
+      log(chalk.yellow(`⚠️  Warning: 80% of iterations used (${i}/${maxIterations})`));
     }
 
     // Track progress entry
@@ -710,9 +737,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
         .map((t) => truncateToFit(cleanTaskName(t.name), maxNameWidth));
 
       if (completedNames.length > 0) {
-        console.log(
-          chalk.green(`  ✓ Completed ${newlyCompleted} task(s): ${completedNames.join(', ')}`)
-        );
+        log(chalk.green(`  ✓ Completed ${newlyCompleted} task(s): ${completedNames.join(', ')}`));
       }
     }
     previousCompletedTasks = completedTasks;
@@ -726,7 +751,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
         Math.max(maxIterations, totalTasks + buffer)
       );
       if (newMax > maxIterations) {
-        console.log(
+        log(
           chalk.dim(
             `  Adjusting iterations: ${maxIterations} → ${newMax} (plan expanded to ${totalTasks} tasks)`
           )
@@ -796,23 +821,36 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
         headerLines.push(chalk.white.bold(truncateToFit(fallbackLine, innerWidth)));
       }
     }
-    console.log();
-    console.log(drawBox(headerLines, { color: chalk.cyan, width: boxWidth }));
+    log();
+    log(drawBox(headerLines, { color: chalk.cyan, width: boxWidth }));
 
     // Show subtask tree if current task has subtasks
     if (currentTask?.subtasks && currentTask.subtasks.length > 0) {
       for (const st of currentTask.subtasks) {
         const icon = st.completed ? chalk.green('  [x]') : chalk.dim('  [ ]');
         const name = truncateToFit(cleanTaskName(st.name), innerWidth - 8);
-        console.log(`${icon} ${chalk.dim(name)}`);
+        log(`${icon} ${chalk.dim(name)}`);
       }
     }
-    console.log();
+    log();
 
-    // Create progress renderer for this iteration
-    const iterProgress = new ProgressRenderer();
-    iterProgress.start('Working...');
-    iterProgress.updateProgress(i, maxIterations, costTracker?.getStats()?.totalCost?.totalCost);
+    // Create progress renderer for this iteration (no-op in headless mode)
+    const iterProgress = headless
+      ? {
+          start: () => {},
+          stop: (_msg?: string) => {},
+          updateStep: (_s: string) => {},
+          updateProgress: (..._args: unknown[]) => {},
+        }
+      : new ProgressRenderer();
+    if (!headless) {
+      (iterProgress as ProgressRenderer).start('Working...');
+      (iterProgress as ProgressRenderer).updateProgress(
+        i,
+        maxIterations,
+        costTracker?.getStats()?.totalCost?.totalCost
+      );
+    }
 
     // Build iteration-specific task with smart context windowing
     // Read iteration log for inter-iteration memory (iterations 2+)
@@ -881,6 +919,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
 
     const startAgentTime = Date.now();
     const result = await runAgent(options.agent, agentOptions);
+    lastAgentOutput = result.output;
 
     // Debug: log agent completion
     if (process.env.RALPH_DEBUG) {
@@ -923,7 +962,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       // Post-iteration cost ceiling check — prevent starting another expensive iteration
       const overBudget = costTracker.isOverBudget();
       if (overBudget) {
-        console.log(
+        log(
           chalk.red(
             `\n  Cost ceiling reached after iteration ${i}: ${formatCost(overBudget.currentCost)} >= ${formatCost(overBudget.maxCost)} budget`
           )
@@ -939,7 +978,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
         const thresholds = [2, 5, 10];
         for (const t of thresholds) {
           if (total >= t && prevTotal < t) {
-            console.log(
+            log(
               chalk.yellow(
                 `\n  ⚠ Estimated cost has reached $${t}. Use --max-cost to set a budget limit.`
               )
@@ -987,7 +1026,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     // Verify completion - check if files were actually changed
     if (status === 'done' && !hasChanges) {
       if (i === 1) {
-        console.log(chalk.yellow('  Agent reported done but no files changed - continuing...'));
+        log(chalk.yellow('  Agent reported done but no files changed - continuing...'));
         status = 'continue';
       }
       // On later iterations, allow done if agent genuinely finished (no more work to do)
@@ -1000,7 +1039,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     // More lenient for larger projects (5+ tasks) which need more iterations for scaffolding
     const staleThreshold = taskInfo.total > 5 ? 4 : 3;
     if (consecutiveIdleIterations >= staleThreshold && i > 3) {
-      console.log(
+      log(
         chalk.yellow(
           `  No progress for ${consecutiveIdleIterations} consecutive iterations - stopping`
         )
@@ -1014,7 +1053,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     if (status === 'done') {
       const latestTaskInfo = parsePlanTasks(options.cwd);
       if (latestTaskInfo.total > 0 && latestTaskInfo.pending > 0) {
-        console.log(
+        log(
           chalk.yellow(
             `  Agent reported done but ${latestTaskInfo.pending} task(s) remain - continuing...`
           )
@@ -1035,7 +1074,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       const isPermission =
         output.includes('permission') || output.includes('unauthorized') || output.includes('403');
 
-      console.log();
+      log();
       if (isRateLimit) {
         // Parse rate limit info from output
         const rateLimitInfo = parseRateLimitFromOutput(result.output);
@@ -1061,17 +1100,17 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
         // Display detailed rate limit stats
         displayRateLimitStats(rateLimitInfo, taskCount.total > 0 ? sessionContext : undefined);
       } else if (isPermission) {
-        console.log(chalk.red.bold('  ⚠ Permission denied'));
-        console.log();
-        console.log(chalk.yellow('  Claude Code requires permission to continue.'));
-        console.log(chalk.dim('  Run with --no-auto to approve permissions interactively.'));
+        log(chalk.red.bold('  ⚠ Permission denied'));
+        log();
+        log(chalk.yellow('  Claude Code requires permission to continue.'));
+        log(chalk.dim('  Run with --no-auto to approve permissions interactively.'));
       } else {
-        console.log(chalk.red(`  ✗ Task blocked - cannot continue`));
-        console.log();
-        console.log(chalk.dim('  The AI agent was blocked from continuing.'));
-        console.log(chalk.dim('  This may be due to rate limits or permissions.'));
+        log(chalk.red(`  ✗ Task blocked - cannot continue`));
+        log();
+        log(chalk.dim('  The AI agent was blocked from continuing.'));
+        log(chalk.dim('  This may be due to rate limits or permissions.'));
       }
-      console.log();
+      log();
 
       if (progressTracker && progressEntry) {
         progressEntry.status = 'blocked';
@@ -1090,6 +1129,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
         success: false,
         iterations: i,
         commits,
+        output: lastAgentOutput,
         error: isRateLimit
           ? 'Rate limit reached - wait and try again'
           : isPermission
@@ -1168,7 +1208,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
               failedSummaries.push(`${vr.command} (${hint})`);
             }
           }
-          console.log(chalk.red(`  ✗ ${failedSummaries.join(' │ ')}`));
+          log(chalk.red(`  ✗ ${failedSummaries.join(' │ ')}`));
 
           const errorMsg = checkResults
             .filter((r) => !r.success)
@@ -1178,7 +1218,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
 
           if (tripped) {
             const reason = circuitBreaker.getTripReason();
-            console.log(chalk.red(`Circuit breaker tripped: ${reason}`));
+            log(chalk.red(`Circuit breaker tripped: ${reason}`));
             if (progressTracker && progressEntry) {
               progressEntry.status = 'failed';
               progressEntry.summary = `Circuit breaker tripped (${checkLabel}): ${reason}`;
@@ -1202,7 +1242,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
           // If build failed on the final iteration, extend the loop to let the agent fix it
           if (checkLabel === 'build' && isFinalIteration && !buildFixExtended) {
             const newMax = maxIterations + BUILD_FIX_EXTRA_ITERATIONS;
-            console.log(
+            log(
               chalk.yellow(
                 `  Extending loop by ${BUILD_FIX_EXTRA_ITERATIONS} iterations to fix build errors (${maxIterations} → ${newMax})`
               )
@@ -1334,7 +1374,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
           // First pass: extend loop for fixes. Second pass (strict): no further extension.
           if (!visualFixExtended) {
             const newMax = maxIterations + VISUAL_FIX_EXTRA_ITERATIONS;
-            console.log(
+            log(
               chalk.yellow(
                 `  Extending loop by ${VISUAL_FIX_EXTRA_ITERATIONS} iterations to fix visual issues (${maxIterations} → ${newMax})`
               )
@@ -1388,7 +1428,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
             failedSummaries.push(`${vr.command} (${hint})`);
           }
         }
-        console.log(chalk.red(`  ✗ ${failedSummaries.join(' │ ')}`));
+        log(chalk.red(`  ✗ ${failedSummaries.join(' │ ')}`));
 
         // Record failure in circuit breaker
         const errorMsg = validationResults
@@ -1399,7 +1439,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
 
         if (tripped) {
           const reason = circuitBreaker.getTripReason();
-          console.log(chalk.red(`Circuit breaker tripped: ${reason}`));
+          log(chalk.red(`Circuit breaker tripped: ${reason}`));
 
           if (progressTracker && progressEntry) {
             progressEntry.status = 'failed';
@@ -1455,12 +1495,12 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
         await gitCommit(options.cwd, commitMsg);
         commits.push(commitMsg);
         committed = true;
-        console.log(chalk.green(`✓ ${iterationLabel}: Committed - ${commitMsg}`));
+        log(chalk.green(`✓ ${iterationLabel}: Committed - ${commitMsg}`));
       } catch (_error) {
-        console.log(chalk.yellow(`⚠ ${iterationLabel}: Completed (commit failed)`));
+        log(chalk.yellow(`⚠ ${iterationLabel}: Completed (commit failed)`));
       }
     } else {
-      console.log(chalk.green(`✓ ${iterationLabel}: Completed`));
+      log(chalk.green(`✓ ${iterationLabel}: Completed`));
     }
 
     // Update progress entry
@@ -1503,13 +1543,24 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       completionLines.push(chalk.dim(`  ${details.join(' │ ')}`));
       completionLines.push(chalk.dim(`  Reason: ${completionReason}`));
 
-      console.log();
-      console.log(drawBox(completionLines, { color: chalk.green }));
-      console.log();
+      log();
+      log(drawBox(completionLines, { color: chalk.green }));
+      log();
 
       finalIteration = i;
       exitReason = 'completed';
       break;
+    }
+
+    // Fire iteration callback
+    if (options.onIterationComplete) {
+      options.onIterationComplete({
+        iteration: i,
+        totalIterations: maxIterations,
+        success: false,
+        output: lastAgentOutput,
+        cost: costTracker?.getLastIterationCost(),
+      });
     }
 
     // Status separator between iterations
@@ -1521,11 +1572,22 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       : '';
     const taskLabel = completedTasks > 0 ? ` │ Tasks: ${completedTasks}/${totalTasks}` : '';
     const modelLabel = options.model ? ` │ ${options.model}` : '';
-    console.log(
+    log(
       drawSeparator(
         `Iter ${i}/${maxIterations}${taskLabel}${modelLabel}${costLabel} │ ${elapsedMin}m ${elapsedSec}s`
       )
     );
+  }
+
+  // Fire final iteration callback
+  if (options.onIterationComplete) {
+    options.onIterationComplete({
+      iteration: finalIteration,
+      totalIterations: maxIterations,
+      success: exitReason === 'completed' || exitReason === 'file_signal',
+      output: lastAgentOutput,
+      cost: costTracker?.getLastIterationCost(),
+    });
   }
 
   // Post-loop actions
@@ -1580,15 +1642,16 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
 
   // Print cost summary if tracking enabled
   if (costTracker) {
-    console.log();
-    console.log(chalk.cyan('💰 Cost Summary:'));
-    console.log(chalk.dim(costTracker.formatStats()));
+    log();
+    log(chalk.cyan('💰 Cost Summary:'));
+    log(chalk.dim(costTracker.formatStats()));
   }
 
   return {
     success: exitReason === 'completed' || exitReason === 'file_signal',
     iterations: finalIteration,
     commits,
+    output: lastAgentOutput,
     exitReason,
     stats: {
       totalDuration,
