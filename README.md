@@ -456,6 +456,9 @@ This creates:
 | `ralph-starter` | Launch interactive wizard |
 | `ralph-starter run [task]` | Run an autonomous coding loop |
 | `ralph-starter fix [task]` | Fix build errors, lint issues, or design problems |
+| `ralph-starter github` | Interactive GitHub issues wizard |
+| `ralph-starter linear` | Interactive Linear issues wizard |
+| `ralph-starter notion` | Interactive Notion pages wizard |
 | `ralph-starter auto` | Batch-process issues from GitHub/Linear |
 | `ralph-starter task <action>` | Manage tasks across GitHub and Linear (list, create, update, close, comment) |
 | `ralph-starter integrations <action>` | Manage integrations (list, help, test, fetch) |
