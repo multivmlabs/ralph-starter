@@ -203,6 +203,5 @@ See [`ralph-starter task`](/docs/cli/task) for full details.
 
 ## See Also
 
-- [GitHub Wizard](/docs/cli/github) — Interactive wizard for building code from GitHub issues
 - [run](/docs/cli/run) — The underlying run command with all options
 - [auto](/docs/cli/auto) — Batch-process multiple GitHub issues autonomously
