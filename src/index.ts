@@ -31,6 +31,8 @@ export type {
 export { CostTracker, resolveModelPricing } from './loop/cost-tracker.js';
 export type { IterationUpdate, LoopOptions, LoopResult } from './loop/executor.js';
 export { runLoop } from './loop/executor.js';
+export type { LinearSyncConfig, LinearSyncEvent } from './loop/linear-sync.js';
+export { createLinearSync } from './loop/linear-sync.js';
 export { detectValidationCommands, runAllValidations, runValidation } from './loop/validation.js';
 export type { InitCoreOptions, InitCoreResult } from './mcp/core/init.js';
 export { initCore } from './mcp/core/init.js';

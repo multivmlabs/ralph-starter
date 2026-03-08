@@ -109,6 +109,10 @@ program
   .option('--figma-preview', 'Show content changes without applying (content mode)')
   .option('--figma-mapping <file>', 'Custom content mapping file (content mode)')
   .option(
+    '--linear-sync <issue>',
+    'Sync loop status to a Linear issue (e.g., ENG-42). Moves to In Progress/Done/In Review.'
+  )
+  .option(
     '--design-image <path>',
     'Design reference image (screenshot of the target design for pixel-perfect matching)'
   )
