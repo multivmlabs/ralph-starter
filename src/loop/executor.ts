@@ -1100,7 +1100,9 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
         };
 
         // Display detailed rate limit stats
-        displayRateLimitStats(rateLimitInfo, taskCount.total > 0 ? sessionContext : undefined);
+        if (!headless) {
+          displayRateLimitStats(rateLimitInfo, taskCount.total > 0 ? sessionContext : undefined);
+        }
       } else if (isPermission) {
         log(chalk.red.bold('  ⚠ Permission denied'));
         log();
