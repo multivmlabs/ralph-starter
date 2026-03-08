@@ -209,14 +209,14 @@ async function waitForFilesystemQuiescence(dir: string, timeoutMs = 3000): Promi
   }
 }
 
-export interface IterationUpdate {
+export type IterationUpdate = {
   iteration: number;
   totalIterations: number;
   success: boolean;
   output?: string;
   cost?: import('./cost-tracker.js').IterationCost;
   validationResults?: ValidationResult[];
-}
+};
 
 export interface LoopOptions {
   task: string;
@@ -653,14 +653,14 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       // Show countdown
       const countdownInterval = setInterval(() => {
         const remaining = rateLimiter.getWaitTime();
-        if (remaining > 0) {
+        if (remaining > 0 && !headless) {
           process.stdout.write(chalk.dim(`\r  ⏱  ${Math.ceil(remaining / 1000)}s remaining...  `));
         }
       }, 1000);
 
       const acquired = await rateLimiter.waitAndAcquire(60000); // Wait up to 1 minute
       clearInterval(countdownInterval);
-      process.stdout.write(`\r${' '.repeat(40)}\r`); // Clear countdown line
+      if (!headless) process.stdout.write(`\r${' '.repeat(40)}\r`); // Clear countdown line
 
       if (!acquired) {
         log(chalk.red('✗ Rate limit timeout - stopping loop'));
@@ -1554,14 +1554,15 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       break;
     }
 
-    // Fire iteration callback
-    if (options.onIterationComplete) {
+    // Fire iteration callback (skip final iteration — post-loop callback handles it)
+    if (options.onIterationComplete && i < maxIterations) {
       options.onIterationComplete({
         iteration: i,
         totalIterations: maxIterations,
         success: false,
         output: lastAgentOutput,
         cost: costTracker?.getLastIterationCost(),
+        validationResults: validationResults.length > 0 ? validationResults : undefined,
       });
     }
 

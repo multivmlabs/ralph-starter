@@ -47,7 +47,7 @@ export const OPENROUTER_MODEL_ALIASES: Record<string, string> = {
   'o1-mini': 'openai/o1-mini',
   o3: 'openai/o3',
   'o3-mini': 'openai/o3-mini',
-  o4: 'openai/o4-mini',
+  o4: 'openai/o4',
   'o4-mini': 'openai/o4-mini',
   // xAI
   grok: 'x-ai/grok-4-fast',
