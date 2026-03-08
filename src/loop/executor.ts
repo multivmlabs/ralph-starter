@@ -260,6 +260,7 @@ export interface LoopOptions {
   figmaScreenshotPaths?: string[]; // Absolute paths to Figma frame screenshots for visual comparison
   headless?: boolean; // Suppress all console output (spinners, chalk, progress bars) for programmatic/SDK usage
   onIterationComplete?: (update: IterationUpdate) => void; // Callback fired after each iteration completes
+  env?: Record<string, string>; // Additional environment variables passed to the agent subprocess
 }
 
 export interface LoopResult {
@@ -902,6 +903,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       cwd: options.cwd,
       auto: options.auto,
       model: options.model,
+      env: options.env,
       // maxTurns removed - was causing issues, match wizard behavior
       streamOutput: !!process.env.RALPH_DEBUG, // Show raw JSON when debugging
       timeoutMs: options.agentTimeout,

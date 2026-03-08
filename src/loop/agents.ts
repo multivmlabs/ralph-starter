@@ -26,6 +26,8 @@ export interface AgentRunOptions {
   timeoutMs?: number;
   /** Maximum output size in bytes before truncating (default: 50MB) */
   maxOutputBytes?: number;
+  /** Additional environment variables to pass to the agent subprocess */
+  env?: Record<string, string>;
 }
 
 const AGENTS: Record<AgentType, { name: string; command: string; checkCmd: string[] }> = {
@@ -178,6 +180,7 @@ export async function runAgent(
       cwd: options.cwd,
       // stdin: 'ignore' - we don't need stdin, and leaving it as 'pipe' without closing causes hangs!
       stdio: ['ignore', 'pipe', 'pipe'],
+      env: options.env ? { ...process.env, ...options.env } : undefined,
     });
 
     let output = '';
