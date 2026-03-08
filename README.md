@@ -467,6 +467,7 @@ This creates:
 | `ralph-starter fix [task]` | Fix build errors, lint issues, or design problems |
 | `ralph-starter auto` | Batch-process issues from GitHub/Linear |
 | `ralph-starter task <action>` | Manage tasks across GitHub and Linear (list, create, update, close, comment) |
+| `ralph-starter notion` | Interactive Notion pages wizard |
 | `ralph-starter integrations <action>` | Manage integrations (list, help, test, fetch) |
 | `ralph-starter plan` | Create implementation plan from specs |
 | `ralph-starter init` | Initialize Ralph Playbook in a project |
