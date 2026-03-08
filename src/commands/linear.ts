@@ -14,37 +14,37 @@ import { askBrowseOrUrl, askForUrl, ensureCredentials } from '../integrations/wi
 import { getSourceCredentials } from '../sources/config.js';
 import { type RunCommandOptions, runCommand } from './run.js';
 
-export interface LinearWizardOptions {
+export type LinearWizardOptions = {
   commit?: boolean;
   push?: boolean;
   pr?: boolean;
   validate?: boolean;
   maxIterations?: number;
   agent?: string;
-}
+};
 
 const LINEAR_API_URL = 'https://api.linear.app/graphql';
 
-interface LinearTeam {
+type LinearTeam = {
   id: string;
   name: string;
   key: string;
-}
+};
 
-interface LinearProject {
+type LinearProject = {
   id: string;
   name: string;
   state: string;
-}
+};
 
-interface LinearIssue {
+type LinearIssue = {
   id: string;
   identifier: string;
   title: string;
   url: string;
   priorityLabel: string | null;
   state: { name: string } | null;
-}
+};
 
 /** Check if Linear CLI is available and authenticated */
 async function isLinearCliAvailable(): Promise<boolean> {
@@ -187,14 +187,14 @@ async function fetchIssues(
 
 /** Parse a Linear URL into an issue identifier (e.g., TEAM-123) */
 function parseLinearUrl(url: string): { identifier: string } | null {
-  // Match: linear.app/workspace/issue/TEAM-123 or linear.app/issue/TEAM-123
-  const issueMatch = url.match(/linear\.app\/[^/]*\/issue\/([A-Z]+-\d+)/i);
+  // Match: https://linear.app/workspace/issue/TEAM-123 or linear.app/issue/TEAM-123
+  const issueMatch = url.match(/^https?:\/\/linear\.app\/[^/]*\/issue\/([A-Z]+-\d+)/i);
   if (issueMatch) {
     return { identifier: issueMatch[1].toUpperCase() };
   }
 
-  // Match: linear.app/TEAM-123 (short URL)
-  const shortMatch = url.match(/linear\.app\/([A-Z]+-\d+)/i);
+  // Match: https://linear.app/TEAM-123 (short URL)
+  const shortMatch = url.match(/^https?:\/\/linear\.app\/([A-Z]+-\d+)/i);
   if (shortMatch) {
     return { identifier: shortMatch[1].toUpperCase() };
   }
@@ -246,7 +246,7 @@ export async function linearCommand(options: LinearWizardOptions): Promise<void>
   const mode = await askBrowseOrUrl('Linear');
 
   if (mode === 'url') {
-    const url = await askForUrl('Linear', /linear\.app/);
+    const url = await askForUrl('Linear', /^https?:\/\/linear\.app\//);
     const parsed = parseLinearUrl(url);
     if (!parsed) {
       console.log(
