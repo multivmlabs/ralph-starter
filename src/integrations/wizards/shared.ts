@@ -9,7 +9,7 @@ import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { getSourceCredentials, setSourceCredential } from '../../sources/config.js';
 
-export interface CredentialOptions {
+export type CredentialOptions = {
   /** The key name in the credentials store (e.g., 'token', 'apiKey') */
   credKey: string;
   /** URL where the user can create/find their credential */
@@ -18,7 +18,7 @@ export interface CredentialOptions {
   envVar: string;
   /** Optional: check CLI auth before prompting (returns true if authenticated) */
   checkCliAuth?: () => Promise<boolean>;
-}
+};
 
 /**
  * Ensure credentials exist for a source. If missing, prompt the user to enter them.

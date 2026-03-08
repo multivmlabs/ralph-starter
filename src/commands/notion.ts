@@ -13,19 +13,19 @@ import inquirer from 'inquirer';
 import { askBrowseOrUrl, askForUrl, ensureCredentials } from '../integrations/wizards/shared.js';
 import { type RunCommandOptions, runCommand } from './run.js';
 
-export interface NotionWizardOptions {
+export type NotionWizardOptions = {
   commit?: boolean;
   push?: boolean;
   pr?: boolean;
   validate?: boolean;
   maxIterations?: number;
   agent?: string;
-}
+};
 
 const NOTION_API_BASE = 'https://api.notion.com/v1';
 const NOTION_API_VERSION = '2022-06-28';
 
-interface NotionSearchResult {
+type NotionSearchResult = {
   id: string;
   object: 'page' | 'database';
   url: string;
@@ -37,7 +37,7 @@ interface NotionSearchResult {
     page_id?: string;
     database_id?: string;
   };
-}
+};
 
 /** Search Notion pages via the API */
 async function searchPages(
@@ -122,7 +122,7 @@ export async function notionCommand(options: NotionWizardOptions): Promise<void>
   const mode = await askBrowseOrUrl('Notion');
 
   if (mode === 'url') {
-    const url = await askForUrl('Notion', /notion\.(so|site)/);
+    const url = await askForUrl('Notion', /^https?:\/\/.*notion\.(so|site)\//);
 
     const runOpts: RunCommandOptions = {
       from: 'notion',
@@ -143,7 +143,7 @@ export async function notionCommand(options: NotionWizardOptions): Promise<void>
   // Browse mode — search for pages
   // Get the actual token for API calls (ensureCredentials may have returned '__cli_auth__')
   const creds = await import('../sources/config.js').then((m) => m.getSourceCredentials('notion'));
-  const token = process.env.NOTION_API_KEY || creds?.token;
+  const token = process.env.NOTION_API_KEY || creds?.token || creds?.apiKey;
 
   if (!token) {
     console.log(chalk.red('  Could not obtain Notion API token.'));
