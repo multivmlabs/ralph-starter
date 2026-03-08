@@ -13,30 +13,30 @@ import inquirer from 'inquirer';
 import { askBrowseOrUrl, askForUrl, ensureCredentials } from '../integrations/wizards/shared.js';
 import { type RunCommandOptions, runCommand } from './run.js';
 
-export interface GitHubWizardOptions {
+export type GitHubWizardOptions = {
   commit?: boolean;
   push?: boolean;
   pr?: boolean;
   validate?: boolean;
   maxIterations?: number;
   agent?: string;
-}
+};
 
-interface GitHubRepo {
+type GitHubRepo = {
   name: string;
   owner: { login: string };
   description: string;
-}
+};
 
-interface GitHubIssue {
+type GitHubIssue = {
   number: number;
   title: string;
   labels: Array<{ name: string }>;
-}
+};
 
-interface GitHubLabel {
+type GitHubLabel = {
   name: string;
-}
+};
 
 /** Check if gh CLI is available and authenticated */
 async function isGhCliAvailable(): Promise<boolean> {
@@ -110,8 +110,8 @@ async function fetchLabelsViaCli(owner: string, repo: string): Promise<GitHubLab
 
 /** Parse a GitHub URL into owner/repo and optional issue number */
 function parseGitHubUrl(url: string): { owner: string; repo: string; issue?: number } | null {
-  // Match: github.com/owner/repo/issues/123
-  const issueMatch = url.match(/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+)/);
+  // Match: https://github.com/owner/repo/issues/123
+  const issueMatch = url.match(/^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+)/);
   if (issueMatch) {
     return {
       owner: issueMatch[1],
@@ -120,8 +120,8 @@ function parseGitHubUrl(url: string): { owner: string; repo: string; issue?: num
     };
   }
 
-  // Match: github.com/owner/repo
-  const repoMatch = url.match(/github\.com\/([^/]+)\/([^/]+)/);
+  // Match: https://github.com/owner/repo
+  const repoMatch = url.match(/^https?:\/\/github\.com\/([^/]+)\/([^/]+)/);
   if (repoMatch) {
     return {
       owner: repoMatch[1],
@@ -150,7 +150,7 @@ export async function githubCommand(options: GitHubWizardOptions): Promise<void>
   const mode = await askBrowseOrUrl('GitHub');
 
   if (mode === 'url') {
-    const url = await askForUrl('GitHub', /github\.com/);
+    const url = await askForUrl('GitHub', /^https?:\/\/github\.com\//);
     const parsed = parseGitHubUrl(url);
     if (!parsed) {
       console.log(
