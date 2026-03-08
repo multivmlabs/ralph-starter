@@ -5,7 +5,7 @@ import {
   estimateTokens,
   formatCost,
   formatTokens,
-  MODEL_PRICING,
+  resolveModelPricing,
 } from '../cost-tracker.js';
 
 describe('cost-tracker', () => {
@@ -60,7 +60,7 @@ describe('cost-tracker', () => {
         totalTokens: 1500000,
       };
 
-      const pricing = MODEL_PRICING['claude-3-sonnet'];
+      const pricing = resolveModelPricing('claude-4-sonnet');
       const cost = calculateCost(tokens, pricing);
 
       expect(cost.inputCost).toBe(3); // 1M * $3/M
@@ -75,7 +75,7 @@ describe('cost-tracker', () => {
         totalTokens: 150,
       };
 
-      const pricing = MODEL_PRICING['claude-3-sonnet'];
+      const pricing = resolveModelPricing('claude-4-sonnet');
       const cost = calculateCost(tokens, pricing);
 
       expect(cost.totalCost).toBeLessThan(0.01);
@@ -117,7 +117,7 @@ describe('cost-tracker', () => {
     let tracker: CostTracker;
 
     beforeEach(() => {
-      tracker = new CostTracker({ model: 'claude-3-sonnet' });
+      tracker = new CostTracker({ model: 'claude-4-sonnet' });
     });
 
     describe('recordIteration', () => {
@@ -175,7 +175,7 @@ describe('cost-tracker', () => {
 
       it('should calculate projected cost when maxIterations is set', () => {
         const trackerWithMax = new CostTracker({
-          model: 'claude-3-sonnet',
+          model: 'claude-4-sonnet',
           maxIterations: 10,
         });
 
@@ -241,7 +241,7 @@ describe('cost-tracker', () => {
 
       it('should return null when under budget', () => {
         const budgetTracker = new CostTracker({
-          model: 'claude-3-sonnet',
+          model: 'claude-4-sonnet',
           maxCost: 100, // $100 budget
         });
         budgetTracker.recordIteration('input', 'output');
@@ -250,7 +250,7 @@ describe('cost-tracker', () => {
 
       it('should return budget info when over budget', () => {
         const budgetTracker = new CostTracker({
-          model: 'claude-3-sonnet',
+          model: 'claude-4-sonnet',
           maxCost: 0.0001, // Extremely low budget
         });
         // Record enough iterations to exceed tiny budget
@@ -273,8 +273,8 @@ describe('cost-tracker', () => {
       });
 
       it('should use correct pricing for known models', () => {
-        const opusTracker = new CostTracker({ model: 'claude-3-opus' });
-        const haikuTracker = new CostTracker({ model: 'claude-3-haiku' });
+        const opusTracker = new CostTracker({ model: 'claude-opus' });
+        const haikuTracker = new CostTracker({ model: 'claude-haiku' });
 
         opusTracker.recordIteration('same input', 'same output');
         haikuTracker.recordIteration('same input', 'same output');

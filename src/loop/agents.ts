@@ -4,14 +4,14 @@ import { execa } from 'execa';
 
 export type AgentType = 'claude-code' | 'cursor' | 'codex' | 'opencode' | 'openclaw' | 'unknown';
 
-export interface Agent {
+export type Agent = {
   type: AgentType;
   name: string;
   command: string;
   available: boolean;
-}
+};
 
-export interface AgentRunOptions {
+export type AgentRunOptions = {
   task: string;
   cwd: string;
   auto?: boolean;
@@ -26,7 +26,11 @@ export interface AgentRunOptions {
   timeoutMs?: number;
   /** Maximum output size in bytes before truncating (default: 50MB) */
   maxOutputBytes?: number;
-}
+  /** Additional environment variables to pass to the agent subprocess */
+  env?: Record<string, string>;
+  /** Suppress all console output (for SDK/CI usage) */
+  headless?: boolean;
+};
 
 const AGENTS: Record<AgentType, { name: string; command: string; checkCmd: string[] }> = {
   'claude-code': {
@@ -178,6 +182,7 @@ export async function runAgent(
       cwd: options.cwd,
       // stdin: 'ignore' - we don't need stdin, and leaving it as 'pipe' without closing causes hangs!
       stdio: ['ignore', 'pipe', 'pipe'],
+      env: options.env ? { ...process.env, ...options.env } : undefined,
     });
 
     let output = '';
@@ -191,25 +196,28 @@ export async function runAgent(
     let extendedSilenceShown = false;
 
     // Notify if no data received for 30+ seconds (calm, non-alarming)
-    const silenceChecker = setInterval(() => {
-      const silentMs = Date.now() - lastDataTime;
-      if (silentMs > 60000 && !extendedSilenceShown) {
-        extendedSilenceShown = true;
-        console.log(chalk.dim('  Still working... Use RALPH_DEBUG=1 for verbose output.'));
-      } else if (silentMs > 30000 && !silenceWarningShown) {
-        silenceWarningShown = true;
-        console.log(
-          chalk.dim(
-            '\n  Agent is thinking... (no output for 30s, this is normal for complex tasks)'
-          )
-        );
-      }
-    }, 5000);
+    // Skip in headless mode to avoid polluting SDK/CI output
+    const silenceChecker = options.headless
+      ? undefined
+      : setInterval(() => {
+          const silentMs = Date.now() - lastDataTime;
+          if (silentMs > 60000 && !extendedSilenceShown) {
+            extendedSilenceShown = true;
+            console.log(chalk.dim('  Still working... Use RALPH_DEBUG=1 for verbose output.'));
+          } else if (silentMs > 30000 && !silenceWarningShown) {
+            silenceWarningShown = true;
+            console.log(
+              chalk.dim(
+                '\n  Agent is thinking... (no output for 30s, this is normal for complex tasks)'
+              )
+            );
+          }
+        }, 5000);
 
     // Configurable timeout (default: 5 minutes)
     const timeoutMs = options.timeoutMs || 300000;
     const timeout = setTimeout(() => {
-      clearInterval(silenceChecker);
+      if (silenceChecker) clearInterval(silenceChecker);
       if (process.env.RALPH_DEBUG) {
         console.error('[DEBUG] TIMEOUT reached after', timeoutMs, 'ms');
         console.error('[DEBUG] Output so far:', output.slice(-500));
@@ -276,7 +284,7 @@ export async function runAgent(
 
     proc.on('close', (code: number | null) => {
       clearTimeout(timeout);
-      clearInterval(silenceChecker);
+      if (silenceChecker) clearInterval(silenceChecker);
       // Debug: log process close
       if (process.env.RALPH_DEBUG) {
         console.error('[DEBUG] Process closed with code:', code);
@@ -293,7 +301,7 @@ export async function runAgent(
 
     proc.on('error', (err: Error) => {
       clearTimeout(timeout);
-      clearInterval(silenceChecker);
+      if (silenceChecker) clearInterval(silenceChecker);
       resolve({ output: err.message, exitCode: 1 });
     });
   });
