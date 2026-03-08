@@ -117,6 +117,10 @@ program
     'Run lint/test/build before the loop starts to capture pre-existing failures as context'
   )
   .option(
+    '--acceptance-criteria',
+    'Extract or generate Given/When/Then acceptance criteria and inject into agent prompt'
+  )
+  .option(
     '--design-image <path>',
     'Design reference image (screenshot of the target design for pixel-perfect matching)'
   )
