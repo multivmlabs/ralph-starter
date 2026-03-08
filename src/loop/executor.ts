@@ -1559,10 +1559,12 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
 
     // Fire iteration callback (skip final iteration — post-loop callback handles it)
     if (options.onIterationComplete && i < maxIterations) {
+      const iterationSucceeded =
+        result.exitCode === 0 && validationResults.every((vr) => vr.success);
       options.onIterationComplete({
         iteration: i,
         totalIterations: maxIterations,
-        success: false,
+        success: iterationSucceeded,
         output: lastAgentOutput,
         cost: costTracker?.getLastIterationCost(),
         validationResults: validationResults.length > 0 ? validationResults : undefined,

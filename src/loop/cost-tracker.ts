@@ -152,6 +152,12 @@ export const MODEL_PRICING: Record<string, ModelPricing> = {
  */
 export function resolveModelPricing(model: string): ModelPricing {
   const lower = model.toLowerCase();
+
+  // OpenRouter `:free` variants have zero cost regardless of base model
+  if (lower.endsWith(':free')) {
+    return { name: `${model} (free)`, inputPricePerMillion: 0, outputPricePerMillion: 0 };
+  }
+
   let bestMatch: ModelPricing | null = null;
   let bestLen = 0;
   for (const [key, pricing] of Object.entries(MODEL_PRICING)) {
