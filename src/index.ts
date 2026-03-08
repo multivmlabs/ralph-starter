@@ -1,5 +1,5 @@
 // ralph-starter - Ralph Wiggum made easy
-export const version = '0.1.0';
+export const version = '0.4.1';
 export const name = 'ralph-starter';
 
 // Automation
