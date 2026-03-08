@@ -297,6 +297,8 @@ export interface RunCommandOptions {
   designImage?: string;
   // Visual comparison
   visualCheck?: boolean;
+  // Linear status sync
+  linearSync?: string;
 }
 
 export async function runCommand(
@@ -1292,6 +1294,7 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
     designImagePath,
     visualValidation,
     figmaScreenshotPaths,
+    linearSync: options.linearSync,
   };
 
   const result = await runLoop(loopOptions);
