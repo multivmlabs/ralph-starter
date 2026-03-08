@@ -157,7 +157,7 @@ ralph-starter run --from notion --project "API Spec" --commit
 
 ## References
 
-- [Figma wizard CLI docs](/docs/cli/figma)
+- [Figma wizard CLI docs](/docs/sources/figma)
 - [Figma integration guide](/docs/sources/figma)
 - [Visual validation docs](/docs/advanced/validation)
 - [Supported agents](/docs/intro)
