@@ -906,6 +906,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       env: options.env,
       // maxTurns removed - was causing issues, match wizard behavior
       streamOutput: !!process.env.RALPH_DEBUG, // Show raw JSON when debugging
+      headless,
       timeoutMs: options.agentTimeout,
       onOutput: (line: string) => {
         const step = detectStepFromOutput(line);
