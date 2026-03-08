@@ -28,7 +28,7 @@ export type {
   ModelPricing,
   PlanBudget,
 } from './loop/cost-tracker.js';
-export { CostTracker } from './loop/cost-tracker.js';
+export { CostTracker, resolveModelPricing } from './loop/cost-tracker.js';
 export type { IterationUpdate, LoopOptions, LoopResult } from './loop/executor.js';
 export { runLoop } from './loop/executor.js';
 export { detectValidationCommands, runAllValidations, runValidation } from './loop/validation.js';

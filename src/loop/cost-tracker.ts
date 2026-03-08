@@ -12,88 +12,129 @@ export interface ModelPricing {
 }
 
 // Pricing as of March 2026 (approximate)
+// Keys are substrings matched against model IDs (see resolveModelPricing)
 export const MODEL_PRICING: Record<string, ModelPricing> = {
   // Anthropic
-  'claude-opus-4': {
+  'claude-4.5-sonnet': {
+    name: 'Claude 4.5 Sonnet',
+    inputPricePerMillion: 3,
+    outputPricePerMillion: 15,
+    cacheWritePricePerMillion: 3.75,
+    cacheReadPricePerMillion: 0.3,
+  },
+  'claude-4-sonnet': {
+    name: 'Claude 4 Sonnet',
+    inputPricePerMillion: 3,
+    outputPricePerMillion: 15,
+    cacheWritePricePerMillion: 3.75,
+    cacheReadPricePerMillion: 0.3,
+  },
+  'claude-opus': {
     name: 'Claude Opus 4',
     inputPricePerMillion: 15,
     outputPricePerMillion: 75,
     cacheWritePricePerMillion: 18.75,
     cacheReadPricePerMillion: 1.5,
   },
-  'claude-sonnet-4': {
-    name: 'Claude Sonnet 4',
-    inputPricePerMillion: 3,
-    outputPricePerMillion: 15,
-    cacheWritePricePerMillion: 3.75,
-    cacheReadPricePerMillion: 0.3,
-  },
-  'claude-haiku-4': {
+  'claude-haiku': {
     name: 'Claude Haiku 4.5',
     inputPricePerMillion: 0.8,
     outputPricePerMillion: 4,
     cacheWritePricePerMillion: 1,
     cacheReadPricePerMillion: 0.08,
   },
-  // Legacy Anthropic (keep for backward compat)
-  'claude-3-opus': {
-    name: 'Claude 3 Opus',
-    inputPricePerMillion: 15,
-    outputPricePerMillion: 75,
-    cacheWritePricePerMillion: 18.75,
-    cacheReadPricePerMillion: 1.5,
-  },
-  'claude-3-sonnet': {
-    name: 'Claude 3.5 Sonnet',
-    inputPricePerMillion: 3,
-    outputPricePerMillion: 15,
-    cacheWritePricePerMillion: 3.75,
-    cacheReadPricePerMillion: 0.3,
-  },
-  'claude-3-haiku': {
-    name: 'Claude 3.5 Haiku',
-    inputPricePerMillion: 0.25,
-    outputPricePerMillion: 1.25,
-    cacheWritePricePerMillion: 0.3125,
-    cacheReadPricePerMillion: 0.025,
-  },
   // OpenAI
-  'gpt-4o': {
-    name: 'GPT-4o',
-    inputPricePerMillion: 2.5,
-    outputPricePerMillion: 10,
-  },
   'gpt-4o-mini': {
     name: 'GPT-4o Mini',
     inputPricePerMillion: 0.15,
     outputPricePerMillion: 0.6,
   },
-  'gpt-4': {
-    name: 'GPT-4',
-    inputPricePerMillion: 30,
-    outputPricePerMillion: 60,
+  'gpt-4o': {
+    name: 'GPT-4o',
+    inputPricePerMillion: 2.5,
+    outputPricePerMillion: 10,
   },
   'gpt-4-turbo': {
     name: 'GPT-4 Turbo',
     inputPricePerMillion: 10,
     outputPricePerMillion: 30,
   },
+  'gpt-4': {
+    name: 'GPT-4',
+    inputPricePerMillion: 30,
+    outputPricePerMillion: 60,
+  },
+  o3: {
+    name: 'OpenAI o3',
+    inputPricePerMillion: 10,
+    outputPricePerMillion: 40,
+  },
+  'o4-mini': {
+    name: 'OpenAI o4-mini',
+    inputPricePerMillion: 1.1,
+    outputPricePerMillion: 4.4,
+  },
   // Google
-  'gemini-pro': {
+  'gemini-2.5-pro': {
     name: 'Gemini 2.5 Pro',
     inputPricePerMillion: 1.25,
     outputPricePerMillion: 10,
   },
-  'gemini-flash': {
+  'gemini-2.5-flash-lite': {
+    name: 'Gemini 2.5 Flash Lite',
+    inputPricePerMillion: 0.02,
+    outputPricePerMillion: 0.1,
+  },
+  'gemini-2.5-flash': {
     name: 'Gemini 2.5 Flash',
     inputPricePerMillion: 0.15,
     outputPricePerMillion: 0.6,
   },
+  'gemini-2.0-flash': {
+    name: 'Gemini 2.0 Flash',
+    inputPricePerMillion: 0.1,
+    outputPricePerMillion: 0.4,
+  },
+  // xAI
+  grok: {
+    name: 'Grok',
+    inputPricePerMillion: 3,
+    outputPricePerMillion: 15,
+  },
   // DeepSeek
+  'deepseek-r1': {
+    name: 'DeepSeek R1',
+    inputPricePerMillion: 0.55,
+    outputPricePerMillion: 2.19,
+  },
   deepseek: {
     name: 'DeepSeek V3',
     inputPricePerMillion: 0.27,
     outputPricePerMillion: 1.1,
+  },
+  // Qwen
+  qwen: {
+    name: 'Qwen',
+    inputPricePerMillion: 0.3,
+    outputPricePerMillion: 1.2,
+  },
+  // MiniMax
+  minimax: {
+    name: 'MiniMax',
+    inputPricePerMillion: 0.5,
+    outputPricePerMillion: 2,
+  },
+  // Meta
+  llama: {
+    name: 'Llama',
+    inputPricePerMillion: 0.2,
+    outputPricePerMillion: 0.2,
+  },
+  // Mistral
+  mistral: {
+    name: 'Mistral',
+    inputPricePerMillion: 2,
+    outputPricePerMillion: 6,
   },
   // Default for unknown models (conservative estimate)
   default: {
@@ -102,6 +143,25 @@ export const MODEL_PRICING: Record<string, ModelPricing> = {
     outputPricePerMillion: 15,
   },
 };
+
+/**
+ * Resolve pricing for a model ID.
+ * Matches against MODEL_PRICING keys as substrings of the model ID,
+ * so "anthropic/claude-4.5-sonnet-20250929" matches "claude-4.5-sonnet".
+ * More specific matches (longer keys) take priority.
+ */
+export function resolveModelPricing(model: string): ModelPricing {
+  const lower = model.toLowerCase();
+  let bestMatch: ModelPricing | null = null;
+  let bestLen = 0;
+  for (const [key, pricing] of Object.entries(MODEL_PRICING)) {
+    if (key !== 'default' && lower.includes(key) && key.length > bestLen) {
+      bestMatch = pricing;
+      bestLen = key.length;
+    }
+  }
+  return bestMatch || MODEL_PRICING.default;
+}
 
 export interface TokenEstimate {
   inputTokens: number;
@@ -232,7 +292,7 @@ export class CostTracker {
 
   constructor(config: CostTrackerConfig) {
     this.config = config;
-    this.pricing = MODEL_PRICING[config.model] || MODEL_PRICING.default;
+    this.pricing = resolveModelPricing(config.model);
   }
 
   /**
