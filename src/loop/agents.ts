@@ -4,14 +4,14 @@ import { execa } from 'execa';
 
 export type AgentType = 'claude-code' | 'cursor' | 'codex' | 'opencode' | 'openclaw' | 'unknown';
 
-export interface Agent {
+export type Agent = {
   type: AgentType;
   name: string;
   command: string;
   available: boolean;
-}
+};
 
-export interface AgentRunOptions {
+export type AgentRunOptions = {
   task: string;
   cwd: string;
   auto?: boolean;
@@ -30,7 +30,7 @@ export interface AgentRunOptions {
   env?: Record<string, string>;
   /** Suppress all console output (for SDK/CI usage) */
   headless?: boolean;
-}
+};
 
 const AGENTS: Record<AgentType, { name: string; command: string; checkCmd: string[] }> = {
   'claude-code': {

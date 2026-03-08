@@ -27,7 +27,13 @@ import {
 import { type Agent, type AgentRunOptions, runAgent } from './agents.js';
 import { CircuitBreaker, type CircuitBreakerConfig } from './circuit-breaker.js';
 import { buildIterationContext, buildSpecSummary } from './context-builder.js';
-import { CostTracker, type CostTrackerStats, formatCost } from './cost-tracker.js';
+import {
+  CostTracker,
+  type CostTrackerStats,
+  formatCost,
+  type IterationCost,
+  type PlanBudget,
+} from './cost-tracker.js';
 import { estimateLoop, formatEstimateDetailed } from './estimator.js';
 import { checkFileBasedCompletion, createProgressTracker, type ProgressEntry } from './progress.js';
 import { RateLimiter } from './rate-limiter.js';
@@ -214,11 +220,11 @@ export type IterationUpdate = {
   totalIterations: number;
   success: boolean;
   output?: string;
-  cost?: import('./cost-tracker.js').IterationCost;
+  cost?: IterationCost;
   validationResults?: ValidationResult[];
 };
 
-export interface LoopOptions {
+export type LoopOptions = {
   task: string;
   cwd: string;
   agent: Agent;
@@ -228,46 +234,45 @@ export interface LoopOptions {
   push?: boolean;
   pr?: boolean;
   prTitle?: string;
-  prLabels?: string[]; // Labels to apply to PR
-  prIssueRef?: IssueRef; // Issue to link in PR body
-  prType?: SemanticPrType; // Type for semantic PR title
-  validate?: boolean; // Run tests/lint/build as backpressure
-  sourceType?: string; // Source integration type (github, linear, figma, notion, file)
-  // New options
-  completionPromise?: string; // Custom completion promise string
-  requireExitSignal?: boolean; // Require explicit EXIT_SIGNAL: true
-  minCompletionIndicators?: number; // Minimum indicators needed (default: 1)
+  prLabels?: string[];
+  prIssueRef?: IssueRef;
+  prType?: SemanticPrType;
+  validate?: boolean;
+  sourceType?: string;
+  completionPromise?: string;
+  requireExitSignal?: boolean;
+  minCompletionIndicators?: number;
   circuitBreaker?: Partial<CircuitBreakerConfig>;
-  rateLimit?: number; // Calls per hour
-  trackProgress?: boolean; // Write to activity.md
-  checkFileCompletion?: boolean; // Check for RALPH_COMPLETE file
-  trackCost?: boolean; // Track token usage and cost
-  model?: string; // Model name for cost estimation
-  contextBudget?: number; // Max input tokens per iteration (0 = unlimited)
-  validationWarmup?: number; // Skip validation until N tasks completed (for greenfield builds)
-  maxCost?: number; // Maximum cost in USD before stopping (0 = unlimited)
-  planBudget?: import('./cost-tracker.js').PlanBudget; // Plan budget for % display
-  agentTimeout?: number; // Agent timeout in milliseconds (default: 300000 = 5 min)
-  initialValidationFeedback?: string; // Pre-populate with errors (used by `fix` command)
-  maxSkills?: number; // Cap skills included in prompt (default: 5)
-  skipPlanInstructions?: boolean; // Skip IMPLEMENTATION_PLAN.md rules in preamble (fix --design)
-  fixMode?: 'design' | 'scan' | 'custom'; // Display mode for fix command headers
-  taskTitle?: string; // Human-readable task title (from issue/spec) for display
-  figmaImagesDownloaded?: boolean; // Whether Figma images were downloaded to public/images/
-  figmaFontSubstitutions?: Array<{ original: string; substitute: string }>; // Font substitutions applied
-  designImagePath?: string; // Path to design reference image (relative to cwd) for pixel-perfect matching
-  visualValidation?: boolean; // Enable visual comparison validation (compare implementation screenshots against Figma design)
-  figmaScreenshotPaths?: string[]; // Absolute paths to Figma frame screenshots for visual comparison
-  headless?: boolean; // Suppress all console output (spinners, chalk, progress bars) for programmatic/SDK usage
-  onIterationComplete?: (update: IterationUpdate) => void; // Callback fired after each iteration completes
-  env?: Record<string, string>; // Additional environment variables passed to the agent subprocess
-}
+  rateLimit?: number;
+  trackProgress?: boolean;
+  checkFileCompletion?: boolean;
+  trackCost?: boolean;
+  model?: string;
+  contextBudget?: number;
+  validationWarmup?: number;
+  maxCost?: number;
+  planBudget?: PlanBudget;
+  agentTimeout?: number;
+  initialValidationFeedback?: string;
+  maxSkills?: number;
+  skipPlanInstructions?: boolean;
+  fixMode?: 'design' | 'scan' | 'custom';
+  taskTitle?: string;
+  figmaImagesDownloaded?: boolean;
+  figmaFontSubstitutions?: Array<{ original: string; substitute: string }>;
+  designImagePath?: string;
+  visualValidation?: boolean;
+  figmaScreenshotPaths?: string[];
+  headless?: boolean;
+  onIterationComplete?: (update: IterationUpdate) => void;
+  env?: Record<string, string>;
+};
 
-export interface LoopResult {
+export type LoopResult = {
   success: boolean;
   iterations: number;
   commits: string[];
-  output?: string; // Final agent output text from the last iteration
+  output?: string;
   error?: string;
   exitReason?:
     | 'completed'
@@ -288,7 +293,7 @@ export interface LoopResult {
     };
     costStats?: CostTrackerStats;
   };
-}
+};
 
 // Completion markers that indicate the task is done
 const COMPLETION_MARKERS = [

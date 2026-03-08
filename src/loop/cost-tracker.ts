@@ -64,10 +64,20 @@ export const MODEL_PRICING: Record<string, ModelPricing> = {
     inputPricePerMillion: 30,
     outputPricePerMillion: 60,
   },
+  'o3-mini': {
+    name: 'OpenAI o3-mini',
+    inputPricePerMillion: 1.1,
+    outputPricePerMillion: 4.4,
+  },
   o3: {
     name: 'OpenAI o3',
     inputPricePerMillion: 10,
     outputPricePerMillion: 40,
+  },
+  o4: {
+    name: 'OpenAI o4',
+    inputPricePerMillion: 20,
+    outputPricePerMillion: 80,
   },
   'o4-mini': {
     name: 'OpenAI o4-mini',
