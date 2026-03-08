@@ -56,7 +56,7 @@ export const OPENROUTER_MODEL_ALIASES: Record<string, string> = {
   // DeepSeek
   deepseek: 'deepseek/deepseek-chat-v3-0324',
   'deepseek-v3': 'deepseek/deepseek-chat-v3-0324',
-  'deepseek-v3.1': 'deepseek/deepseek-chat-v3.1:free',
+  'deepseek-v3.1': 'deepseek/deepseek-chat-v3.1',
   'deepseek-r1': 'deepseek/deepseek-r1',
   // Qwen
   'qwen-coder': 'qwen/qwen3-coder-480b-a35b-07-25',

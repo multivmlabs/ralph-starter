@@ -508,6 +508,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
   let finalIteration = maxIterations;
   let consecutiveIdleIterations = 0;
   let lastAgentOutput: string | undefined;
+  let lastValidationResults: ValidationResult[] | undefined;
 
   // Initialize circuit breaker
   const circuitBreaker = new CircuitBreaker(options.circuitBreaker);
@@ -1562,6 +1563,9 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       break;
     }
 
+    // Track validation results for post-loop callback
+    lastValidationResults = validationResults.length > 0 ? validationResults : undefined;
+
     // Fire iteration callback (skip final iteration — post-loop callback handles it)
     if (options.onIterationComplete && i < maxIterations) {
       const iterationSucceeded =
@@ -1572,7 +1576,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
         success: iterationSucceeded,
         output: lastAgentOutput,
         cost: costTracker?.getLastIterationCost(),
-        validationResults: validationResults.length > 0 ? validationResults : undefined,
+        validationResults: lastValidationResults,
       });
     }
 
@@ -1600,6 +1604,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       success: exitReason === 'completed' || exitReason === 'file_signal',
       output: lastAgentOutput,
       cost: costTracker?.getLastIterationCost(),
+      validationResults: lastValidationResults,
     });
   }
 
