@@ -130,4 +130,4 @@ The `--auto` flag enables automatic mode so the wizard does not prompt for addit
 
 - [GitHub Source](/docs/sources/github) — Full GitHub integration reference (issues, PRs, files)
 - [run](/docs/cli/run) — The underlying run command with all options
-- [figma](/docs/cli/figma) — Similar wizard for Figma design-to-code
+- [figma](/docs/sources/figma) — Figma design-to-code integration

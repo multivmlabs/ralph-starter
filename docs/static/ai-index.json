@@ -77,7 +77,7 @@
       "description": "Three-layer pixel comparison pipeline: pixelmatch, LLM Vision, and strict gate for Figma design fidelity",
       "entryPoints": [
         "/docs/advanced/validation",
-        "/docs/cli/figma"
+        "/docs/sources/figma"
       ]
     }
   ],
@@ -222,8 +222,8 @@
         {
           "title": "figma",
           "description": "Interactive Figma-to-code wizard with auto-detected tech stack and model selection",
-          "url": "https://ralphstarter.ai/docs/cli/figma",
-          "markdownUrl": "https://ralphstarter.ai/docs/cli/figma.md",
+          "url": "https://ralphstarter.ai/docs/sources/figma",
+          "markdownUrl": "https://ralphstarter.ai/docs/sources/figma.md",
           "keywords": [
             "cli",
             "figma",
