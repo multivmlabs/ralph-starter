@@ -113,6 +113,10 @@ program
     'Interactive model picker with live OpenRouter pricing and context info'
   )
   .option(
+    '--shift-left',
+    'Run lint/test/build before the loop starts to capture pre-existing failures as context'
+  )
+  .option(
     '--design-image <path>',
     'Design reference image (screenshot of the target design for pixel-perfect matching)'
   )

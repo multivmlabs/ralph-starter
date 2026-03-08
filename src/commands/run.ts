@@ -17,6 +17,11 @@ import { formatCost, formatTokens } from '../loop/cost-tracker.js';
 import { type LoopOptions, runLoop } from '../loop/executor.js';
 import { formatPrdPrompt, getPrdStats, parsePrdFile } from '../loop/prd-parser.js';
 import { calculateOptimalIterations } from '../loop/task-counter.js';
+import {
+  detectValidationCommands,
+  formatValidationFeedback,
+  runAllValidations,
+} from '../loop/validation.js';
 import { formatPresetsHelp, getPreset, type PresetConfig } from '../presets/index.js';
 import { autoInstallSkillsFromTask } from '../skills/auto-install.js';
 import { getSourceDefaults } from '../sources/config.js';
@@ -294,6 +299,8 @@ export interface RunCommandOptions {
   figmaTarget?: string;
   figmaPreview?: boolean;
   figmaMapping?: string;
+  // Shift-left validation
+  shiftLeft?: boolean;
   // Design reference
   designImage?: string;
   // Visual comparison
@@ -1318,6 +1325,33 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
     }
   }
 
+  // Shift-left: run validation BEFORE the loop to capture pre-existing failures
+  let shiftLeftFeedback: string | undefined;
+  if (options.shiftLeft) {
+    const validationCmds = detectValidationCommands(cwd);
+    if (validationCmds.length > 0) {
+      spinner.start('Shift-left: running pre-flight validation...');
+      const preResults = await runAllValidations(cwd, validationCmds);
+      const failures = preResults.filter((r) => !r.success);
+      if (failures.length > 0) {
+        spinner.warn(
+          chalk.yellow(`Shift-left: ${failures.length} pre-existing failure(s) detected`)
+        );
+        const feedback = formatValidationFeedback(preResults);
+        shiftLeftFeedback = [
+          '## Pre-existing Failures (Shift-Left)\n',
+          'The following failures existed BEFORE you started working.',
+          'Do NOT attempt to fix these unless the task explicitly asks you to.\n',
+          feedback,
+        ].join('\n');
+      } else {
+        spinner.succeed('Shift-left: all validations pass — clean baseline');
+      }
+    } else {
+      console.log(chalk.dim('  Shift-left: no validation commands detected, skipping'));
+    }
+  }
+
   // Apply preset values with CLI overrides
   const loopOptions: LoopOptions = {
     task: preset?.promptPrefix ? `${preset.promptPrefix}\n\n${finalTask}` : finalTask,
@@ -1361,6 +1395,7 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
             maxSameErrorCount: options.circuitBreakerErrors ?? 5,
           }
         : undefined,
+    initialValidationFeedback: shiftLeftFeedback,
     figmaImagesDownloaded: figmaImagesDownloaded ?? undefined,
     figmaFontSubstitutions: figmaFontSubstitutions ?? undefined,
     designImagePath,
