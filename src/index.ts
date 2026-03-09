@@ -13,6 +13,8 @@ export { skillCommand } from './commands/skill.js';
 export { sourceCommand } from './commands/source.js';
 // Config
 export { getApiKey, readConfig, writeConfig } from './config/manager.js';
+export type { OpenRouterModelInfo } from './llm/openrouter-models.js';
+export { fetchOpenRouterModels, getModelPricing } from './llm/openrouter-models.js';
 export type { LLMProvider } from './llm/providers.js';
 // LLM
 export { OPENROUTER_MODEL_ALIASES, resolveOpenRouterModel } from './llm/providers.js';

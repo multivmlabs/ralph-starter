@@ -109,6 +109,10 @@ program
   .option('--figma-preview', 'Show content changes without applying (content mode)')
   .option('--figma-mapping <file>', 'Custom content mapping file (content mode)')
   .option(
+    '--model-selector',
+    'Interactive model picker with live OpenRouter pricing and context info'
+  )
+  .option(
     '--design-image <path>',
     'Design reference image (screenshot of the target design for pixel-perfect matching)'
   )

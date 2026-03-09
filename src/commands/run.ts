@@ -263,6 +263,7 @@ export interface RunCommandOptions {
   maxIterations?: number;
   agent?: string;
   model?: string;
+  modelSelector?: boolean;
   // Source options
   from?: string;
   project?: string;
@@ -876,7 +877,7 @@ export async function runCommand(
 
         const { projectLocation } = await inquirer.prompt([
           {
-            type: 'select',
+            type: 'list',
             name: 'projectLocation',
             message: 'Where do you want to run this task?',
             choices,
@@ -1241,6 +1242,79 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
       }
     } catch {
       // Non-critical — skip visual validation
+    }
+  }
+
+  // Interactive model selector (fetches live OpenRouter models)
+  if (options.modelSelector && !options.model) {
+    const { fetchOpenRouterModels, formatModelChoice } = await import(
+      '../llm/openrouter-models.js'
+    );
+    try {
+      spinner.start('Fetching live models from OpenRouter...');
+      const allModels = await fetchOpenRouterModels();
+      spinner.stop();
+
+      // Show top coding-relevant models by default
+      const popularIds = [
+        'anthropic/claude-4.5-sonnet',
+        'anthropic/claude-opus-4',
+        'openai/gpt-4o',
+        'openai/o3',
+        'google/gemini-2.5-pro',
+        'google/gemini-2.5-flash',
+        'deepseek/deepseek-chat-v3',
+        'x-ai/grok-4-fast',
+      ];
+      const popular = popularIds
+        .map((id) => allModels.find((m) => m.id.startsWith(id)))
+        .filter(Boolean);
+      const choices = [
+        ...popular.map((m) => ({
+          name: formatModelChoice(m!),
+          value: m!.id,
+        })),
+        { name: chalk.dim(`── All ${allModels.length} models ──`), value: '__browse__' },
+      ];
+
+      const { selectedModel } = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'selectedModel',
+          message: 'Select a model:',
+          choices,
+          pageSize: 15,
+        } as any,
+      ]);
+
+      if (selectedModel === '__browse__') {
+        const { search } = await inquirer.prompt([
+          { type: 'input', name: 'search', message: 'Search models:' },
+        ]);
+        const { filterModels } = await import('../llm/openrouter-models.js');
+        const filtered = search ? filterModels(allModels, search) : allModels;
+        const browseChoices = filtered.slice(0, 30).map((m) => ({
+          name: formatModelChoice(m),
+          value: m.id,
+        }));
+        const { browsedModel } = await inquirer.prompt([
+          {
+            type: 'list',
+            name: 'browsedModel',
+            message: `Select from ${filtered.length} models:`,
+            choices: browseChoices,
+            pageSize: 20,
+          } as any,
+        ]);
+        options.model = browsedModel;
+      } else {
+        options.model = selectedModel;
+      }
+      console.log(chalk.dim(`  Model: ${options.model}`));
+    } catch (err) {
+      console.log(
+        chalk.yellow(`  Model selector failed: ${(err as Error).message}, using default`)
+      );
     }
   }
 
