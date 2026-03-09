@@ -28,8 +28,7 @@ export function extractAcceptanceCriteria(task: string): AcceptanceCriteria {
   const criteria: AcceptanceCriterion[] = [];
 
   // Try to extract explicit Given/When/Then blocks
-  const gwt =
-    /given\s*[:]\s*(.+?)(?:\n|$)\s*when\s*[:]\s*(.+?)(?:\n|$)\s*then\s*[:]\s*(.+?)(?:\n|$)/gi;
+  const gwt = /given\s*:\s*([^\n]+)\n\s*when\s*:\s*([^\n]+)\n\s*then\s*:\s*([^\n]+)/gi;
   let match: RegExpExecArray | null;
   while ((match = gwt.exec(task)) !== null) {
     criteria.push({
