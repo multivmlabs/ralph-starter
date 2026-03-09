@@ -301,6 +301,8 @@ export interface RunCommandOptions {
   figmaMapping?: string;
   // Shift-left validation
   shiftLeft?: boolean;
+  // Acceptance criteria
+  acceptanceCriteria?: boolean;
   // Design reference
   designImage?: string;
   // Visual comparison
@@ -1356,6 +1358,22 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
       }
     } else {
       console.log(chalk.dim('  Shift-left: no validation commands detected, skipping'));
+    }
+  }
+
+  // Extract acceptance criteria if requested
+  if (options.acceptanceCriteria && finalTask) {
+    const { extractAcceptanceCriteria } = await import('../loop/acceptance-criteria.js');
+    const ac = extractAcceptanceCriteria(finalTask);
+    if (ac.raw) {
+      finalTask = `${finalTask}\n\n${ac.raw}`;
+      if (ac.criteria.length > 0) {
+        console.log(
+          chalk.dim(`  Acceptance criteria: ${ac.criteria.length} criterion(s) extracted`)
+        );
+      } else {
+        console.log(chalk.dim('  Acceptance criteria: agent will generate Given/When/Then'));
+      }
     }
   }
 
