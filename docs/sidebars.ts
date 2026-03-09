@@ -41,6 +41,7 @@ const sidebars: SidebarsConfig = {
       items: [
         'cli/run',
         'cli/fix',
+        'cli/github',
         'cli/init',
         'cli/plan',
         'cli/config',

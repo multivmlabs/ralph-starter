@@ -8,6 +8,7 @@ import { checkCommand } from './commands/check.js';
 import { configCommand } from './commands/config.js';
 import { figmaCommand } from './commands/figma.js';
 import { fixCommand } from './commands/fix.js';
+import { githubCommand } from './commands/github.js';
 import { initCommand } from './commands/init.js';
 import { integrationsCommand } from './commands/integrations.js';
 import { pauseCommand } from './commands/pause.js';
@@ -152,6 +153,24 @@ program
     await figmaCommand({
       mode: options.figmaMode,
       framework: options.figmaFramework,
+      commit: options.commit,
+      validate: options.validate,
+      maxIterations: options.maxIterations ? parseInt(options.maxIterations, 10) : undefined,
+      agent: options.agent,
+    });
+  });
+
+// ralph-starter github - GitHub issue to code wizard
+program
+  .command('github')
+  .description('Build code from GitHub issues with an interactive wizard')
+  .option('--commit', 'Auto-commit changes')
+  .option('--validate', 'Run validation after each iteration', true)
+  .option('--no-validate', 'Skip validation')
+  .option('--max-iterations <n>', 'Maximum loop iterations')
+  .option('--agent <name>', 'Specify agent to use')
+  .action(async (options) => {
+    await githubCommand({
       commit: options.commit,
       validate: options.validate,
       maxIterations: options.maxIterations ? parseInt(options.maxIterations, 10) : undefined,
