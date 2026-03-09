@@ -1338,11 +1338,15 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
           chalk.yellow(`Shift-left: ${failures.length} pre-existing failure(s) detected`)
         );
         const feedback = formatValidationFeedback(preResults);
+        const feedbackWithoutFixPrompt = feedback.replace(
+          /\nPlease fix the above issues before continuing\.\s*$/,
+          ''
+        );
         shiftLeftFeedback = [
           '## Pre-existing Failures (Shift-Left)\n',
           'The following failures existed BEFORE you started working.',
           'Do NOT attempt to fix these unless the task explicitly asks you to.\n',
-          feedback,
+          feedbackWithoutFixPrompt,
         ].join('\n');
       } else {
         spinner.succeed('Shift-left: all validations pass — clean baseline');
