@@ -124,6 +124,13 @@ program
     '--no-visual-check',
     'Disable visual comparison validation (auto-enabled when Figma screenshots exist)'
   )
+  // Swarm mode options
+  .option('--swarm', 'Run with multiple agents in parallel (swarm mode)')
+  .option(
+    '--strategy <strategy>',
+    'Swarm strategy: race (first wins), consensus (best wins), pipeline (sequential chain)',
+    'race'
+  )
   .action(runCommand);
 
 // ralph-starter fix - Fix build errors and code quality issues

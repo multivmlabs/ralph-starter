@@ -305,6 +305,9 @@ export interface RunCommandOptions {
   designImage?: string;
   // Visual comparison
   visualCheck?: boolean;
+  // Swarm mode
+  swarm?: boolean;
+  strategy?: 'race' | 'consensus' | 'pipeline';
 }
 
 export async function runCommand(
@@ -1406,6 +1409,47 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
     visualValidation,
     figmaScreenshotPaths,
   };
+
+  // Swarm mode: run with multiple agents in parallel
+  if (options.swarm) {
+    const { runSwarm } = await import('../loop/swarm.js');
+    const strategy = options.strategy || 'race';
+    console.log(chalk.cyan.bold(`Swarm mode: ${strategy} strategy`));
+    console.log();
+
+    const swarmResult = await runSwarm({
+      task: loopOptions.task,
+      cwd,
+      strategy,
+      auto: loopOptions.auto,
+      validate: loopOptions.validate,
+      maxIterations: loopOptions.maxIterations,
+      pr: loopOptions.pr,
+      push: loopOptions.push,
+      commit: loopOptions.commit,
+      onProgress: (msg) => console.log(chalk.dim(`  ${msg}`)),
+    });
+
+    // Print swarm summary
+    console.log();
+    if (swarmResult.winner) {
+      console.log(chalk.green.bold(`Swarm completed! Winner: ${swarmResult.winner.agent.name}`));
+    } else {
+      console.log(chalk.red.bold('Swarm completed — no successful result'));
+    }
+    console.log(chalk.dim(`Strategy: ${swarmResult.strategy}`));
+    console.log(chalk.dim(`Agents: ${swarmResult.agents.map((a) => a.name).join(', ')}`));
+    console.log(chalk.dim(`Total cost: ${formatCost(swarmResult.totalCost)}`));
+    if (swarmResult.prUrl) {
+      console.log(chalk.dim(`PR: ${swarmResult.prUrl}`));
+    }
+    for (const r of swarmResult.results) {
+      const status = r.success ? chalk.green('success') : chalk.red('failed');
+      console.log(chalk.dim(`  ${r.agent.name}: ${status} (${r.result.iterations} iterations)`));
+    }
+    console.log();
+    return;
+  }
 
   const result = await runLoop(loopOptions);
 
