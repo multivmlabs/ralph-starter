@@ -301,6 +301,8 @@ program
   .option('--max-iterations <n>', 'Max iterations per task (default: 15)')
   .option('--batch', 'Use Anthropic Batch API for 50% cost reduction (no tool use)')
   .option('--model <name>', 'Model to use in batch mode')
+  .option('--parallel', 'Run tasks in parallel using git worktrees')
+  .option('--concurrency <n>', 'Max concurrent parallel tasks (default: 3)', '3')
   .action(async (options) => {
     await autoCommand({
       source: options.source,
@@ -314,6 +316,8 @@ program
       maxIterations: options.maxIterations ? parseInt(options.maxIterations, 10) : undefined,
       batch: options.batch,
       model: options.model,
+      parallel: options.parallel,
+      concurrency: options.concurrency ? parseInt(options.concurrency, 10) : undefined,
     });
   });
 

@@ -4,6 +4,15 @@ export const name = 'ralph-starter';
 
 // Automation
 export { createPullRequest, gitCommit, gitPush, isGitRepo } from './automation/git.js';
+export type { WorktreeInfo } from './automation/worktree.js';
+export {
+  cleanupAllWorktrees,
+  createWorktree,
+  listRalphWorktrees,
+  listWorktrees,
+  mergeWorktreeBranch,
+  removeWorktree,
+} from './automation/worktree.js';
 export { configCommand } from './commands/config.js';
 export { initCommand } from './commands/init.js';
 export { planCommand } from './commands/plan.js';
