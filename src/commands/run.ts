@@ -353,6 +353,22 @@ export async function runCommand(
     }
   }
 
+  // If --from is used without --project/--issue for supported wizards, launch the wizard
+  if (options.from && !options.project && !options.issue) {
+    const source = options.from.toLowerCase();
+    if (source === 'linear') {
+      const { linearCommand: launchLinear } = await import('./linear.js');
+      return launchLinear({
+        commit: options.commit,
+        push: options.push,
+        pr: options.pr,
+        validate: options.validate,
+        maxIterations: options.maxIterations,
+        agent: options.agent,
+      });
+    }
+  }
+
   // Handle --from source
   let sourceSpec: string | null = null;
   let sourceTitle: string | undefined;
