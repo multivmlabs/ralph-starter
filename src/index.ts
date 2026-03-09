@@ -42,6 +42,16 @@ export type { RunCoreOptions, RunCoreResult } from './mcp/core/run.js';
 export { runCore } from './mcp/core/run.js';
 // MCP
 export { createMcpServer, startMcpServer } from './mcp/server.js';
+// Presets (Hat System)
+export type { PresetConfig } from './presets/index.js';
+export {
+  formatPresetsHelp,
+  getPreset,
+  getPresetNames,
+  getPresetsByCategory,
+  loadCustomPresets,
+  PRESETS,
+} from './presets/index.js';
 // Sources
 export {
   detectSource,
