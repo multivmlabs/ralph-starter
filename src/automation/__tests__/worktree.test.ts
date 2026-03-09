@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execa } from 'execa';
@@ -16,8 +16,7 @@ describe('worktree', () => {
 
   beforeEach(async () => {
     // Create a temp git repo for testing
-    repoDir = join(tmpdir(), `ralph-worktree-test-${Date.now()}`);
-    mkdirSync(repoDir, { recursive: true });
+    repoDir = mkdtempSync(join(tmpdir(), 'ralph-worktree-test-'));
     await execa('git', ['init', '-b', 'main'], { cwd: repoDir });
     await execa('git', ['config', 'user.email', 'test@test.com'], { cwd: repoDir });
     await execa('git', ['config', 'user.name', 'Test'], { cwd: repoDir });
