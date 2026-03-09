@@ -35,6 +35,7 @@ import {
   type PlanBudget,
 } from './cost-tracker.js';
 import { estimateLoop, formatEstimateDetailed } from './estimator.js';
+import { appendProjectMemory, formatMemoryPrompt, readProjectMemory } from './memory.js';
 import { checkFileBasedCompletion, createProgressTracker, type ProgressEntry } from './progress.js';
 import { RateLimiter } from './rate-limiter.js';
 import { analyzeResponse, hasExitSignal } from './semantic-analyzer.js';
@@ -554,6 +555,13 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
   if (detectedSkills.length > 0) {
     const skillsPrompt = formatSkillsForPrompt(detectedSkills, options.task, options.maxSkills);
     taskWithSkills = `${options.task}\n\n${skillsPrompt}`;
+  }
+
+  // Inject project memory from previous runs (if available)
+  const projectMemory = readProjectMemory(options.cwd);
+  if (projectMemory) {
+    taskWithSkills = `${taskWithSkills}\n\n${formatMemoryPrompt(projectMemory)}`;
+    log(chalk.dim('  Project memory loaded from .ralph/memory.md'));
   }
 
   // Build abbreviated spec summary for context builder (iterations 2+)
@@ -1664,6 +1672,18 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     log(chalk.cyan('💰 Cost Summary:'));
     log(chalk.dim(costTracker.formatStats()));
   }
+
+  // Save a run summary to project memory for future runs
+  const isSuccess = exitReason === 'completed' || exitReason === 'file_signal';
+  const memorySummary = [
+    `Task: ${options.taskTitle || options.task.slice(0, 100)}`,
+    `Result: ${isSuccess ? 'success' : exitReason}`,
+    `Iterations: ${finalIteration}, Commits: ${commits.length}`,
+  ];
+  if (costTracker) {
+    memorySummary.push(`Cost: ${formatCost(costTracker.getStats().totalCost.totalCost)}`);
+  }
+  appendProjectMemory(options.cwd, memorySummary.join('\n'));
 
   return {
     success: exitReason === 'completed' || exitReason === 'file_signal',

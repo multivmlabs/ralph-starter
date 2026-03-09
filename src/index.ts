@@ -44,6 +44,7 @@ export type {
 export { CostTracker, resolveModelPricing } from './loop/cost-tracker.js';
 export type { IterationUpdate, LoopOptions, LoopResult } from './loop/executor.js';
 export { runLoop } from './loop/executor.js';
+export { appendProjectMemory, readProjectMemory } from './loop/memory.js';
 export type { SwarmAgentResult, SwarmConfig, SwarmResult, SwarmStrategy } from './loop/swarm.js';
 export { runSwarm } from './loop/swarm.js';
 export { detectValidationCommands, runAllValidations, runValidation } from './loop/validation.js';
