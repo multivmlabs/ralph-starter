@@ -12,6 +12,7 @@ import IntegrationShowcase from '@site/src/components/IntegrationShowcase';
 import AutoMode from '@site/src/components/AutoMode';
 import PresetsShowcase from '@site/src/components/PresetsShowcase';
 import SkillsShowcase from '@site/src/components/SkillsShowcase';
+import DemoShowcase from '@site/src/components/DemoShowcase';
 
 export default function Home(): ReactNode {
   useDocusaurusContext();
@@ -30,6 +31,7 @@ export default function Home(): ReactNode {
       description="Connect your tools like Figma, GitHub, Linear, and Notion. Fetch specs from anywhere and let AI coding agents build production-ready code automatically with autonomous loops.">
       <HeroSection />
       <main>
+        <DemoShowcase />
         <FeatureSections />
         <AutoMode />
         <PresetsShowcase />
