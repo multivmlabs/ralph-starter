@@ -39,6 +39,7 @@ import {
 } from '../utils/sanitize.js';
 import { ensureSharp } from '../utils/sharp.js';
 import { showWelcome } from '../wizard/ui.js';
+import { githubCommand } from './github.js';
 
 /** Default fallback repo for GitHub issues when no project is specified */
 const DEFAULT_GITHUB_ISSUES_REPO = 'multivmlabs/ralph-ideas';
@@ -350,6 +351,21 @@ export async function runCommand(
         options.push = false;
         options.pr = false;
       }
+    }
+  }
+
+  // Handle --from with wizard fallback for integrations without enough context
+  if (options.from && !options.project && !options.issue) {
+    const source = options.from.toLowerCase();
+    if (source === 'github') {
+      return githubCommand({
+        commit: options.commit,
+        push: options.push,
+        pr: options.pr,
+        validate: options.validate,
+        maxIterations: options.maxIterations,
+        agent: options.agent,
+      });
     }
   }
 
