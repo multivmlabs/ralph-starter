@@ -269,6 +269,8 @@ export type LoopOptions = {
   env?: Record<string, string>;
   /** Amp agent mode: smart, rush, deep */
   ampMode?: import('./agents.js').AmpMode;
+  /** API key for SDK-based agents */
+  apiKey?: string;
 };
 
 export type LoopResult = {
@@ -921,6 +923,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       model: options.model,
       env: options.env,
       ampMode: options.ampMode,
+      apiKey: options.apiKey,
       // maxTurns removed - was causing issues, match wizard behavior
       streamOutput: !!process.env.RALPH_DEBUG, // Show raw JSON when debugging
       headless,

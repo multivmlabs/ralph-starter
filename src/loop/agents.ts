@@ -9,6 +9,7 @@ export type AgentType =
   | 'opencode'
   | 'openclaw'
   | 'amp'
+  | 'anthropic-sdk'
   | 'unknown';
 
 /** Amp agent mode — controls model selection and reasoning depth */
@@ -42,6 +43,8 @@ export type AgentRunOptions = {
   headless?: boolean;
   /** Amp agent mode: smart (frontier), rush (fast), deep (extended reasoning) */
   ampMode?: AmpMode;
+  /** API key for SDK-based agents (anthropic-sdk). Overrides env var. */
+  apiKey?: string;
 };
 
 const AGENTS: Record<AgentType, { name: string; command: string; checkCmd: string[] }> = {
@@ -75,6 +78,11 @@ const AGENTS: Record<AgentType, { name: string; command: string; checkCmd: strin
     command: 'amp',
     checkCmd: ['amp', '--version'],
   },
+  'anthropic-sdk': {
+    name: 'Anthropic SDK',
+    command: '',
+    checkCmd: [],
+  },
   unknown: {
     name: 'Unknown',
     command: '',
@@ -82,8 +90,14 @@ const AGENTS: Record<AgentType, { name: string; command: string; checkCmd: strin
   },
 };
 
-export async function checkAgentAvailable(type: AgentType): Promise<boolean> {
+export async function checkAgentAvailable(
+  type: AgentType,
+  options?: { apiKey?: string }
+): Promise<boolean> {
   if (type === 'unknown') return false;
+  if (type === 'anthropic-sdk') {
+    return !!(options?.apiKey || process.env.ANTHROPIC_API_KEY);
+  }
 
   const agent = AGENTS[type];
   try {
@@ -94,7 +108,9 @@ export async function checkAgentAvailable(type: AgentType): Promise<boolean> {
   }
 }
 
-export async function detectAvailableAgents(): Promise<Agent[]> {
+export async function detectAvailableAgents(options?: {
+  apiKeys?: Record<string, string>;
+}): Promise<Agent[]> {
   const entries = Object.entries(AGENTS).filter(([type]) => type !== 'unknown');
 
   // Check all agents in parallel — each spawns an independent subprocess
@@ -103,21 +119,36 @@ export async function detectAvailableAgents(): Promise<Agent[]> {
       type: type as AgentType,
       name: config.name,
       command: config.command,
-      available: await checkAgentAvailable(type as AgentType),
+      available: await checkAgentAvailable(type as AgentType, {
+        apiKey:
+          type === 'anthropic-sdk'
+            ? options?.apiKeys?.ANTHROPIC_API_KEY || options?.apiKeys?.anthropic
+            : undefined,
+      }),
     }))
   );
 
   return results;
 }
 
-export async function detectBestAgent(): Promise<Agent | null> {
-  const agents = await detectAvailableAgents();
+export async function detectBestAgent(options?: {
+  apiKeys?: Record<string, string>;
+}): Promise<Agent | null> {
+  const agents = await detectAvailableAgents(options);
   const available = agents.filter((a) => a.available);
 
   if (available.length === 0) return null;
 
-  // Prefer Claude Code, then Amp, then others
-  const preferred = ['claude-code', 'amp', 'cursor', 'codex', 'opencode', 'openclaw'];
+  // Prefer Claude Code, then Amp, then Anthropic SDK, then others
+  const preferred = [
+    'claude-code',
+    'amp',
+    'anthropic-sdk',
+    'cursor',
+    'codex',
+    'opencode',
+    'openclaw',
+  ];
   for (const type of preferred) {
     const agent = available.find((a) => a.type === type);
     if (agent) return agent;
@@ -182,6 +213,9 @@ export async function runAgent(
       // Use Amp SDK for native async generator integration when available,
       // fall back to CLI subprocess with --stream-json for compatibility.
       return runAmpAgent(agent, options);
+
+    case 'anthropic-sdk':
+      return runAnthropicSdkAgent(agent, options);
 
     default:
       throw new Error(`Unknown agent type: ${agent.type}`);
@@ -327,6 +361,87 @@ export async function runAgent(
       resolve({ output: err.message, exitCode: 1 });
     });
   });
+}
+
+/**
+ * Run Anthropic SDK agent — uses @anthropic-ai/sdk directly (no CLI binary needed).
+ * Suitable for web applications and environments without CLI tools installed.
+ */
+async function runAnthropicSdkAgent(
+  _agent: Agent,
+  options: AgentRunOptions
+): Promise<{ output: string; exitCode: number }> {
+  const Anthropic = (await import('@anthropic-ai/sdk')).default;
+
+  const apiKey = options.apiKey || process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return {
+      output: 'No Anthropic API key provided. Set ANTHROPIC_API_KEY or pass apiKey option.',
+      exitCode: 1,
+    };
+  }
+
+  const client = new Anthropic({ apiKey });
+  const model = options.model || 'claude-sonnet-4-20250514';
+
+  const systemPrompt = [
+    'You are an expert software engineer working on a coding task.',
+    'You have access to a project directory. Complete the task described below.',
+    'Be thorough, write clean code, and handle edge cases.',
+    `Working directory: ${options.cwd}`,
+    '',
+    'When you have completed the task, clearly state what you did.',
+  ].join('\n');
+
+  let output = '';
+  let outputBytes = 0;
+  const maxOutputBytes = options.maxOutputBytes || 50 * 1024 * 1024;
+
+  try {
+    const streamOptions: Record<string, unknown> = {
+      model,
+      max_tokens: options.maxTurns ? options.maxTurns * 4096 : 16384,
+      system: systemPrompt,
+      messages: [{ role: 'user' as const, content: options.task }],
+    };
+
+    if (options.timeoutMs) {
+      streamOptions.timeout = options.timeoutMs;
+    }
+
+    const stream = client.messages.stream(
+      streamOptions as Parameters<typeof client.messages.stream>[0]
+    );
+
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && 'delta' in event) {
+        const delta = event.delta;
+        if ('text' in delta) {
+          const text = delta.text;
+          output += text;
+          outputBytes += Buffer.byteLength(text);
+
+          if (options.onOutput) {
+            options.onOutput(text);
+          }
+          if (options.streamOutput) {
+            process.stdout.write(text);
+          }
+
+          if (outputBytes > maxOutputBytes) {
+            const keepBytes = Math.floor(maxOutputBytes * 0.8);
+            output = output.slice(-keepBytes);
+            outputBytes = Buffer.byteLength(output);
+          }
+        }
+      }
+    }
+
+    return { output, exitCode: 0 };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return { output: `${output}\nError: ${msg}`, exitCode: 1 };
+  }
 }
 
 /**
