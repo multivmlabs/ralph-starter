@@ -349,7 +349,7 @@ async function runAmpAgent(
     prompt: options.task,
     options: {
       cwd: options.cwd,
-      dangerouslyAllowAll: options.auto ?? true,
+      dangerouslyAllowAll: options.auto ?? false,
       mode: options.ampMode ?? 'smart',
     },
   };
@@ -425,7 +425,9 @@ function runAmpCli(
     });
 
     let output = '';
+    let outputBytes = 0;
     let stdoutBuffer = '';
+    const maxOutputBytes = options.maxOutputBytes || 50 * 1024 * 1024;
 
     const timeoutMs = options.timeoutMs || 300000;
     const timeout = setTimeout(() => {
@@ -435,6 +437,14 @@ function runAmpCli(
 
     proc.stdout?.on('data', (data: Buffer) => {
       const chunk = data.toString();
+      outputBytes += data.byteLength;
+
+      if (outputBytes > maxOutputBytes) {
+        const keepBytes = Math.floor(maxOutputBytes * 0.8);
+        output = output.slice(-keepBytes);
+        outputBytes = Buffer.byteLength(output);
+      }
+
       output += chunk;
       stdoutBuffer += chunk;
 

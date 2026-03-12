@@ -319,6 +319,10 @@ program
   .option('--dry-run', 'Preview mode - show tasks without executing')
   .option('--skip-pr', 'Skip PR creation (commit only)')
   .option('--agent <name>', 'Specify agent to use')
+  .option(
+    '--amp-mode <mode>',
+    'Amp agent mode: smart (frontier), rush (fast), deep (extended reasoning)'
+  )
   .option('--validate', 'Run validation after each task', true)
   .option('--no-validate', 'Skip validation')
   .option('--max-iterations <n>', 'Max iterations per task (default: 15)')
@@ -412,6 +416,10 @@ program
   .option('--validate', 'Run tests/lint/build after each iteration')
   .option('--max-iterations <n>', 'Maximum loop iterations')
   .option('--agent <name>', 'Specify agent (claude-code, cursor, codex, opencode, openclaw, amp)')
+  .option(
+    '--amp-mode <mode>',
+    'Amp agent mode: smart (frontier), rush (fast), deep (extended reasoning)'
+  )
   .action(async (action: string | undefined, args: string[], options) => {
     await templateCommand(action, args, options);
   });
