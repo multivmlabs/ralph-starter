@@ -21,7 +21,7 @@ export interface ProgressTracker {
   clear(): Promise<void>;
 }
 
-const ACTIVITY_FILE = '.ralph/activity.md';
+const DEFAULT_ACTIVITY_DIR = '.ralph';
 
 /**
  * Format a progress entry as markdown
@@ -128,8 +128,12 @@ function getFileHeader(task: string): string {
 /**
  * Create a progress tracker for a directory
  */
-export function createProgressTracker(cwd: string, task: string): ProgressTracker {
-  const filePath = path.join(cwd, ACTIVITY_FILE);
+export function createProgressTracker(
+  cwd: string,
+  task: string,
+  dotDir = DEFAULT_ACTIVITY_DIR
+): ProgressTracker {
+  const filePath = path.join(cwd, dotDir, 'activity.md');
   const dirPath = path.dirname(filePath);
   let initialized = false;
 
