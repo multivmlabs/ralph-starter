@@ -533,15 +533,32 @@ async function runAnthropicSdkAgent(
 
   const messages: Message[] = [{ role: 'user', content: options.task }];
 
+  // Buffer partial lines so onOutput always receives complete lines (matching CLI agents)
+  let lineBuffer = '';
+
   const appendOutput = (text: string) => {
     output += text;
     outputBytes += Buffer.byteLength(text);
-    if (options.onOutput) options.onOutput(text);
     if (options.streamOutput) process.stdout.write(text);
     if (outputBytes > maxOutputBytes) {
       const keepBytes = Math.floor(maxOutputBytes * 0.8);
       output = output.slice(-keepBytes);
       outputBytes = Buffer.byteLength(output);
+    }
+    if (options.onOutput) {
+      lineBuffer += text;
+      const lines = lineBuffer.split('\n');
+      lineBuffer = lines.pop() ?? '';
+      for (const line of lines) {
+        if (line) options.onOutput(line);
+      }
+    }
+  };
+
+  const flushLineBuffer = () => {
+    if (lineBuffer && options.onOutput) {
+      options.onOutput(lineBuffer);
+      lineBuffer = '';
     }
   };
 
@@ -611,8 +628,10 @@ async function runAnthropicSdkAgent(
       messages.push({ role: 'user', content: toolResults });
     }
 
+    flushLineBuffer();
     return { output, exitCode: 0 };
   } catch (error) {
+    flushLineBuffer();
     const msg = error instanceof Error ? error.message : String(error);
     return { output: `${output}\nError: ${msg}`, exitCode: 1 };
   }
