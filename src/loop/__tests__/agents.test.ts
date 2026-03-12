@@ -89,10 +89,11 @@ describe('agents', () => {
         .mockRejectedValueOnce(new Error('not found')) // opencode
         .mockRejectedValueOnce(new Error('not found')) // openclaw
         .mockRejectedValueOnce(new Error('not found')); // amp
+      // anthropic-sdk has no CLI check — availability is based on API key
 
       const agents = await detectAvailableAgents();
 
-      expect(agents).toHaveLength(6);
+      expect(agents).toHaveLength(7);
       expect(agents.find((a) => a.type === 'claude-code')?.available).toBe(true);
       expect(agents.find((a) => a.type === 'cursor')?.available).toBe(false);
     });
