@@ -63,8 +63,12 @@ program
   .option('--docker', 'Run in Docker sandbox (coming soon)')
   .option('--prd <file>', 'Read tasks from a PRD markdown file')
   .option('--max-iterations <n>', 'Maximum loop iterations (auto-calculated if not specified)')
-  .option('--agent <name>', 'Specify agent (claude-code, cursor, codex, opencode, openclaw)')
+  .option('--agent <name>', 'Specify agent (claude-code, cursor, codex, opencode, openclaw, amp)')
   .option('--model <name>', 'Model to use (e.g., claude-sonnet-4-5-20250929, claude-opus-4-6)')
+  .option(
+    '--amp-mode <mode>',
+    'Amp agent mode: smart (frontier), rush (fast), deep (extended reasoning)'
+  )
   .option('--from <source>', 'Fetch spec from source (file, url, github, todoist, linear, notion)')
   .option('--project <name>', 'Project/repo name for --from integrations')
   .option('--label <name>', 'Label filter for --from integrations')
@@ -315,6 +319,10 @@ program
   .option('--dry-run', 'Preview mode - show tasks without executing')
   .option('--skip-pr', 'Skip PR creation (commit only)')
   .option('--agent <name>', 'Specify agent to use')
+  .option(
+    '--amp-mode <mode>',
+    'Amp agent mode: smart (frontier), rush (fast), deep (extended reasoning)'
+  )
   .option('--validate', 'Run validation after each task', true)
   .option('--no-validate', 'Skip validation')
   .option('--max-iterations <n>', 'Max iterations per task (default: 15)')
@@ -407,7 +415,11 @@ program
   .option('--pr', 'Create a pull request when done')
   .option('--validate', 'Run tests/lint/build after each iteration')
   .option('--max-iterations <n>', 'Maximum loop iterations')
-  .option('--agent <name>', 'Specify agent (claude-code, cursor, codex, opencode, openclaw)')
+  .option('--agent <name>', 'Specify agent (claude-code, cursor, codex, opencode, openclaw, amp)')
+  .option(
+    '--amp-mode <mode>',
+    'Amp agent mode: smart (frontier), rush (fast), deep (extended reasoning)'
+  )
   .action(async (action: string | undefined, args: string[], options) => {
     await templateCommand(action, args, options);
   });

@@ -87,11 +87,12 @@ describe('agents', () => {
         .mockRejectedValueOnce(new Error('not found')) // cursor
         .mockRejectedValueOnce(new Error('not found')) // codex
         .mockRejectedValueOnce(new Error('not found')) // opencode
-        .mockRejectedValueOnce(new Error('not found')); // openclaw
+        .mockRejectedValueOnce(new Error('not found')) // openclaw
+        .mockRejectedValueOnce(new Error('not found')); // amp
 
       const agents = await detectAvailableAgents();
 
-      expect(agents).toHaveLength(5);
+      expect(agents).toHaveLength(6);
       expect(agents.find((a) => a.type === 'claude-code')?.available).toBe(true);
       expect(agents.find((a) => a.type === 'cursor')?.available).toBe(false);
     });
@@ -121,15 +122,30 @@ describe('agents', () => {
       expect(agent?.type).toBe('claude-code');
     });
 
-    it('should fall back to cursor if claude-code is not available', async () => {
+    it('should fall back to amp if claude-code is not available', async () => {
+      mockExeca
+        .mockRejectedValueOnce(new Error('not found')) // claude-code
+        .mockRejectedValueOnce(new Error('not found')) // cursor
+        .mockRejectedValueOnce(new Error('not found')) // codex
+        .mockRejectedValueOnce(new Error('not found')) // opencode
+        .mockRejectedValueOnce(new Error('not found')) // openclaw
+        .mockResolvedValueOnce({ stdout: '1.0.0', exitCode: 0 } as any); // amp
+
+      const agent = await detectBestAgent();
+      expect(agent?.type).toBe('amp');
+    });
+
+    it('should prefer amp over cursor', async () => {
       mockExeca
         .mockRejectedValueOnce(new Error('not found')) // claude-code
         .mockResolvedValueOnce({ stdout: '1.0.0', exitCode: 0 } as any) // cursor
         .mockRejectedValueOnce(new Error('not found')) // codex
-        .mockRejectedValueOnce(new Error('not found')); // opencode
+        .mockRejectedValueOnce(new Error('not found')) // opencode
+        .mockRejectedValueOnce(new Error('not found')) // openclaw
+        .mockResolvedValueOnce({ stdout: '1.0.0', exitCode: 0 } as any); // amp
 
       const agent = await detectBestAgent();
-      expect(agent?.type).toBe('cursor');
+      expect(agent?.type).toBe('amp');
     });
   });
 

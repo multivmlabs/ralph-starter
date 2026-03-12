@@ -1,6 +1,6 @@
 {
   "name": "ralph-starter",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Ralph Wiggum made easy. One command to run autonomous AI coding loops with auto-commit, PRs, and Docker sandbox.",
   "main": "dist/index.js",
   "bin": {
@@ -85,6 +85,9 @@
     "simple-git": "^3.27.0",
     "yaml": "^2.7.0",
     "zod": "^4.3.6"
+  },
+  "optionalDependencies": {
+    "@sourcegraph/amp-sdk": "0.1.0-20260312122132-g783443e"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.13",

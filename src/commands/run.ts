@@ -310,6 +310,8 @@ export interface RunCommandOptions {
   // Swarm mode
   swarm?: boolean;
   strategy?: 'race' | 'consensus' | 'pipeline';
+  // Amp options
+  ampMode?: 'smart' | 'rush' | 'deep';
 }
 
 export async function runCommand(
@@ -971,6 +973,11 @@ export async function runCommand(
       console.log();
       console.log(chalk.yellow('Please install one of these:'));
       console.log(chalk.gray('  Claude Code: npm install -g @anthropic-ai/claude-code'));
+      console.log(
+        chalk.gray(
+          '  Amp:         npm install -g @sourcegraph/amp  (or see https://ampcode.com/install)'
+        )
+      );
       console.log(chalk.gray('  Cursor:      https://cursor.sh'));
       console.log(chalk.gray('  Codex:       npm install -g codex'));
       console.log(chalk.gray('  OpenCode:    npm install -g opencode'));
@@ -1426,6 +1433,7 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
     designImagePath,
     visualValidation,
     figmaScreenshotPaths,
+    ampMode: options.ampMode,
   };
 
   // Swarm mode: run with multiple agents in parallel
