@@ -364,7 +364,134 @@ export async function runAgent(
 }
 
 /**
+ * Tool definitions for the Anthropic SDK agent — enables real file operations.
+ */
+const ANTHROPIC_SDK_TOOLS = [
+  {
+    name: 'read_file',
+    description: 'Read the contents of a file at the given path (relative to working directory).',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        path: { type: 'string', description: 'File path relative to working directory' },
+      },
+      required: ['path'],
+    },
+  },
+  {
+    name: 'write_file',
+    description:
+      'Write content to a file, creating it if it does not exist or overwriting if it does. Creates parent directories as needed.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        path: { type: 'string', description: 'File path relative to working directory' },
+        content: { type: 'string', description: 'Full file content to write' },
+      },
+      required: ['path', 'content'],
+    },
+  },
+  {
+    name: 'list_directory',
+    description: 'List files and directories at the given path (relative to working directory).',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        path: {
+          type: 'string',
+          description: 'Directory path relative to working directory. Use "." for root.',
+        },
+      },
+      required: ['path'],
+    },
+  },
+  {
+    name: 'run_command',
+    description:
+      'Execute a shell command in the working directory. Use for installing dependencies, running tests, git operations, etc.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        command: { type: 'string', description: 'Shell command to execute' },
+      },
+      required: ['command'],
+    },
+  },
+];
+
+/**
+ * Execute a tool call from the Anthropic SDK agent.
+ */
+async function executeAnthropicTool(
+  toolName: string,
+  input: Record<string, string>,
+  cwd: string
+): Promise<string> {
+  const { readFileSync, writeFileSync, readdirSync, mkdirSync, statSync } = await import('node:fs');
+  const { join, dirname } = await import('node:path');
+  const { execSync } = await import('node:child_process');
+
+  const resolvePath = (p: string) => join(cwd, p);
+
+  switch (toolName) {
+    case 'read_file': {
+      try {
+        return readFileSync(resolvePath(input.path), 'utf-8');
+      } catch (e) {
+        return `Error reading file: ${e instanceof Error ? e.message : e}`;
+      }
+    }
+    case 'write_file': {
+      try {
+        const fullPath = resolvePath(input.path);
+        mkdirSync(dirname(fullPath), { recursive: true });
+        writeFileSync(fullPath, input.content, 'utf-8');
+        return `File written: ${input.path}`;
+      } catch (e) {
+        return `Error writing file: ${e instanceof Error ? e.message : e}`;
+      }
+    }
+    case 'list_directory': {
+      try {
+        const fullPath = resolvePath(input.path);
+        const entries = readdirSync(fullPath);
+        return entries
+          .map((name: string) => {
+            try {
+              const s = statSync(join(fullPath, name));
+              return s.isDirectory() ? `${name}/` : name;
+            } catch {
+              return name;
+            }
+          })
+          .join('\n');
+      } catch (e) {
+        return `Error listing directory: ${e instanceof Error ? e.message : e}`;
+      }
+    }
+    case 'run_command': {
+      try {
+        const result = execSync(input.command, {
+          cwd,
+          encoding: 'utf-8',
+          timeout: 60000,
+          maxBuffer: 10 * 1024 * 1024,
+          stdio: ['pipe', 'pipe', 'pipe'],
+        });
+        return result || '(command completed with no output)';
+      } catch (e: unknown) {
+        const err = e as { stdout?: string; stderr?: string; message?: string };
+        return `Command failed:\n${err.stderr || err.stdout || err.message || e}`;
+      }
+    }
+    default:
+      return `Unknown tool: ${toolName}`;
+  }
+}
+
+/**
  * Run Anthropic SDK agent — uses @anthropic-ai/sdk directly (no CLI binary needed).
+ * Implements a multi-turn tool-use loop for real file operations.
  * Suitable for web applications and environments without CLI tools installed.
  */
 async function runAnthropicSdkAgent(
@@ -385,56 +512,103 @@ async function runAnthropicSdkAgent(
   const model = options.model || 'claude-sonnet-4-20250514';
 
   const systemPrompt = [
-    'You are an expert software engineer working on a coding task.',
-    'You have access to a project directory. Complete the task described below.',
-    'Be thorough, write clean code, and handle edge cases.',
+    'You are an expert software engineer. You have tools to read/write files and run commands.',
     `Working directory: ${options.cwd}`,
-    '',
-    'When you have completed the task, clearly state what you did.',
+    'Use the provided tools to complete the task. Be thorough, write clean code, and handle edge cases.',
+    'When finished, provide a summary of what you did.',
   ].join('\n');
 
   let output = '';
   let outputBytes = 0;
   const maxOutputBytes = options.maxOutputBytes || 50 * 1024 * 1024;
+  const maxTurns = options.maxTurns || 50;
+  const startTime = Date.now();
+  const timeoutMs = options.timeoutMs || 600000; // 10 min default for tool-use loops
+
+  type Message = { role: 'user' | 'assistant'; content: string | ContentBlock[] };
+  type ContentBlock =
+    | { type: 'text'; text: string }
+    | { type: 'tool_use'; id: string; name: string; input: Record<string, string> }
+    | { type: 'tool_result'; tool_use_id: string; content: string };
+
+  const messages: Message[] = [{ role: 'user', content: options.task }];
+
+  const appendOutput = (text: string) => {
+    output += text;
+    outputBytes += Buffer.byteLength(text);
+    if (options.onOutput) options.onOutput(text);
+    if (options.streamOutput) process.stdout.write(text);
+    if (outputBytes > maxOutputBytes) {
+      const keepBytes = Math.floor(maxOutputBytes * 0.8);
+      output = output.slice(-keepBytes);
+      outputBytes = Buffer.byteLength(output);
+    }
+  };
 
   try {
-    const streamOptions: Record<string, unknown> = {
-      model,
-      max_tokens: options.maxTurns ? options.maxTurns * 4096 : 16384,
-      system: systemPrompt,
-      messages: [{ role: 'user' as const, content: options.task }],
-    };
+    for (let turn = 0; turn < maxTurns; turn++) {
+      if (Date.now() - startTime > timeoutMs) {
+        appendOutput('\nAgent timed out.');
+        return { output, exitCode: 124 };
+      }
 
-    if (options.timeoutMs) {
-      streamOptions.timeout = options.timeoutMs;
-    }
+      const requestOptions: { timeout?: number } = {};
+      if (options.timeoutMs) {
+        requestOptions.timeout = options.timeoutMs;
+      }
 
-    const stream = client.messages.stream(
-      streamOptions as Parameters<typeof client.messages.stream>[0]
-    );
+      const response = await client.messages.create(
+        {
+          model,
+          max_tokens: 16384,
+          system: systemPrompt,
+          messages: messages as Parameters<typeof client.messages.create>[0]['messages'],
+          tools: ANTHROPIC_SDK_TOOLS,
+        },
+        requestOptions
+      );
 
-    for await (const event of stream) {
-      if (event.type === 'content_block_delta' && 'delta' in event) {
-        const delta = event.delta;
-        if ('text' in delta) {
-          const text = delta.text;
-          output += text;
-          outputBytes += Buffer.byteLength(text);
+      // Collect text output and tool calls from response
+      const toolCalls: Array<{ id: string; name: string; input: Record<string, string> }> = [];
 
-          if (options.onOutput) {
-            options.onOutput(text);
-          }
-          if (options.streamOutput) {
-            process.stdout.write(text);
-          }
-
-          if (outputBytes > maxOutputBytes) {
-            const keepBytes = Math.floor(maxOutputBytes * 0.8);
-            output = output.slice(-keepBytes);
-            outputBytes = Buffer.byteLength(output);
-          }
+      for (const block of response.content) {
+        if (block.type === 'text') {
+          appendOutput(block.text);
+        } else if (block.type === 'tool_use') {
+          appendOutput(`\n[tool: ${block.name}(${JSON.stringify(block.input).slice(0, 100)})]\n`);
+          toolCalls.push({
+            id: block.id,
+            name: block.name,
+            input: block.input as Record<string, string>,
+          });
         }
       }
+
+      // If no tool calls or stop_reason is "end_turn", we're done
+      if (toolCalls.length === 0 || response.stop_reason === 'end_turn') {
+        break;
+      }
+
+      // Add assistant message to history
+      messages.push({ role: 'assistant', content: response.content as ContentBlock[] });
+
+      // Execute tool calls and add results
+      const toolResults: ContentBlock[] = [];
+      for (const call of toolCalls) {
+        const result = await executeAnthropicTool(call.name, call.input, options.cwd);
+        const truncated =
+          result.length > 50000 ? `${result.slice(0, 50000)}\n...(truncated)` : result;
+        appendOutput(
+          `[result: ${truncated.slice(0, 200)}${truncated.length > 200 ? '...' : ''}]\n`
+        );
+        toolResults.push({
+          type: 'tool_result',
+          tool_use_id: call.id,
+          content: truncated,
+        });
+      }
+
+      messages.push({ role: 'user', content: toolResults });
     }
 
     return { output, exitCode: 0 };
