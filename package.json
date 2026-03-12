@@ -71,6 +71,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
     "@modelcontextprotocol/sdk": "^1.0.0",
+    "@sourcegraph/amp-sdk": "0.1.0-20260312122132-g783443e",
     "chalk": "^5.3.0",
     "chalk-animation": "^2.0.3",
     "commander": "^14.0.2",

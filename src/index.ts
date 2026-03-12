@@ -29,7 +29,7 @@ export type { LLMProvider } from './llm/providers.js';
 export { OPENROUTER_MODEL_ALIASES, resolveOpenRouterModel } from './llm/providers.js';
 export type { AcceptanceCriteria, AcceptanceCriterion } from './loop/acceptance-criteria.js';
 export { extractAcceptanceCriteria } from './loop/acceptance-criteria.js';
-export type { Agent, AgentType } from './loop/agents.js';
+export type { Agent, AgentType, AmpMode } from './loop/agents.js';
 export { detectAvailableAgents, detectBestAgent } from './loop/agents.js';
 export type { CircuitBreakerConfig, CircuitBreakerState } from './loop/circuit-breaker.js';
 // Loop
