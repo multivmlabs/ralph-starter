@@ -359,6 +359,8 @@ async function runAmpAgent(
   }
 
   let output = '';
+  let outputBytes = 0;
+  const maxOutputBytes = options.maxOutputBytes || 50 * 1024 * 1024;
   let lastResult = '';
 
   try {
@@ -372,7 +374,16 @@ async function runAmpAgent(
         process.stdout.write(chalk.dim(`${line}\n`));
       }
 
-      output += `${line}\n`;
+      const lineStr = `${line}\n`;
+      outputBytes += Buffer.byteLength(lineStr);
+
+      if (outputBytes > maxOutputBytes) {
+        const keepBytes = Math.floor(maxOutputBytes * 0.8);
+        output = output.slice(-keepBytes);
+        outputBytes = Buffer.byteLength(output);
+      }
+
+      output += lineStr;
 
       if (message.type === 'assistant' && message.message?.content) {
         for (const block of message.message.content) {
@@ -392,8 +403,10 @@ async function runAmpAgent(
 
     return { output: output || lastResult, exitCode: 0 };
   } catch (error) {
+    const isTimeout =
+      error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError');
     const msg = error instanceof Error ? error.message : String(error);
-    return { output: `${output}\n${msg}`, exitCode: 1 };
+    return { output: `${output}\n${msg}`, exitCode: isTimeout ? 124 : 1 };
   }
 }
 
