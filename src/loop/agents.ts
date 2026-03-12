@@ -351,6 +351,7 @@ async function runAmpAgent(
       cwd: options.cwd,
       dangerouslyAllowAll: options.auto ?? false,
       mode: options.ampMode ?? 'smart',
+      env: options.env,
     },
   };
 
