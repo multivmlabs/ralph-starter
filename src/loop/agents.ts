@@ -375,6 +375,7 @@ async function runAmpAgent(
       }
 
       const lineStr = `${line}\n`;
+      output += lineStr;
       outputBytes += Buffer.byteLength(lineStr);
 
       if (outputBytes > maxOutputBytes) {
@@ -382,8 +383,6 @@ async function runAmpAgent(
         output = output.slice(-keepBytes);
         outputBytes = Buffer.byteLength(output);
       }
-
-      output += lineStr;
 
       if (message.type === 'assistant' && message.message?.content) {
         for (const block of message.message.content) {
