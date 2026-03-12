@@ -312,6 +312,8 @@ export interface RunCommandOptions {
   strategy?: 'race' | 'consensus' | 'pipeline';
   // Amp options
   ampMode?: 'smart' | 'rush' | 'deep';
+  // Agent reviewer
+  review?: boolean;
 }
 
 export async function runCommand(
@@ -1434,6 +1436,7 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
     visualValidation,
     figmaScreenshotPaths,
     ampMode: options.ampMode,
+    review: options.review,
   };
 
   // Swarm mode: run with multiple agents in parallel

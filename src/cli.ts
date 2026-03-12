@@ -132,6 +132,7 @@ program
     '--no-visual-check',
     'Disable visual comparison validation (auto-enabled when Figma screenshots exist)'
   )
+  .option('--review', 'Run LLM-powered diff review before commit (catches security/logic issues)')
   // Swarm mode options
   .option('--swarm', 'Run with multiple agents in parallel (swarm mode)')
   .option(
