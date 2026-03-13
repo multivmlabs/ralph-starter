@@ -45,6 +45,8 @@ export type AgentRunOptions = {
   ampMode?: AmpMode;
   /** API key for SDK-based agents (anthropic-sdk). Overrides env var. */
   apiKey?: string;
+  /** Allow the anthropic-sdk agent to execute shell commands. Disabled by default for safety. */
+  allowShellExecution?: boolean;
 };
 
 const AGENTS: Record<AgentType, { name: string; command: string; checkCmd: string[] }> = {
@@ -425,25 +427,49 @@ const ANTHROPIC_SDK_TOOLS = [
 async function executeAnthropicTool(
   toolName: string,
   input: Record<string, string>,
-  cwd: string
+  cwd: string,
+  allowShellExecution: boolean
 ): Promise<string> {
-  const { readFileSync, writeFileSync, readdirSync, mkdirSync, statSync } = await import('node:fs');
-  const { join, dirname } = await import('node:path');
+  const { readFileSync, writeFileSync, readdirSync, mkdirSync, statSync, realpathSync } =
+    await import('node:fs');
+  const { join, dirname, resolve } = await import('node:path');
   const { execSync } = await import('node:child_process');
 
-  const resolvePath = (p: string) => join(cwd, p);
+  // Prevent path traversal: resolved path must stay within cwd
+  const safePath = (p: string): string => {
+    const resolved = resolve(cwd, p);
+    // Use realpath for cwd (which always exists) and compare with the resolved target.
+    // For new files that don't exist yet, check the resolved absolute path prefix.
+    const realCwd = realpathSync(cwd);
+    try {
+      const realResolved = realpathSync(resolved);
+      if (!realResolved.startsWith(realCwd)) {
+        throw new Error(`Path traversal not allowed: ${p}`);
+      }
+      return realResolved;
+    } catch (e) {
+      // File may not exist yet (write_file) — verify the resolved path prefix
+      if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
+        if (!resolved.startsWith(realCwd)) {
+          throw new Error(`Path traversal not allowed: ${p}`);
+        }
+        return resolved;
+      }
+      throw e;
+    }
+  };
 
   switch (toolName) {
     case 'read_file': {
       try {
-        return readFileSync(resolvePath(input.path), 'utf-8');
+        return readFileSync(safePath(input.path), 'utf-8');
       } catch (e) {
         return `Error reading file: ${e instanceof Error ? e.message : e}`;
       }
     }
     case 'write_file': {
       try {
-        const fullPath = resolvePath(input.path);
+        const fullPath = safePath(input.path);
         mkdirSync(dirname(fullPath), { recursive: true });
         writeFileSync(fullPath, input.content, 'utf-8');
         return `File written: ${input.path}`;
@@ -453,7 +479,7 @@ async function executeAnthropicTool(
     }
     case 'list_directory': {
       try {
-        const fullPath = resolvePath(input.path);
+        const fullPath = safePath(input.path);
         const entries = readdirSync(fullPath);
         return entries
           .map((name: string) => {
@@ -470,6 +496,9 @@ async function executeAnthropicTool(
       }
     }
     case 'run_command': {
+      if (!allowShellExecution) {
+        return 'Error: Shell execution is disabled. Set allowShellExecution: true to enable.';
+      }
       try {
         const result = execSync(input.command, {
           cwd,
@@ -511,8 +540,13 @@ async function runAnthropicSdkAgent(
   const client = new Anthropic({ apiKey });
   const model = options.model || 'claude-sonnet-4-20250514';
 
+  const allowShell = options.allowShellExecution ?? false;
+  const tools = allowShell
+    ? ANTHROPIC_SDK_TOOLS
+    : ANTHROPIC_SDK_TOOLS.filter((t) => t.name !== 'run_command');
+
   const systemPrompt = [
-    'You are an expert software engineer. You have tools to read/write files and run commands.',
+    `You are an expert software engineer. You have tools to read/write files${allowShell ? ' and run commands' : ''}.`,
     `Working directory: ${options.cwd}`,
     'Use the provided tools to complete the task. Be thorough, write clean code, and handle edge cases.',
     'When finished, provide a summary of what you did.',
@@ -569,10 +603,9 @@ async function runAnthropicSdkAgent(
         return { output, exitCode: 124 };
       }
 
-      const requestOptions: { timeout?: number } = {};
-      if (options.timeoutMs) {
-        requestOptions.timeout = options.timeoutMs;
-      }
+      const elapsed = Date.now() - startTime;
+      const remaining = timeoutMs - elapsed;
+      const requestOptions = remaining > 0 ? { timeout: remaining } : {};
 
       const response = await client.messages.create(
         {
@@ -580,7 +613,7 @@ async function runAnthropicSdkAgent(
           max_tokens: 16384,
           system: systemPrompt,
           messages: messages as Parameters<typeof client.messages.create>[0]['messages'],
-          tools: ANTHROPIC_SDK_TOOLS,
+          tools,
         },
         requestOptions
       );
@@ -612,7 +645,7 @@ async function runAnthropicSdkAgent(
       // Execute tool calls and add results
       const toolResults: ContentBlock[] = [];
       for (const call of toolCalls) {
-        const result = await executeAnthropicTool(call.name, call.input, options.cwd);
+        const result = await executeAnthropicTool(call.name, call.input, options.cwd, allowShell);
         const truncated =
           result.length > 50000 ? `${result.slice(0, 50000)}\n...(truncated)` : result;
         appendOutput(

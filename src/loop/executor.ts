@@ -271,6 +271,8 @@ export type LoopOptions = {
   ampMode?: import('./agents.js').AmpMode;
   /** API key for SDK-based agents */
   apiKey?: string;
+  /** Allow the anthropic-sdk agent to execute shell commands. Disabled by default for safety. */
+  allowShellExecution?: boolean;
 };
 
 export type LoopResult = {
@@ -924,6 +926,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       env: options.env,
       ampMode: options.ampMode,
       apiKey: options.apiKey,
+      allowShellExecution: options.allowShellExecution,
       // maxTurns removed - was causing issues, match wizard behavior
       streamOutput: !!process.env.RALPH_DEBUG, // Show raw JSON when debugging
       headless,
