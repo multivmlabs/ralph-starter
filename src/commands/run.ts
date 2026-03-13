@@ -277,6 +277,8 @@ export interface RunCommandOptions {
   limit?: number;
   issue?: number;
   outputDir?: string;
+  headless?: boolean;
+  autoSkills?: boolean;
   // New options
   preset?: string;
   completionPromise?: string;
@@ -319,7 +321,15 @@ export async function runCommand(
   options: RunCommandOptions
 ): Promise<void> {
   let cwd = process.cwd();
-  const spinner = ora();
+  const headless = options.headless ?? false;
+  const noopSpinner = {
+    start: (_text?: string) => noopSpinner,
+    stop: () => noopSpinner,
+    succeed: (_text?: string) => noopSpinner,
+    fail: (_text?: string) => noopSpinner,
+    warn: (_text?: string) => noopSpinner,
+  };
+  const spinner = headless ? noopSpinner : ora();
 
   // Handle --output-dir flag
   if (options.outputDir) {
@@ -328,7 +338,9 @@ export async function runCommand(
     mkdirSync(cwd, { recursive: true });
   }
 
-  showWelcome();
+  if (!headless) {
+    showWelcome();
+  }
 
   // Check for git repo
   if (options.commit || options.push || options.pr) {
@@ -1181,7 +1193,9 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
   }
 
   // Auto-install relevant skills from skills.sh (enabled by default)
-  await autoInstallSkillsFromTask(finalTask, cwd, options.from?.toLowerCase());
+  if (options.autoSkills !== false) {
+    await autoInstallSkillsFromTask(finalTask, cwd, options.from?.toLowerCase());
+  }
 
   // Copy design reference image to specs/ so the agent can read it
   let designImagePath: string | undefined;
@@ -1434,6 +1448,8 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
     visualValidation,
     figmaScreenshotPaths,
     ampMode: options.ampMode,
+    headless,
+    enableSkills: options.autoSkills !== false,
   };
 
   // Swarm mode: run with multiple agents in parallel
@@ -1478,6 +1494,13 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
   }
 
   const result = await runLoop(loopOptions);
+
+  if (headless) {
+    if (!result.success) {
+      throw new Error(result.error || result.exitReason || 'Loop failed');
+    }
+    return;
+  }
 
   // Print summary
   console.log();
