@@ -1,6 +1,9 @@
 import { spawn } from 'node:child_process';
 import chalk from 'chalk';
 import { execa } from 'execa';
+import { runAmpAgent } from './agents/amp-sdk.js';
+import { runAnthropicSdkAgent } from './agents/anthropic-sdk.js';
+import { runOpencodeSdkAgent } from './agents/opencode-sdk.js';
 
 export type AgentType =
   | 'claude-code'
@@ -9,6 +12,8 @@ export type AgentType =
   | 'opencode'
   | 'openclaw'
   | 'amp'
+  | 'anthropic-sdk'
+  | 'opencode-sdk'
   | 'unknown';
 
 /** Amp agent mode — controls model selection and reasoning depth */
@@ -42,6 +47,10 @@ export type AgentRunOptions = {
   headless?: boolean;
   /** Amp agent mode: smart (frontier), rush (fast), deep (extended reasoning) */
   ampMode?: AmpMode;
+  /** API key for SDK-based agents (anthropic-sdk, opencode-sdk). Overrides env vars. */
+  apiKey?: string;
+  /** Allow the anthropic-sdk agent to execute shell commands. Disabled by default for safety. */
+  allowShellExecution?: boolean;
 };
 
 const AGENTS: Record<AgentType, { name: string; command: string; checkCmd: string[] }> = {
@@ -75,6 +84,16 @@ const AGENTS: Record<AgentType, { name: string; command: string; checkCmd: strin
     command: 'amp',
     checkCmd: ['amp', '--version'],
   },
+  'anthropic-sdk': {
+    name: 'Anthropic SDK',
+    command: '',
+    checkCmd: [],
+  },
+  'opencode-sdk': {
+    name: 'OpenCode SDK',
+    command: '',
+    checkCmd: [],
+  },
   unknown: {
     name: 'Unknown',
     command: '',
@@ -82,44 +101,89 @@ const AGENTS: Record<AgentType, { name: string; command: string; checkCmd: strin
   },
 };
 
-export async function checkAgentAvailable(type: AgentType): Promise<boolean> {
-  if (type === 'unknown') return false;
-
-  const agent = AGENTS[type];
+async function checkCommandAvailable(command: string, args: string[]): Promise<boolean> {
   try {
-    await execa(agent.checkCmd[0], agent.checkCmd.slice(1), { timeout: 5000 });
+    await execa(command, args, { timeout: 5000 });
     return true;
   } catch {
     return false;
   }
 }
 
-export async function detectAvailableAgents(): Promise<Agent[]> {
+export async function checkAgentAvailable(
+  type: AgentType,
+  options?: { apiKey?: string }
+): Promise<boolean> {
+  if (type === 'unknown') return false;
+
+  if (type === 'anthropic-sdk') {
+    return !!(options?.apiKey || process.env.ANTHROPIC_API_KEY);
+  }
+
+  if (type === 'opencode-sdk') {
+    // OpenCode SDK starts a local opencode server under the hood, so the CLI binary must exist.
+    // Auth may come from API keys or existing local OpenCode auth state.
+    // If apiKey is explicitly supplied, treat it as an explicit availability requirement.
+    const checkCmd = AGENTS.opencode.checkCmd;
+    const cliAvailable = await checkCommandAvailable(checkCmd[0], checkCmd.slice(1));
+    if (!cliAvailable) return false;
+
+    if (options && options.apiKey !== undefined) {
+      return options.apiKey.length > 0;
+    }
+
+    return true;
+  }
+
+  const agent = AGENTS[type];
+  if (agent.checkCmd.length === 0) return false;
+  return checkCommandAvailable(agent.checkCmd[0], agent.checkCmd.slice(1));
+}
+
+export async function detectAvailableAgents(options?: {
+  apiKeys?: Record<string, string>;
+}): Promise<Agent[]> {
   const entries = Object.entries(AGENTS).filter(([type]) => type !== 'unknown');
 
-  // Check all agents in parallel — each spawns an independent subprocess
   const results = await Promise.all(
     entries.map(async ([type, config]) => ({
       type: type as AgentType,
       name: config.name,
       command: config.command,
-      available: await checkAgentAvailable(type as AgentType),
+      available: await checkAgentAvailable(type as AgentType, {
+        apiKey:
+          type === 'anthropic-sdk'
+            ? options?.apiKeys?.ANTHROPIC_API_KEY || options?.apiKeys?.anthropic
+            : undefined,
+      }),
     }))
   );
 
   return results;
 }
 
-export async function detectBestAgent(): Promise<Agent | null> {
-  const agents = await detectAvailableAgents();
+export async function detectBestAgent(options?: {
+  apiKeys?: Record<string, string>;
+}): Promise<Agent | null> {
+  const agents = await detectAvailableAgents(options);
   const available = agents.filter((a) => a.available);
 
   if (available.length === 0) return null;
 
-  // Prefer Claude Code, then Amp, then others
-  const preferred = ['claude-code', 'amp', 'cursor', 'codex', 'opencode', 'openclaw'];
+  // Prefer Claude Code, then Amp, then SDK agents, then other CLIs.
+  const preferred: AgentType[] = [
+    'claude-code',
+    'amp',
+    'anthropic-sdk',
+    'opencode-sdk',
+    'cursor',
+    'codex',
+    'opencode',
+    'openclaw',
+  ];
+
   for (const type of preferred) {
-    const agent = available.find((a) => a.type === type);
+    const agent = available.find((candidate) => candidate.type === type);
     if (agent) return agent;
   }
 
@@ -134,20 +198,15 @@ export async function runAgent(
 
   switch (agent.type) {
     case 'claude-code':
-      // Prompt first
       args.push('-p', options.task);
-      // Auto mode
       if (options.auto) {
         args.push('--dangerously-skip-permissions');
       }
-      // Model override (e.g., 'claude-sonnet-4-5-20250929')
       if (options.model) {
         args.push('--model', options.model);
       }
-      // Streaming JSONL output for real-time progress
       args.push('--verbose');
       args.push('--output-format', 'stream-json');
-      // Turn limit
       if (options.maxTurns) {
         args.push('--max-turns', String(options.maxTurns));
       }
@@ -179,17 +238,27 @@ export async function runAgent(
       break;
 
     case 'amp':
-      // Use Amp SDK for native async generator integration when available,
-      // fall back to CLI subprocess with --stream-json for compatibility.
       return runAmpAgent(agent, options);
+
+    case 'anthropic-sdk':
+      return runAnthropicSdkAgent(agent, options);
+
+    case 'opencode-sdk':
+      return runOpencodeSdkAgent(agent, options);
 
     default:
       throw new Error(`Unknown agent type: ${agent.type}`);
   }
 
-  // Use spawn for real-time streaming with timeout
+  return runSubprocessAgent(agent, args, options);
+}
+
+function runSubprocessAgent(
+  agent: Agent,
+  args: string[],
+  options: AgentRunOptions
+): Promise<{ output: string; exitCode: number }> {
   return new Promise((resolve) => {
-    // Debug: log the exact command being run
     if (process.env.RALPH_DEBUG) {
       console.error('\n[DEBUG] === SPAWNING AGENT ===');
       console.error('[DEBUG] Command:', agent.command);
@@ -202,7 +271,6 @@ export async function runAgent(
 
     const proc = spawn(agent.command, args, {
       cwd: options.cwd,
-      // stdin: 'ignore' - we don't need stdin, and leaving it as 'pipe' without closing causes hangs!
       stdio: ['ignore', 'pipe', 'pipe'],
       env: options.env ? { ...process.env, ...options.env } : undefined,
     });
@@ -210,15 +278,12 @@ export async function runAgent(
     let output = '';
     let outputBytes = 0;
     let stdoutBuffer = '';
-    const maxOutputBytes = options.maxOutputBytes || 50 * 1024 * 1024; // Default 50MB
+    const maxOutputBytes = options.maxOutputBytes || 50 * 1024 * 1024;
 
-    // Track data timing for debugging and silence notifications
     let lastDataTime = Date.now();
     let silenceWarningShown = false;
     let extendedSilenceShown = false;
 
-    // Notify if no data received for 30+ seconds (calm, non-alarming)
-    // Skip in headless mode to avoid polluting SDK/CI output
     const silenceChecker = options.headless
       ? undefined
       : setInterval(() => {
@@ -236,7 +301,6 @@ export async function runAgent(
           }
         }, 5000);
 
-    // Configurable timeout (default: 5 minutes)
     const timeoutMs = options.timeoutMs || 300000;
     const timeout = setTimeout(() => {
       if (silenceChecker) clearInterval(silenceChecker);
@@ -244,206 +308,6 @@ export async function runAgent(
         console.error('[DEBUG] TIMEOUT reached after', timeoutMs, 'ms');
         console.error('[DEBUG] Output so far:', output.slice(-500));
       }
-      proc.kill('SIGTERM');
-      resolve({ output: output + '\nProcess timed out', exitCode: 124 });
-    }, timeoutMs);
-
-    // Process stdout line-by-line for real-time updates
-    proc.stdout?.on('data', (data: Buffer) => {
-      const chunk = data.toString();
-      outputBytes += data.byteLength;
-
-      // Guard against unbounded memory growth — keep last portion if over limit.
-      // Repeatable: no flag gate, so output stays bounded even with continuous streaming.
-      if (outputBytes > maxOutputBytes) {
-        const keepBytes = Math.floor(maxOutputBytes * 0.8);
-        output = output.slice(-keepBytes);
-        outputBytes = Buffer.byteLength(output); // Reset counter to actual buffer size
-        if (process.env.RALPH_DEBUG) {
-          console.error(
-            `[DEBUG] Output exceeded ${maxOutputBytes} bytes, truncated to ~${outputBytes}`
-          );
-        }
-      }
-
-      output += chunk;
-      stdoutBuffer += chunk;
-      lastDataTime = Date.now();
-      silenceWarningShown = false; // Reset warning flag when data received
-
-      // Debug: log data timing
-      if (process.env.RALPH_DEBUG) {
-        console.error('[DEBUG] Data chunk received, length:', chunk.length);
-      }
-
-      // Split into lines and process complete ones
-      const lines = stdoutBuffer.split('\n');
-      stdoutBuffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (line.trim()) {
-          // Call onOutput callback for each line (enables progress detection)
-          if (options.onOutput) {
-            options.onOutput(line);
-          }
-          // Optionally stream to console
-          if (options.streamOutput) {
-            process.stdout.write(chalk.dim(line + '\n'));
-          }
-        }
-      }
-    });
-
-    proc.stderr?.on('data', (data: Buffer) => {
-      const chunk = data.toString();
-      outputBytes += data.byteLength; // Include stderr in byte accounting
-      output += chunk;
-      // Debug: log stderr output
-      if (process.env.RALPH_DEBUG) {
-        console.error('[DEBUG] STDERR:', chunk.slice(0, 200));
-      }
-    });
-
-    proc.on('close', (code: number | null) => {
-      clearTimeout(timeout);
-      if (silenceChecker) clearInterval(silenceChecker);
-      // Debug: log process close
-      if (process.env.RALPH_DEBUG) {
-        console.error('[DEBUG] Process closed with code:', code);
-        console.error('[DEBUG] Total output length:', output.length);
-      }
-      // Process any remaining buffer
-      if (stdoutBuffer.trim()) {
-        if (options.onOutput) {
-          options.onOutput(stdoutBuffer);
-        }
-      }
-      resolve({ output, exitCode: code ?? 0 });
-    });
-
-    proc.on('error', (err: Error) => {
-      clearTimeout(timeout);
-      if (silenceChecker) clearInterval(silenceChecker);
-      resolve({ output: err.message, exitCode: 1 });
-    });
-  });
-}
-
-/**
- * Run Amp agent using the @sourcegraph/amp-sdk for native TypeScript integration.
- * Provides structured message streaming, cancellation, and multi-turn support.
- */
-async function runAmpAgent(
-  agent: Agent,
-  options: AgentRunOptions
-): Promise<{ output: string; exitCode: number }> {
-  let ampSdk: typeof import('@sourcegraph/amp-sdk');
-  try {
-    ampSdk = await import('@sourcegraph/amp-sdk');
-  } catch {
-    // SDK not available — fall back to CLI subprocess
-    return runAmpCli(agent, options);
-  }
-
-  const sdkOptions: Parameters<typeof ampSdk.execute>[0] = {
-    prompt: options.task,
-    options: {
-      cwd: options.cwd,
-      dangerouslyAllowAll: options.auto ?? false,
-      mode: options.ampMode ?? 'smart',
-      env: options.env,
-    },
-  };
-
-  if (options.timeoutMs) {
-    sdkOptions.signal = AbortSignal.timeout(options.timeoutMs);
-  }
-
-  let output = '';
-  let outputBytes = 0;
-  const maxOutputBytes = options.maxOutputBytes || 50 * 1024 * 1024;
-  let lastResult = '';
-
-  try {
-    for await (const message of ampSdk.execute(sdkOptions)) {
-      const line = JSON.stringify(message);
-
-      if (options.onOutput) {
-        options.onOutput(line);
-      }
-      if (options.streamOutput) {
-        process.stdout.write(chalk.dim(`${line}\n`));
-      }
-
-      const lineStr = `${line}\n`;
-      output += lineStr;
-      outputBytes += Buffer.byteLength(lineStr);
-
-      if (outputBytes > maxOutputBytes) {
-        const keepBytes = Math.floor(maxOutputBytes * 0.8);
-        output = output.slice(-keepBytes);
-        outputBytes = Buffer.byteLength(output);
-      }
-
-      if (message.type === 'assistant' && message.message?.content) {
-        for (const block of message.message.content) {
-          if ('text' in block && block.text) {
-            lastResult = block.text;
-          }
-        }
-      }
-
-      if (message.type === 'result') {
-        if (message.is_error) {
-          return { output: output + (message.error ?? ''), exitCode: 1 };
-        }
-        lastResult = message.result ?? lastResult;
-      }
-    }
-
-    return { output: output || lastResult, exitCode: 0 };
-  } catch (error) {
-    const isTimeout =
-      error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError');
-    const msg = error instanceof Error ? error.message : String(error);
-    return { output: `${output}\n${msg}`, exitCode: isTimeout ? 124 : 1 };
-  }
-}
-
-/**
- * CLI fallback for Amp when SDK is not installed.
- * Uses `amp --execute --stream-json --dangerously-allow-all`.
- */
-function runAmpCli(
-  agent: Agent,
-  options: AgentRunOptions
-): Promise<{ output: string; exitCode: number }> {
-  const args = ['--execute', options.task, '--stream-json'];
-
-  if (options.auto) {
-    args.push('--dangerously-allow-all');
-  }
-
-  if (options.ampMode) {
-    args.push('--mode', options.ampMode);
-  }
-
-  // Re-use the standard subprocess runner by calling runAgent with a patched agent
-  // that doesn't hit the 'amp' case again. Instead, we inline the spawn logic.
-  return new Promise((resolve) => {
-    const proc = spawn(agent.command, args, {
-      cwd: options.cwd,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: options.env ? { ...process.env, ...options.env } : undefined,
-    });
-
-    let output = '';
-    let outputBytes = 0;
-    let stdoutBuffer = '';
-    const maxOutputBytes = options.maxOutputBytes || 50 * 1024 * 1024;
-
-    const timeoutMs = options.timeoutMs || 300000;
-    const timeout = setTimeout(() => {
       proc.kill('SIGTERM');
       resolve({ output: `${output}\nProcess timed out`, exitCode: 124 });
     }, timeoutMs);
@@ -456,28 +320,53 @@ function runAmpCli(
         const keepBytes = Math.floor(maxOutputBytes * 0.8);
         output = output.slice(-keepBytes);
         outputBytes = Buffer.byteLength(output);
+        if (process.env.RALPH_DEBUG) {
+          console.error(
+            `[DEBUG] Output exceeded ${maxOutputBytes} bytes, truncated to ~${outputBytes}`
+          );
+        }
       }
 
       output += chunk;
       stdoutBuffer += chunk;
+      lastDataTime = Date.now();
+      silenceWarningShown = false;
+
+      if (process.env.RALPH_DEBUG) {
+        console.error('[DEBUG] Data chunk received, length:', chunk.length);
+      }
 
       const lines = stdoutBuffer.split('\n');
       stdoutBuffer = lines.pop() || '';
 
       for (const line of lines) {
         if (line.trim()) {
-          if (options.onOutput) options.onOutput(line);
-          if (options.streamOutput) process.stdout.write(chalk.dim(`${line}\n`));
+          if (options.onOutput) {
+            options.onOutput(line);
+          }
+          if (options.streamOutput) {
+            process.stdout.write(chalk.dim(`${line}\n`));
+          }
         }
       }
     });
 
     proc.stderr?.on('data', (data: Buffer) => {
-      output += data.toString();
+      const chunk = data.toString();
+      outputBytes += data.byteLength;
+      output += chunk;
+      if (process.env.RALPH_DEBUG) {
+        console.error('[DEBUG] STDERR:', chunk.slice(0, 200));
+      }
     });
 
     proc.on('close', (code: number | null) => {
       clearTimeout(timeout);
+      if (silenceChecker) clearInterval(silenceChecker);
+      if (process.env.RALPH_DEBUG) {
+        console.error('[DEBUG] Process closed with code:', code);
+        console.error('[DEBUG] Total output length:', output.length);
+      }
       if (stdoutBuffer.trim() && options.onOutput) {
         options.onOutput(stdoutBuffer);
       }
@@ -486,6 +375,7 @@ function runAmpCli(
 
     proc.on('error', (err: Error) => {
       clearTimeout(timeout);
+      if (silenceChecker) clearInterval(silenceChecker);
       resolve({ output: err.message, exitCode: 1 });
     });
   });

@@ -1,6 +1,6 @@
 {
   "name": "ralph-starter",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "Ralph Wiggum made easy. One command to run autonomous AI coding loops with auto-commit, PRs, and Docker sandbox.",
   "main": "dist/index.js",
   "bin": {
@@ -71,6 +71,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
     "@modelcontextprotocol/sdk": "^1.0.0",
+    "@opencode-ai/sdk": "^1.2.25",
     "chalk": "^5.3.0",
     "chalk-animation": "^2.0.3",
     "commander": "^14.0.2",

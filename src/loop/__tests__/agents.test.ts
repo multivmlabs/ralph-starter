@@ -51,11 +51,33 @@ function createMockChildProcess(exitCode: number, stdout = '', stderr = '') {
 describe('agents', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
+    vi.stubEnv('ANTHROPIC_API_KEY', '');
+    vi.stubEnv('OPENCODE_API_KEY', '');
   });
 
   describe('checkAgentAvailable', () => {
     it('should return false for unknown agent type', async () => {
       const result = await checkAgentAvailable('unknown');
+      expect(result).toBe(false);
+    });
+
+    it('should return true for opencode-sdk when API key is set and opencode CLI exists', async () => {
+      mockExeca.mockResolvedValueOnce({
+        stdout: '1.0.0',
+        stderr: '',
+        exitCode: 0,
+      } as any);
+
+      const result = await checkAgentAvailable('opencode-sdk', { apiKey: 'test-key' });
+      expect(result).toBe(true);
+      expect(mockExeca).toHaveBeenCalledWith('opencode', ['--version'], { timeout: 5000 });
+    });
+
+    it('should return false for opencode-sdk when API key is set but opencode CLI is missing', async () => {
+      mockExeca.mockRejectedValueOnce(new Error('opencode not found'));
+
+      const result = await checkAgentAvailable('opencode-sdk', { apiKey: 'test-key' });
       expect(result).toBe(false);
     });
 
@@ -89,10 +111,11 @@ describe('agents', () => {
         .mockRejectedValueOnce(new Error('not found')) // opencode
         .mockRejectedValueOnce(new Error('not found')) // openclaw
         .mockRejectedValueOnce(new Error('not found')); // amp
+      // anthropic-sdk has no CLI check — availability is based on API key
 
       const agents = await detectAvailableAgents();
 
-      expect(agents).toHaveLength(6);
+      expect(agents).toHaveLength(8);
       expect(agents.find((a) => a.type === 'claude-code')?.available).toBe(true);
       expect(agents.find((a) => a.type === 'cursor')?.available).toBe(false);
     });
