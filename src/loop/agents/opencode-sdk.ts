@@ -50,10 +50,17 @@ export async function runOpencodeSdkAgent(
   const model = parseProviderModel(options.model);
   const providerID = model?.providerID;
   const providerApiKey = resolveProviderApiKey(providerID, options);
+  const authProviderID = providerID || (options.apiKey ? 'opencode' : undefined);
 
   if (options.model && !model) {
     output.append(
       `[warn] opencode-sdk requires model in "providerID/modelID" format (got: "${options.model}"). Using server default.\n`
+    );
+  }
+
+  if (!providerID && options.apiKey) {
+    output.append(
+      '[warn] opencode-sdk: apiKey provided without --model; applying it to provider "opencode" as a best-effort fallback.\n'
     );
   }
 
@@ -67,9 +74,9 @@ export async function runOpencodeSdkAgent(
 
     const { createOpencode } = await import('@opencode-ai/sdk');
     const providerConfig =
-      providerID && providerApiKey
+      authProviderID && providerApiKey
         ? {
-            [providerID]: {
+            [authProviderID]: {
               options: {
                 apiKey: providerApiKey,
               },
@@ -87,17 +94,17 @@ export async function runOpencodeSdkAgent(
     });
     server = opencodeServer;
 
-    // Best-effort auth setup for the selected provider.
-    if (providerID && providerApiKey) {
+    // Best-effort auth setup for the resolved provider.
+    if (authProviderID && providerApiKey) {
       try {
         await client.auth.set({
-          path: { id: providerID },
+          path: { id: authProviderID },
           body: { type: 'api', key: providerApiKey },
           signal: controller.signal,
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        output.append(`[warn] Failed to configure ${providerID} auth: ${message}\n`);
+        output.append(`[warn] Failed to configure ${authProviderID} auth: ${message}\n`);
       }
     }
 

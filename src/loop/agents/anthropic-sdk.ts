@@ -153,7 +153,10 @@ async function executeAnthropicTool(
           timeout: 60000,
           maxBuffer: 10 * 1024 * 1024,
         });
-        return result.stdout || result.stderr || '(command completed with no output)';
+        return (
+          [result.stdout, result.stderr].filter((stream) => stream.length > 0).join('\n') ||
+          '(command completed with no output)'
+        );
       } catch (error) {
         const err = error as {
           stdout?: string;
