@@ -143,6 +143,7 @@ export async function runOpencodeSdkAgent(
 
           if (part.type === 'text' || part.type === 'reasoning') {
             if (typeof delta === 'string' && delta.length > 0) {
+              renderedTextPartIds.add(part.id);
               output.append(delta);
               hasVisibleOutput = true;
               continue;
@@ -233,7 +234,12 @@ export async function runOpencodeSdkAgent(
         .find((message) => message.info.role === 'assistant');
 
       for (const part of latestAssistantMessage?.parts || []) {
-        if ((part.type === 'text' || part.type === 'reasoning') && part.text) {
+        if (
+          (part.type === 'text' || part.type === 'reasoning') &&
+          part.text &&
+          !renderedTextPartIds.has(part.id)
+        ) {
+          renderedTextPartIds.add(part.id);
           output.append(part.text);
           hasVisibleOutput = true;
         }
