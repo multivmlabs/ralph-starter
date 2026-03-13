@@ -17,22 +17,39 @@ function parseProviderModel(
   };
 }
 
+function resolveProviderApiKey(
+  providerID: string | undefined,
+  options: AgentRunOptions
+): string | undefined {
+  if (options.apiKey) {
+    return options.apiKey;
+  }
+
+  const env = options.env || {};
+
+  switch (providerID) {
+    case 'anthropic':
+      return env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
+    case 'openai':
+      return env.OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+    case 'openrouter':
+      return env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY;
+    case 'opencode':
+      return env.OPENCODE_API_KEY || process.env.OPENCODE_API_KEY;
+    default:
+      return undefined;
+  }
+}
+
 export async function runOpencodeSdkAgent(
   _agent: Agent,
   options: AgentRunOptions
 ): Promise<{ output: string; exitCode: number }> {
-  const apiKey = options.apiKey || process.env.OPENCODE_API_KEY;
-  if (!apiKey) {
-    return {
-      output: 'No OpenCode API key provided. Set OPENCODE_API_KEY or pass apiKey option.',
-      exitCode: 1,
-    };
-  }
-
   const output = createOutputCollector(options);
   const timeoutMs = options.timeoutMs || 600000;
   const model = parseProviderModel(options.model);
-  const providerID = model?.providerID || 'opencode';
+  const providerID = model?.providerID;
+  const providerApiKey = resolveProviderApiKey(providerID, options);
 
   if (options.model && !model) {
     output.append(
@@ -49,33 +66,39 @@ export async function runOpencodeSdkAgent(
     timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
 
     const { createOpencode } = await import('@opencode-ai/sdk');
-    const providerConfig: Record<string, { options: { apiKey: string } }> = {
-      [providerID]: {
-        options: {
-          apiKey,
-        },
-      },
-    };
+    const providerConfig =
+      providerID && providerApiKey
+        ? {
+            [providerID]: {
+              options: {
+                apiKey: providerApiKey,
+              },
+            },
+          }
+        : undefined;
 
     const { client, server: opencodeServer } = await createOpencode({
       signal: controller.signal,
       config: {
         share: 'disabled',
         ...(model ? { model: `${model.providerID}/${model.modelID}` } : {}),
-        provider: providerConfig,
+        ...(providerConfig ? { provider: providerConfig } : {}),
       },
     });
     server = opencodeServer;
 
     // Best-effort auth setup for the selected provider.
-    try {
-      await client.auth.set({
-        path: { id: providerID },
-        body: { type: 'api', key: apiKey },
-        signal: controller.signal,
-      });
-    } catch {
-      // Ignore auth bootstrap errors and continue — prompt execution will surface auth failures.
+    if (providerID && providerApiKey) {
+      try {
+        await client.auth.set({
+          path: { id: providerID },
+          body: { type: 'api', key: providerApiKey },
+          signal: controller.signal,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        output.append(`[warn] Failed to configure ${providerID} auth: ${message}\n`);
+      }
     }
 
     const sessionResponse = await client.session.create({
@@ -103,6 +126,87 @@ export async function runOpencodeSdkAgent(
       signal: controller.signal,
     });
 
+    let sessionError = false;
+
+    let hasVisibleOutput = false;
+
+    const renderedTextPartIds = new Set<string>();
+    const renderedToolPartIds = new Set<string>();
+
+    const streamPromise = (async () => {
+      for await (const event of eventSubscription.stream) {
+        if (event.type === 'message.part.updated') {
+          const { part, delta } = event.properties;
+          if (part.sessionID !== sessionID) {
+            continue;
+          }
+
+          if (part.type === 'text' || part.type === 'reasoning') {
+            if (typeof delta === 'string' && delta.length > 0) {
+              output.append(delta);
+              hasVisibleOutput = true;
+              continue;
+            }
+
+            if (part.text && !renderedTextPartIds.has(part.id)) {
+              renderedTextPartIds.add(part.id);
+              output.append(part.text);
+              hasVisibleOutput = true;
+            }
+            continue;
+          }
+
+          if (part.type === 'tool') {
+            if (renderedToolPartIds.has(part.id)) {
+              continue;
+            }
+
+            const state = part.state;
+
+            if (state?.status === 'completed') {
+              renderedToolPartIds.add(part.id);
+              output.append(`\n[tool:${part.tool}] ${state.title || part.tool}\n`);
+              hasVisibleOutput = true;
+              continue;
+            }
+
+            if (state?.status === 'error') {
+              renderedToolPartIds.add(part.id);
+              output.append(`\n[tool:${part.tool} error] ${state.error}\n`);
+              hasVisibleOutput = true;
+            }
+          }
+          continue;
+        }
+
+        if (event.type === 'session.error') {
+          if (!event.properties.sessionID || event.properties.sessionID === sessionID) {
+            const message =
+              typeof event.properties.error?.data?.message === 'string'
+                ? event.properties.error.data.message
+                : 'Unknown session error';
+            output.append(`\n[session.error] ${message}\n`);
+            hasVisibleOutput = true;
+            sessionError = true;
+            break;
+          }
+          continue;
+        }
+
+        if (event.type === 'session.idle' && event.properties.sessionID === sessionID) {
+          break;
+        }
+
+        if (
+          event.type === 'session.status' &&
+          event.properties.sessionID === sessionID &&
+          event.properties.status.type === 'idle'
+        ) {
+          break;
+        }
+      }
+    })();
+
     await client.session.promptAsync({
       path: { id: sessionID },
       query: { directory: options.cwd },
@@ -110,80 +214,11 @@ export async function runOpencodeSdkAgent(
       signal: controller.signal,
     });
 
-    let hasVisibleOutput = false;
+    await streamPromise;
 
-    const renderedTextPartIds = new Set<string>();
-    const renderedToolPartIds = new Set<string>();
-
-    for await (const event of eventSubscription.stream) {
-      if (event.type === 'message.part.updated') {
-        const { part, delta } = event.properties;
-        if (part.sessionID !== sessionID) {
-          continue;
-        }
-
-        if (part.type === 'text' || part.type === 'reasoning') {
-          if (typeof delta === 'string' && delta.length > 0) {
-            output.append(delta);
-            hasVisibleOutput = true;
-            continue;
-          }
-
-          if (part.text && !renderedTextPartIds.has(part.id)) {
-            renderedTextPartIds.add(part.id);
-            output.append(part.text);
-            hasVisibleOutput = true;
-          }
-          continue;
-        }
-
-        if (part.type === 'tool') {
-          if (renderedToolPartIds.has(part.id)) {
-            continue;
-          }
-
-          const state = part.state;
-
-          if (state?.status === 'completed') {
-            renderedToolPartIds.add(part.id);
-            output.append(`\n[tool:${part.tool}] ${state.title || part.tool}\n`);
-            hasVisibleOutput = true;
-            continue;
-          }
-
-          if (state?.status === 'error') {
-            renderedToolPartIds.add(part.id);
-            output.append(`\n[tool:${part.tool} error] ${state.error}\n`);
-            hasVisibleOutput = true;
-          }
-        }
-        continue;
-      }
-
-      if (event.type === 'session.error') {
-        if (!event.properties.sessionID || event.properties.sessionID === sessionID) {
-          const message =
-            typeof event.properties.error?.data?.message === 'string'
-              ? event.properties.error.data.message
-              : 'Unknown session error';
-          output.append(`\n[session.error] ${message}\n`);
-          hasVisibleOutput = true;
-          break;
-        }
-        continue;
-      }
-
-      if (event.type === 'session.idle' && event.properties.sessionID === sessionID) {
-        break;
-      }
-
-      if (
-        event.type === 'session.status' &&
-        event.properties.sessionID === sessionID &&
-        event.properties.status.type === 'idle'
-      ) {
-        break;
-      }
+    if (sessionError) {
+      output.flush();
+      return { output: output.getOutput(), exitCode: 1 };
     }
 
     if (!hasVisibleOutput) {

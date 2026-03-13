@@ -121,10 +121,8 @@ export async function checkAgentAvailable(
   }
 
   if (type === 'opencode-sdk') {
-    const hasApiKey = !!(options?.apiKey || process.env.OPENCODE_API_KEY);
-    if (!hasApiKey) return false;
-
     // OpenCode SDK starts a local opencode server under the hood, so the CLI binary must exist.
+    // Auth may come from API keys or existing local OpenCode auth state.
     const checkCmd = AGENTS.opencode.checkCmd;
     return checkCommandAvailable(checkCmd[0], checkCmd.slice(1));
   }
