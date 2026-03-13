@@ -59,6 +59,25 @@ describe('agents', () => {
       expect(result).toBe(false);
     });
 
+    it('should return true for opencode-sdk when API key is set and opencode CLI exists', async () => {
+      mockExeca.mockResolvedValueOnce({
+        stdout: '1.0.0',
+        stderr: '',
+        exitCode: 0,
+      } as any);
+
+      const result = await checkAgentAvailable('opencode-sdk', { apiKey: 'test-key' });
+      expect(result).toBe(true);
+      expect(mockExeca).toHaveBeenCalledWith('opencode', ['--version'], { timeout: 5000 });
+    });
+
+    it('should return false for opencode-sdk when API key is set but opencode CLI is missing', async () => {
+      mockExeca.mockRejectedValueOnce(new Error('opencode not found'));
+
+      const result = await checkAgentAvailable('opencode-sdk', { apiKey: 'test-key' });
+      expect(result).toBe(false);
+    });
+
     it('should return true when agent command succeeds', async () => {
       mockExeca.mockResolvedValueOnce({
         stdout: '1.0.0',
@@ -93,7 +112,7 @@ describe('agents', () => {
 
       const agents = await detectAvailableAgents();
 
-      expect(agents).toHaveLength(7);
+      expect(agents).toHaveLength(8);
       expect(agents.find((a) => a.type === 'claude-code')?.available).toBe(true);
       expect(agents.find((a) => a.type === 'cursor')?.available).toBe(false);
     });

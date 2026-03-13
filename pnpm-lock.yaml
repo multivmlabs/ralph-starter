@@ -14,6 +14,9 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.0.0
         version: 1.27.1(zod@4.3.6)
+      '@opencode-ai/sdk':
+        specifier: ^1.2.25
+        version: 1.2.25
       chalk:
         specifier: ^5.3.0
         version: 5.6.2
@@ -880,6 +883,9 @@ packages:
     resolution: {integrity: sha512-qjg04yaJ/gFqgG7wDqLlWBvZpsjvYDtwL+xOr2vSM2JrhojuIKsw7pH013U7xJOradTVGeQqhwqgZtt2IblgOw==}
     engines: {node: '>= 10'}
 
+  '@opencode-ai/sdk@1.2.25':
+    resolution: {integrity: sha512-ikuGWob48OM7LTgfXFqGOZKVOqh50FEjvtIBhXGhGowJhifmjZ+xuq/ypP8nPjTwUX73pbu1C3X9ZBWVkCN9mA==}
+
   '@rollup/rollup-android-arm-eabi@4.57.1':
     resolution: {integrity: sha512-A6ehUVSiSaaliTxai040ZpZ2zTevHYbvu/lDoeAteHI8QnaosIzm4qwtezfRg1jOYaUmnzLX1AOD6Z+UJjtifg==}
     cpu: [arm]
@@ -1020,8 +1026,8 @@ packages:
     resolution: {integrity: sha512-TcUjEH64gbGLvNszUvubxP0mYHsyaAWfVEJedATQ5aoYe1swjqWoKMpb8XpHO2B3Q2P3DlFciELIzMkNnbodCg==}
     engines: {node: '>=18'}
 
-  '@sourcegraph/amp@0.0.1773317003-g248a19':
-    resolution: {integrity: sha512-lZXq16VMYTnJ0k7ZfdjR/BYYzR4Wuk/ipuJ0V5F17XW1GYX9Y2YCQViOP2nlUbrY6JgnbfdEqM/fDcPRXMGmkQ==}
+  '@sourcegraph/amp@0.0.1773345908-g7c6c67':
+    resolution: {integrity: sha512-4gDCSmDYhdcnAGiITozMjyVlDgsvSAa5DEqRAVt9lBu6v0GJrN/7Iy6pSZGzPHDpKahs42M/qtwGkE9+dub2Xg==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -3317,6 +3323,8 @@ snapshots:
       '@napi-rs/keyring-win32-x64-msvc': 1.1.9
     optional: true
 
+  '@opencode-ai/sdk@1.2.25': {}
+
   '@rollup/rollup-android-arm-eabi@4.57.1':
     optional: true
 
@@ -3400,11 +3408,11 @@ snapshots:
 
   '@sourcegraph/amp-sdk@0.1.0-20260312122132-g783443e':
     dependencies:
-      '@sourcegraph/amp': 0.0.1773317003-g248a19
+      '@sourcegraph/amp': 0.0.1773345908-g7c6c67
       zod: 3.25.76
     optional: true
 
-  '@sourcegraph/amp@0.0.1773317003-g248a19':
+  '@sourcegraph/amp@0.0.1773345908-g7c6c67':
     dependencies:
       '@napi-rs/keyring': 1.1.9
     optional: true
