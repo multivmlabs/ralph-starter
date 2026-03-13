@@ -28,6 +28,7 @@ export type SwarmConfig = {
   cwd: string;
   agents?: Agent[];
   strategy: SwarmStrategy;
+  headless?: boolean;
   auto?: boolean;
   validate?: boolean;
   maxIterations?: number;
@@ -70,6 +71,7 @@ export async function runSwarm(config: SwarmConfig): Promise<SwarmResult> {
     task,
     cwd,
     strategy,
+    headless = false,
     auto = true,
     validate = true,
     maxIterations = 15,
@@ -103,6 +105,7 @@ export async function runSwarm(config: SwarmConfig): Promise<SwarmResult> {
         auto,
         validate,
         maxIterations,
+        headless,
         onProgress,
       });
       break;
@@ -111,6 +114,7 @@ export async function runSwarm(config: SwarmConfig): Promise<SwarmResult> {
         auto,
         validate,
         maxIterations,
+        headless,
         onProgress,
       });
       break;
@@ -119,6 +123,7 @@ export async function runSwarm(config: SwarmConfig): Promise<SwarmResult> {
         auto,
         validate,
         maxIterations,
+        headless,
         onProgress,
       });
       break;
@@ -171,6 +176,7 @@ type StrategyOptions = {
   auto: boolean;
   validate: boolean;
   maxIterations: number;
+  headless: boolean;
   onProgress?: (message: string) => void;
 };
 
@@ -192,6 +198,7 @@ function makeLoopOptions(
     pr: false,
     trackProgress: true,
     trackCost: true,
+    headless: opts.headless,
   };
 }
 

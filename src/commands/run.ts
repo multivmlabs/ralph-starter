@@ -328,6 +328,9 @@ export async function runCommand(
     succeed: (_text?: string) => noopSpinner,
     fail: (_text?: string) => noopSpinner,
     warn: (_text?: string) => noopSpinner,
+    info: (_text?: string) => noopSpinner,
+    text: '',
+    isSpinning: false,
   };
   const spinner = headless ? noopSpinner : ora();
 
@@ -1456,8 +1459,10 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
   if (options.swarm) {
     const { runSwarm } = await import('../loop/swarm.js');
     const strategy = options.strategy || 'race';
-    console.log(chalk.cyan.bold(`Swarm mode: ${strategy} strategy`));
-    console.log();
+    if (!headless) {
+      console.log(chalk.cyan.bold(`Swarm mode: ${strategy} strategy`));
+      console.log();
+    }
 
     const swarmResult = await runSwarm({
       task: loopOptions.task,
@@ -1469,8 +1474,16 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
       pr: loopOptions.pr,
       push: loopOptions.push,
       commit: loopOptions.commit,
-      onProgress: (msg) => console.log(chalk.dim(`  ${msg}`)),
+      onProgress: headless ? undefined : (msg) => console.log(chalk.dim(`  ${msg}`)),
+      headless,
     });
+
+    if (headless) {
+      if (!swarmResult.winner) {
+        throw new Error('Swarm failed: no successful result');
+      }
+      return;
+    }
 
     // Print swarm summary
     console.log();
