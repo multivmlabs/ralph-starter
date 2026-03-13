@@ -51,6 +51,9 @@ function createMockChildProcess(exitCode: number, stdout = '', stderr = '') {
 describe('agents', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
+    vi.stubEnv('ANTHROPIC_API_KEY', '');
+    vi.stubEnv('OPENCODE_API_KEY', '');
   });
 
   describe('checkAgentAvailable', () => {

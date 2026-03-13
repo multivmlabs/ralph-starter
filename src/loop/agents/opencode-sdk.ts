@@ -32,6 +32,13 @@ export async function runOpencodeSdkAgent(
   const output = createOutputCollector(options);
   const timeoutMs = options.timeoutMs || 600000;
   const model = parseProviderModel(options.model);
+
+  if (options.model && !model) {
+    output.append(
+      `[warn] opencode-sdk requires model in "providerID/modelID" format (got: "${options.model}"). Using server default.\n`
+    );
+  }
+
   const controller = new AbortController();
 
   let timeoutHandle: NodeJS.Timeout | undefined;
