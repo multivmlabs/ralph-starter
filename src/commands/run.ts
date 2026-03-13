@@ -1476,6 +1476,7 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
       commit: loopOptions.commit,
       onProgress: headless ? undefined : (msg) => console.log(chalk.dim(`  ${msg}`)),
       headless,
+      enableSkills: options.autoSkills !== false,
     });
 
     if (headless) {
