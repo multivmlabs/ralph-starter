@@ -32,6 +32,7 @@ export async function runOpencodeSdkAgent(
   const output = createOutputCollector(options);
   const timeoutMs = options.timeoutMs || 600000;
   const model = parseProviderModel(options.model);
+  const providerID = model?.providerID || 'opencode';
 
   if (options.model && !model) {
     output.append(
@@ -48,31 +49,33 @@ export async function runOpencodeSdkAgent(
     timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
 
     const { createOpencode } = await import('@opencode-ai/sdk');
+    const providerConfig: Record<string, { options: { apiKey: string } }> = {
+      [providerID]: {
+        options: {
+          apiKey,
+        },
+      },
+    };
+
     const { client, server: opencodeServer } = await createOpencode({
       signal: controller.signal,
       config: {
         share: 'disabled',
         ...(model ? { model: `${model.providerID}/${model.modelID}` } : {}),
-        provider: {
-          opencode: {
-            options: {
-              apiKey,
-            },
-          },
-        },
+        provider: providerConfig,
       },
     });
     server = opencodeServer;
 
-    // Best-effort auth setup; some environments will already be authenticated via config/env.
+    // Best-effort auth setup for the selected provider.
     try {
       await client.auth.set({
-        path: { id: 'opencode' },
+        path: { id: providerID },
         body: { type: 'api', key: apiKey },
         signal: controller.signal,
       });
     } catch {
-      // Ignore auth bootstrap errors and continue — prompt call will surface auth failures if needed.
+      // Ignore auth bootstrap errors and continue — prompt execution will surface auth failures.
     }
 
     const sessionResponse = await client.session.create({
@@ -86,11 +89,7 @@ export async function runOpencodeSdkAgent(
       throw new Error('OpenCode SDK did not return a session id.');
     }
 
-    const promptBody: {
-      parts: Array<{ type: 'text'; text: string }>;
-      system: string;
-      model?: { providerID: string; modelID: string };
-    } = {
+    const promptBody: NonNullable<Parameters<typeof client.session.promptAsync>[0]['body']> = {
       parts: [{ type: 'text', text: options.task }],
       system: `You are an expert software engineer. Working directory: ${options.cwd}`,
     };
@@ -99,7 +98,12 @@ export async function runOpencodeSdkAgent(
       promptBody.model = model;
     }
 
-    const promptResponse = await client.session.prompt({
+    const eventSubscription = await client.event.subscribe({
+      query: { directory: options.cwd },
+      signal: controller.signal,
+    });
+
+    await client.session.promptAsync({
       path: { id: sessionID },
       query: { directory: options.cwd },
       body: promptBody,
@@ -108,27 +112,114 @@ export async function runOpencodeSdkAgent(
 
     let hasVisibleOutput = false;
 
-    for (const part of promptResponse.data?.parts ?? []) {
-      if ((part.type === 'text' || part.type === 'reasoning') && part.text) {
-        output.append(part.text);
-        hasVisibleOutput = true;
+    const renderedTextPartIds = new Set<string>();
+    const renderedToolPartIds = new Set<string>();
+
+    for await (const event of eventSubscription.stream) {
+      if (event.type === 'message.part.updated') {
+        const { part, delta } = event.properties;
+        if (part.sessionID !== sessionID) {
+          continue;
+        }
+
+        if (part.type === 'text' || part.type === 'reasoning') {
+          if (typeof delta === 'string' && delta.length > 0) {
+            output.append(delta);
+            hasVisibleOutput = true;
+            continue;
+          }
+
+          if (part.text && !renderedTextPartIds.has(part.id)) {
+            renderedTextPartIds.add(part.id);
+            output.append(part.text);
+            hasVisibleOutput = true;
+          }
+          continue;
+        }
+
+        if (part.type === 'tool') {
+          if (renderedToolPartIds.has(part.id)) {
+            continue;
+          }
+
+          const state = part.state;
+
+          if (state?.status === 'completed') {
+            renderedToolPartIds.add(part.id);
+            output.append(`\n[tool:${part.tool}] ${state.title || part.tool}\n`);
+            hasVisibleOutput = true;
+            continue;
+          }
+
+          if (state?.status === 'error') {
+            renderedToolPartIds.add(part.id);
+            output.append(`\n[tool:${part.tool} error] ${state.error}\n`);
+            hasVisibleOutput = true;
+          }
+        }
+        continue;
       }
 
-      if (part.type === 'tool') {
-        if (part.state.status === 'completed') {
-          output.append(`\n[tool:${part.tool}] ${part.state.title}\n`);
+      if (event.type === 'session.error') {
+        if (!event.properties.sessionID || event.properties.sessionID === sessionID) {
+          const message =
+            typeof event.properties.error?.data?.message === 'string'
+              ? event.properties.error.data.message
+              : 'Unknown session error';
+          output.append(`\n[session.error] ${message}\n`);
           hasVisibleOutput = true;
+          break;
         }
+        continue;
+      }
 
-        if (part.state.status === 'error') {
-          output.append(`\n[tool:${part.tool} error] ${part.state.error}\n`);
-          hasVisibleOutput = true;
-        }
+      if (event.type === 'session.idle' && event.properties.sessionID === sessionID) {
+        break;
+      }
+
+      if (
+        event.type === 'session.status' &&
+        event.properties.sessionID === sessionID &&
+        event.properties.status.type === 'idle'
+      ) {
+        break;
       }
     }
 
     if (!hasVisibleOutput) {
-      output.append('OpenCode SDK completed without textual output.\n');
+      const messagesResponse = await client.session.messages({
+        path: { id: sessionID },
+        query: { directory: options.cwd },
+        signal: controller.signal,
+      });
+
+      const latestAssistantMessage = [...(messagesResponse.data || [])]
+        .reverse()
+        .find((message) => message.info.role === 'assistant');
+
+      for (const part of latestAssistantMessage?.parts || []) {
+        if ((part.type === 'text' || part.type === 'reasoning') && part.text) {
+          output.append(part.text);
+          hasVisibleOutput = true;
+        }
+
+        if (part.type === 'tool') {
+          const state = part.state;
+          if (state?.status === 'completed') {
+            output.append(`\n[tool:${part.tool}] ${state.title || part.tool}\n`);
+            hasVisibleOutput = true;
+          }
+
+          if (state?.status === 'error') {
+            output.append(`\n[tool:${part.tool} error] ${state.error}\n`);
+            hasVisibleOutput = true;
+          }
+        }
+      }
+
+      if (!hasVisibleOutput) {
+        output.append('OpenCode SDK completed without textual output.\n');
+      }
     }
 
     output.flush();

@@ -1,3 +1,4 @@
+import { execaCommand } from 'execa';
 import type { Agent, AgentRunOptions } from '../agents.js';
 import { createOutputCollector } from './output-collector.js';
 
@@ -71,7 +72,6 @@ async function executeAnthropicTool(
   const { readFileSync, writeFileSync, readdirSync, mkdirSync, statSync, realpathSync } =
     await import('node:fs');
   const { dirname, join, resolve, sep } = await import('node:path');
-  const { execSync } = await import('node:child_process');
 
   const realCwd = realpathSync(cwd);
   const isWithinRoot = (targetPath: string) =>
@@ -147,17 +147,20 @@ async function executeAnthropicTool(
 
       try {
         const command = requiredString(input, 'command');
-        const result = execSync(command, {
+        const result = await execaCommand(command, {
           cwd,
-          encoding: 'utf-8',
           timeout: 60000,
           maxBuffer: 10 * 1024 * 1024,
-          stdio: ['pipe', 'pipe', 'pipe'],
         });
-        return result || '(command completed with no output)';
+        return result.stdout || result.stderr || '(command completed with no output)';
       } catch (error) {
-        const err = error as { stdout?: string; stderr?: string; message?: string };
-        return `Command failed:\n${err.stderr || err.stdout || err.message || String(error)}`;
+        const err = error as {
+          stdout?: string;
+          stderr?: string;
+          shortMessage?: string;
+          message?: string;
+        };
+        return `Command failed:\n${err.stderr || err.stdout || err.shortMessage || err.message || String(error)}`;
       }
     }
 
