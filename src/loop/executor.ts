@@ -256,6 +256,7 @@ export type LoopOptions = {
   agentTimeout?: number;
   initialValidationFeedback?: string;
   maxSkills?: number;
+  enableSkills?: boolean;
   skipPlanInstructions?: boolean;
   fixMode?: 'design' | 'scan' | 'custom';
   taskTitle?: string;
@@ -556,7 +557,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
   let lintCommands = detectLintCommands(options.cwd);
 
   // Detect Claude Code skills (capped by maxSkills option)
-  const detectedSkills = detectClaudeSkills(options.cwd);
+  const detectedSkills = options.enableSkills === false ? [] : detectClaudeSkills(options.cwd);
   let taskWithSkills = options.task;
   if (detectedSkills.length > 0) {
     const skillsPrompt = formatSkillsForPrompt(detectedSkills, options.task, options.maxSkills);

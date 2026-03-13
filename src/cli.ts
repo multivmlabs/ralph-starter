@@ -79,6 +79,8 @@ program
   .option('--limit <n>', 'Max items to fetch for --from integrations', '20')
   .option('--issue <n>', 'Specific issue number to fetch (for github)')
   .option('--output-dir <path>', 'Directory to run the task in (skips location prompt)')
+  .option('--headless', 'Suppress non-essential CLI output for embedding/automation')
+  .option('--no-auto-skills', 'Disable automatic skill installation from skills.sh')
   // New options
   .option(
     '--preset <name>',
