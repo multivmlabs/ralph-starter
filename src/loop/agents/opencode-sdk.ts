@@ -133,6 +133,7 @@ export async function runOpencodeSdkAgent(
     const renderedTextPartIds = new Set<string>();
     const renderedToolPartIds = new Set<string>();
 
+    // Guard stream errors so a promptAsync failure does not leave an unhandled rejection.
     const streamPromise = (async () => {
       for await (const event of eventSubscription.stream) {
         if (event.type === 'message.part.updated') {
@@ -206,7 +207,9 @@ export async function runOpencodeSdkAgent(
           break;
         }
       }
-    })();
+    })().catch(() => {
+      // Stream can error when aborted/server closes; handled by outer control flow.
+    });
 
     await client.session.promptAsync({
       path: { id: sessionID },
