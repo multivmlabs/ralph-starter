@@ -1,4 +1,4 @@
-import { execaCommand } from 'execa';
+import { execa } from 'execa';
 import type { Agent, AgentRunOptions } from '../agents.js';
 import { createOutputCollector } from './output-collector.js';
 
@@ -147,7 +147,8 @@ async function executeAnthropicTool(
 
       try {
         const command = requiredString(input, 'command');
-        const result = await execaCommand(command, {
+        const result = await execa(command, {
+          shell: true,
           cwd,
           timeout: 60000,
           maxBuffer: 10 * 1024 * 1024,

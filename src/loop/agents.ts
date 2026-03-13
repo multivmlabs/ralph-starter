@@ -123,8 +123,16 @@ export async function checkAgentAvailable(
   if (type === 'opencode-sdk') {
     // OpenCode SDK starts a local opencode server under the hood, so the CLI binary must exist.
     // Auth may come from API keys or existing local OpenCode auth state.
+    // If apiKey is explicitly supplied, treat it as an explicit availability requirement.
     const checkCmd = AGENTS.opencode.checkCmd;
-    return checkCommandAvailable(checkCmd[0], checkCmd.slice(1));
+    const cliAvailable = await checkCommandAvailable(checkCmd[0], checkCmd.slice(1));
+    if (!cliAvailable) return false;
+
+    if (options && options.apiKey !== undefined) {
+      return options.apiKey.length > 0;
+    }
+
+    return true;
   }
 
   const agent = AGENTS[type];
@@ -146,9 +154,7 @@ export async function detectAvailableAgents(options?: {
         apiKey:
           type === 'anthropic-sdk'
             ? options?.apiKeys?.ANTHROPIC_API_KEY || options?.apiKeys?.anthropic
-            : type === 'opencode-sdk'
-              ? options?.apiKeys?.OPENCODE_API_KEY || options?.apiKeys?.opencode
-              : undefined,
+            : undefined,
       }),
     }))
   );
