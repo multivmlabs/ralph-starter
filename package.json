@@ -88,7 +88,7 @@
     "zod": "^4.3.6"
   },
   "optionalDependencies": {
-    "@sourcegraph/amp-sdk": "0.1.0-20260312122132-g783443e"
+    "@sourcegraph/amp-sdk": "0.1.0-20260316083307-gece88ce"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.13",

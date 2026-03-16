@@ -104,8 +104,8 @@ importers:
         version: 4.0.18(@types/node@25.3.5)(jiti@2.6.1)(yaml@2.8.2)
     optionalDependencies:
       '@sourcegraph/amp-sdk':
-        specifier: 0.1.0-20260312122132-g783443e
-        version: 0.1.0-20260312122132-g783443e
+        specifier: 0.1.0-20260316083307-gece88ce
+        version: 0.1.0-20260316083307-gece88ce
 
 packages:
 
@@ -1022,12 +1022,12 @@ packages:
     resolution: {integrity: sha512-tlqY9xq5ukxTUZBmoOp+m61cqwQD5pHJtFY3Mn8CA8ps6yghLH/Hw8UPdqg4OLmFW3IFlcXnQNmo/dh8HzXYIQ==}
     engines: {node: '>=18'}
 
-  '@sourcegraph/amp-sdk@0.1.0-20260312122132-g783443e':
-    resolution: {integrity: sha512-TcUjEH64gbGLvNszUvubxP0mYHsyaAWfVEJedATQ5aoYe1swjqWoKMpb8XpHO2B3Q2P3DlFciELIzMkNnbodCg==}
+  '@sourcegraph/amp-sdk@0.1.0-20260316083307-gece88ce':
+    resolution: {integrity: sha512-sQk6sv9+zNgGHbVkX/WnM/nWyLf7T2oBoQiyh8Fb3CBXMTMKHK6/rmCDbODbgFi+RFMmz4ZwCpA7iItkEOG2dA==}
     engines: {node: '>=18'}
 
-  '@sourcegraph/amp@0.0.1773345908-g7c6c67':
-    resolution: {integrity: sha512-4gDCSmDYhdcnAGiITozMjyVlDgsvSAa5DEqRAVt9lBu6v0GJrN/7Iy6pSZGzPHDpKahs42M/qtwGkE9+dub2Xg==}
+  '@sourcegraph/amp@0.0.1773649032-gf6d352':
+    resolution: {integrity: sha512-eo2ay/IC98hbX0t5sdjKyLvIHZUHWMX5FUMyRlX30AbsfJLecHdIF0SIifZII1Nk/F4kHxvKEmqFGlEsb8Ce+w==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -3406,13 +3406,13 @@ snapshots:
 
   '@sindresorhus/merge-streams@4.0.0': {}
 
-  '@sourcegraph/amp-sdk@0.1.0-20260312122132-g783443e':
+  '@sourcegraph/amp-sdk@0.1.0-20260316083307-gece88ce':
     dependencies:
-      '@sourcegraph/amp': 0.0.1773345908-g7c6c67
+      '@sourcegraph/amp': 0.0.1773649032-gf6d352
       zod: 3.25.76
     optional: true
 
-  '@sourcegraph/amp@0.0.1773345908-g7c6c67':
+  '@sourcegraph/amp@0.0.1773649032-gf6d352':
     dependencies:
       '@napi-rs/keyring': 1.1.9
     optional: true
