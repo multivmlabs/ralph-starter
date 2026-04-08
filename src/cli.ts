@@ -10,6 +10,7 @@ import { figmaCommand } from './commands/figma.js';
 import { fixCommand } from './commands/fix.js';
 import { initCommand } from './commands/init.js';
 import { integrationsCommand } from './commands/integrations.js';
+import { linearCommand } from './commands/linear.js';
 import { notionCommand } from './commands/notion.js';
 import { pauseCommand } from './commands/pause.js';
 import { planCommand } from './commands/plan.js';
@@ -182,6 +183,28 @@ program
       mode: options.figmaMode,
       framework: options.figmaFramework,
       commit: options.commit,
+      validate: options.validate,
+      maxIterations: options.maxIterations ? parseInt(options.maxIterations, 10) : undefined,
+      agent: options.agent,
+    });
+  });
+
+// ralph-starter linear - Linear issues wizard
+program
+  .command('linear')
+  .description('Build from Linear issues with an interactive wizard')
+  .option('--commit', 'Auto-commit after tasks')
+  .option('--push', 'Push to remote')
+  .option('--pr', 'Create PR when done')
+  .option('--validate', 'Run validation', true)
+  .option('--no-validate', 'Skip validation')
+  .option('--max-iterations <n>', 'Max loop iterations')
+  .option('--agent <name>', 'Agent to use')
+  .action(async (options) => {
+    await linearCommand({
+      commit: options.commit,
+      push: options.push,
+      pr: options.pr,
       validate: options.validate,
       maxIterations: options.maxIterations ? parseInt(options.maxIterations, 10) : undefined,
       agent: options.agent,

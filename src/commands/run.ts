@@ -373,6 +373,17 @@ export async function runCommand(
   // If --from is used without --project/--issue for supported wizards, launch the wizard
   if (options.from && !options.project && !options.issue) {
     const source = options.from.toLowerCase();
+    if (source === 'linear') {
+      const { linearCommand: launchLinear } = await import('./linear.js');
+      return launchLinear({
+        commit: options.commit,
+        push: options.push,
+        pr: options.pr,
+        validate: options.validate,
+        maxIterations: options.maxIterations,
+        agent: options.agent,
+      });
+    }
     if (source === 'notion') {
       const { notionCommand: launchNotion } = await import('./notion.js');
       return launchNotion({
