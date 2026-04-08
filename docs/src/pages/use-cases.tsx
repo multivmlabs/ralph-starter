@@ -16,6 +16,20 @@ interface UseCase {
 
 const useCases: UseCase[] = [
   {
+    icon: '/img/openspec-logo.svg',
+    source: 'OpenSpec',
+    title: 'Spec to Implementation',
+    description: 'Write structured specs with OpenSpec — proposals, designs, tasks, and formal requirements. ralph-starter validates completeness, extracts acceptance criteria, and builds the implementation autonomously.',
+    workflow: [
+      'Write your spec in openspec/changes/<name>/ (proposal, design, tasks, specs)',
+      'ralph-starter validates completeness (0-100 score) with --spec-validate',
+      'Acceptance criteria are extracted from Given/When/Then blocks',
+      'AI implements to spec, runs tests, commits, and opens a PR',
+    ],
+    command: 'ralph-starter run --from openspec:add-auth --spec-validate --commit --pr',
+    docsLink: '/docs/sources/openspec',
+  },
+  {
     icon: '/img/figma-logo.svg',
     source: 'Figma',
     title: 'Design to Code',
@@ -116,7 +130,7 @@ export default function UseCasesPage(): React.ReactElement {
   return (
     <Layout
       title="Use Cases"
-      description="Learn how to use ralph-starter with Figma, GitHub, Linear, and Notion to automate your development workflow."
+      description="Learn how to use ralph-starter with OpenSpec, Figma, GitHub, Linear, and Notion to automate your development workflow."
     >
       <main className={styles.main}>
         <section className={styles.hero}>
