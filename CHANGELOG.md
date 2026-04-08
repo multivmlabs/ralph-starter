@@ -5,7 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-04-08
 
+### Added
+- Interactive integration wizards: `ralph-starter github`, `ralph-starter linear`, `ralph-starter notion` (#270, #271, #272)
+- Linear status sync during loop execution via `--linear-sync` flag (#274)
+- Agent reviewer: LLM-powered diff review before commit via `--review` flag (#292)
+- Headless mode and `--no-auto-skills` flag (#294)
+- Modular SDK agent runtimes: Anthropic SDK, OpenCode SDK (#293)
+- Amp (Sourcegraph) as first-class agent with SDK + CLI support (#291)
+- VHS terminal demo tape files (#264)
+- FAQPage and HowTo JSON-LD schemas for SEO/AEO (#267)
+- Randomized hero terminal demo across integrations (#263)
+
+### Changed
+- Bumped 12 dependencies including esbuild, yaml, inquirer, simple-git, lint-staged
+- Updated CI actions: codecov v6, codeql-action v4.35.1, pnpm/action-setup v5
+
+### Documentation
+- English blog post on Figma-to-code visual validation (#265)
 
 
 
