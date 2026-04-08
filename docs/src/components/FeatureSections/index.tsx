@@ -20,23 +20,23 @@ interface Feature {
 const features: Feature[] = [
   {
     title: 'Connect Your Tools',
-    description: 'Fetch specs from where your work already lives. GitHub issues, Linear tickets, Notion pages - ralph-starter pulls them in and turns them into working code.',
+    description: 'Fetch specs from where your work already lives. OpenSpec directories, GitHub issues, Linear tickets, Notion pages - ralph-starter pulls them in and turns them into working code.',
     image: '/img/integration.png',
     imageAlt: 'Ralph Integration',
     highlights: [
+      'OpenSpec structured specs',
       'GitHub Issues & PRs',
       'Linear tickets',
-      'Notion pages',
-      'Figma designs & local files',
+      'Figma designs & Notion pages',
     ],
     link: '/docs/sources/overview',
     linkText: 'View integrations →',
     terminal: {
-      command: 'ralph-starter run --from github --project owner/repo --issue 123',
+      command: 'ralph-starter openspec',
       output: [
-        '→ Fetching GitHub issue #123...',
-        '✓ Found: "Add user authentication"',
-        '✓ Loaded 3 linked files',
+        '? Select a change to build: add-auth 87/100',
+        '✓ Change: add-auth (proposal + design + tasks)',
+        '✓ Spec validation passed',
         '✓ Starting AI coding loop...',
       ],
     },
@@ -55,11 +55,11 @@ const features: Feature[] = [
     link: '/docs/cli/run',
     linkText: 'Learn about agents →',
     terminal: {
-      command: 'ralph-starter run "build a REST API" --loops 5',
+      command: 'ralph-starter run "build a REST API" --validate',
       output: [
-        '→ Loop 1/5: Analyzing requirements...',
-        '→ Loop 2/5: Creating endpoints...',
-        '→ Loop 3/5: Adding validation...',
+        '→ Loop 1: Analyzing requirements...',
+        '→ Loop 2: Creating endpoints + validation...',
+        '→ Loop 3: Adding tests...',
         '✓ Completed in 3 loops | Cost: $0.28',
       ],
     },
@@ -78,11 +78,11 @@ const features: Feature[] = [
     link: '/docs/advanced/validation',
     linkText: 'Configure validation →',
     terminal: {
-      command: 'ralph-starter run "fix the login bug" --test --lint',
+      command: 'ralph-starter run "fix the login bug" --validate --shift-left',
       output: [
-        '→ Running tests... 23 passed',
-        '→ Running linter... no issues',
-        '→ Building project... success',
+        '→ Pre-flight: 1 test failing (captured)',
+        '→ Loop 1: Fixing auth token expiry...',
+        '→ Tests: 23/23 pass | Lint: clean | Build: pass',
         '✓ All validations passed!',
       ],
     },
@@ -101,10 +101,10 @@ const features: Feature[] = [
     link: '/docs/advanced/git-automation',
     linkText: 'Git workflow docs →',
     terminal: {
-      command: 'ralph-starter run "add dark mode" --commit --pr',
+      command: 'ralph-starter run "add dark mode" --commit --push --pr',
       output: [
-        '→ Committing: "feat: add dark mode toggle"',
-        '→ Pushing to origin/feature/dark-mode...',
+        '→ Committed: "feat: add dark mode toggle"',
+        '→ Pushed to origin/feat/dark-mode',
         '→ Creating pull request...',
         '✓ PR #42 created successfully!',
       ],

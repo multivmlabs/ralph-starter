@@ -83,26 +83,26 @@ export default function QuickStart(): React.ReactElement {
 
               {/* Step 2 */}
               <div className={styles.step}>
-                <span className={styles.comment}># 2. Configure your project</span>
+                <span className={styles.comment}># 2. Write your spec (or use a wizard)</span>
                 <div className={styles.cmdRow}>
                   <span className={styles.prompt}>$</span>
-                  <code className={styles.cmd}>ralph-starter init</code>
-                  <CopyButton text="ralph-starter init" />
+                  <code className={styles.cmd}>ralph-starter openspec</code>
+                  <CopyButton text="ralph-starter openspec" />
                 </div>
-                <span className={styles.output}>✓ Created .ralph-starter.yml</span>
+                <span className={styles.output}>✓ Created openspec/changes/add-auth</span>
               </div>
 
               {/* Step 3 */}
               <div className={styles.step}>
-                <span className={styles.comment}># 3. Run your first loop</span>
+                <span className={styles.comment}># 3. Build from your spec</span>
                 <div className={styles.cmdRow}>
                   <span className={styles.prompt}>$</span>
-                  <code className={styles.cmd}>ralph-starter run "build a login page"</code>
-                  <CopyButton text='ralph-starter run "build a login page"' />
+                  <code className={styles.cmd}>ralph-starter run --from openspec:add-auth</code>
+                  <CopyButton text='ralph-starter run --from openspec:add-auth' />
                 </div>
-                <span className={styles.output}>→ Loop 1: Analyzing requirements...</span>
-                <span className={styles.output}>→ Loop 2: Creating components...</span>
-                <span className={styles.outputSuccess}>✓ Done! 2 files created, 1 commit</span>
+                <span className={styles.output}>→ Loop 1: Building auth middleware...</span>
+                <span className={styles.output}>→ Loop 2: Adding tests + validation...</span>
+                <span className={styles.outputSuccess}>✓ Done! PR #42 created</span>
               </div>
             </div>
           </div>

@@ -55,6 +55,12 @@
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 2rem;
+  justify-items: center;
+}
+
+.integrationsGrid > *:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+  max-width: calc(50% - 1rem);
 }
 
 .integrationCard {
@@ -332,6 +338,10 @@
     grid-template-columns: 1fr;
     max-width: 600px;
     margin: 0 auto;
+  }
+
+  .integrationsGrid > *:last-child:nth-child(odd) {
+    max-width: 100%;
   }
 }
 

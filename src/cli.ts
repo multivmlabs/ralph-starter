@@ -13,6 +13,7 @@ import { initCommand } from './commands/init.js';
 import { integrationsCommand } from './commands/integrations.js';
 import { linearCommand } from './commands/linear.js';
 import { notionCommand } from './commands/notion.js';
+import { openspecCommand } from './commands/openspec.js';
 import { pauseCommand } from './commands/pause.js';
 import { planCommand } from './commands/plan.js';
 import { resumeCommand } from './commands/resume.js';
@@ -257,6 +258,28 @@ program
   .option('--agent <name>', 'Agent to use')
   .action(async (options) => {
     await notionCommand({
+      commit: options.commit,
+      push: options.push,
+      pr: options.pr,
+      validate: options.validate,
+      maxIterations: options.maxIterations ? parseInt(options.maxIterations, 10) : undefined,
+      agent: options.agent,
+    });
+  });
+
+// ralph-starter openspec - OpenSpec wizard
+program
+  .command('openspec')
+  .description('Build from OpenSpec specs with an interactive wizard')
+  .option('--commit', 'Auto-commit after tasks')
+  .option('--push', 'Push to remote')
+  .option('--pr', 'Create PR when done')
+  .option('--validate', 'Run validation', true)
+  .option('--no-validate', 'Skip validation')
+  .option('--max-iterations <n>', 'Max loop iterations')
+  .option('--agent <name>', 'Agent to use')
+  .action(async (options) => {
+    await openspecCommand({
       commit: options.commit,
       push: options.push,
       pr: options.pr,
