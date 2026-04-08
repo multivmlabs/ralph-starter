@@ -39,6 +39,7 @@ import {
 } from '../utils/sanitize.js';
 import { ensureSharp } from '../utils/sharp.js';
 import { showWelcome } from '../wizard/ui.js';
+import { githubCommand } from './github.js';
 
 /** Default fallback repo for GitHub issues when no project is specified */
 const DEFAULT_GITHUB_ISSUES_REPO = 'multivmlabs/ralph-ideas';
@@ -370,9 +371,20 @@ export async function runCommand(
     }
   }
 
-  // If --from is used without --project/--issue for supported wizards, launch the wizard
+  // Handle --from with wizard fallback for integrations without enough context
   if (options.from && !options.project && !options.issue) {
     const source = options.from.toLowerCase();
+    if (source === 'github') {
+      const { githubCommand: launchGithub } = await import('./github.js');
+      return launchGithub({
+        commit: options.commit,
+        push: options.push,
+        pr: options.pr,
+        validate: options.validate,
+        maxIterations: options.maxIterations,
+        agent: options.agent,
+      });
+    }
     if (source === 'linear') {
       const { linearCommand: launchLinear } = await import('./linear.js');
       return launchLinear({
