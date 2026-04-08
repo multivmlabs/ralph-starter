@@ -39,6 +39,38 @@ In Notion:
 2. Click "..." menu → "Add connections"
 3. Select "ralph-starter"
 
+## Interactive Wizard
+
+The easiest way to get started:
+
+```bash
+ralph-starter notion
+```
+
+This will:
+1. Check your authentication (prompt for token if needed)
+2. Let you search for pages by name and select one
+3. Start the build loop automatically
+
+You can also paste a Notion page URL directly when prompted.
+
+### Wizard Options
+
+```bash
+ralph-starter notion --commit          # Auto-commit after tasks
+ralph-starter notion --push            # Push commits to remote
+ralph-starter notion --pr              # Create PR when done
+ralph-starter notion --agent claude-code  # Use a specific agent
+```
+
+### Fallback
+
+If you run `--from notion` without specifying a project, the wizard launches automatically:
+
+```bash
+ralph-starter run --from notion        # Launches wizard
+```
+
 ## Public Pages (No Auth Required)
 
 For **public** Notion pages, you can use the URL source directly without any API key:

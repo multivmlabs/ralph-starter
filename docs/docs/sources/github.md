@@ -35,6 +35,28 @@ Required scopes:
 - `repo` (for private repositories)
 - `public_repo` (for public repositories only)
 
+## Interactive Wizard
+
+The easiest way to get started:
+
+```bash
+ralph-starter github
+```
+
+This will:
+1. Check your authentication (prompt for token if needed)
+2. Let you browse repositories and select issues
+3. Multi-select which issues to work on
+4. Start the build loop automatically
+
+You can also pass options:
+
+```bash
+ralph-starter github --commit --pr --validate
+```
+
+If you prefer the CLI flags approach, use `ralph-starter run --from github` (see below).
+
 ## Usage
 
 ```bash
@@ -200,3 +222,8 @@ See [`ralph-starter task`](/docs/cli/task) for full details.
 1. **Use labels effectively** - Create a "ready-to-build" or "ralph" label for issues that are well-specified
 2. **Write detailed issues** - Include requirements, acceptance criteria, and context
 3. **One issue = one feature** - Keep issues focused for better results
+
+## See Also
+
+- [run](/docs/cli/run) — The underlying run command with all options
+- [auto](/docs/cli/auto) — Batch-process multiple GitHub issues autonomously

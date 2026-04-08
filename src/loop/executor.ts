@@ -257,6 +257,7 @@ export type LoopOptions = {
   agentTimeout?: number;
   initialValidationFeedback?: string;
   maxSkills?: number;
+  enableSkills?: boolean;
   skipPlanInstructions?: boolean;
   fixMode?: 'design' | 'scan' | 'custom';
   taskTitle?: string;
@@ -276,6 +277,10 @@ export type LoopOptions = {
   productName?: string;
   /** Dot-directory for memory/iteration-log/activity (default: '.ralph'). */
   dotDir?: string;
+  /** API key for SDK-based agents */
+  apiKey?: string;
+  /** Allow the anthropic-sdk agent to execute shell commands. Disabled by default for safety. */
+  allowShellExecution?: boolean;
 };
 
 export type LoopResult = {
@@ -567,7 +572,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
   let lintCommands = detectLintCommands(options.cwd);
 
   // Detect Claude Code skills (capped by maxSkills option)
-  const detectedSkills = detectClaudeSkills(options.cwd);
+  const detectedSkills = options.enableSkills === false ? [] : detectClaudeSkills(options.cwd);
   let taskWithSkills = options.task;
   if (detectedSkills.length > 0) {
     const skillsPrompt = formatSkillsForPrompt(detectedSkills, options.task, options.maxSkills);
@@ -936,6 +941,8 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       model: options.model,
       env: options.env,
       ampMode: options.ampMode,
+      apiKey: options.apiKey,
+      allowShellExecution: options.allowShellExecution,
       // maxTurns removed - was causing issues, match wizard behavior
       streamOutput: !!process.env.RALPH_DEBUG, // Show raw JSON when debugging
       headless,

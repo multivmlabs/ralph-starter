@@ -39,6 +39,7 @@ import {
 } from '../utils/sanitize.js';
 import { ensureSharp } from '../utils/sharp.js';
 import { showWelcome } from '../wizard/ui.js';
+import { githubCommand } from './github.js';
 
 /** Default fallback repo for GitHub issues when no project is specified */
 const DEFAULT_GITHUB_ISSUES_REPO = 'multivmlabs/ralph-ideas';
@@ -277,6 +278,8 @@ export interface RunCommandOptions {
   limit?: number;
   issue?: number;
   outputDir?: string;
+  headless?: boolean;
+  autoSkills?: boolean;
   // New options
   preset?: string;
   completionPromise?: string;
@@ -321,7 +324,18 @@ export async function runCommand(
   options: RunCommandOptions
 ): Promise<void> {
   let cwd = process.cwd();
-  const spinner = ora();
+  const headless = options.headless ?? false;
+  const noopSpinner = {
+    start: (_text?: string) => noopSpinner,
+    stop: () => noopSpinner,
+    succeed: (_text?: string) => noopSpinner,
+    fail: (_text?: string) => noopSpinner,
+    warn: (_text?: string) => noopSpinner,
+    info: (_text?: string) => noopSpinner,
+    text: '',
+    isSpinning: false,
+  };
+  const spinner = headless ? noopSpinner : ora();
 
   // Handle --output-dir flag
   if (options.outputDir) {
@@ -330,7 +344,9 @@ export async function runCommand(
     mkdirSync(cwd, { recursive: true });
   }
 
-  showWelcome();
+  if (!headless) {
+    showWelcome();
+  }
 
   // Check for git repo
   if (options.commit || options.push || options.pr) {
@@ -354,6 +370,44 @@ export async function runCommand(
         options.push = false;
         options.pr = false;
       }
+    }
+  }
+
+  // Handle --from with wizard fallback for integrations without enough context
+  if (options.from && !options.project && !options.issue) {
+    const source = options.from.toLowerCase();
+    if (source === 'github') {
+      const { githubCommand: launchGithub } = await import('./github.js');
+      return launchGithub({
+        commit: options.commit,
+        push: options.push,
+        pr: options.pr,
+        validate: options.validate,
+        maxIterations: options.maxIterations,
+        agent: options.agent,
+      });
+    }
+    if (source === 'linear') {
+      const { linearCommand: launchLinear } = await import('./linear.js');
+      return launchLinear({
+        commit: options.commit,
+        push: options.push,
+        pr: options.pr,
+        validate: options.validate,
+        maxIterations: options.maxIterations,
+        agent: options.agent,
+      });
+    }
+    if (source === 'notion') {
+      const { notionCommand: launchNotion } = await import('./notion.js');
+      return launchNotion({
+        commit: options.commit,
+        push: options.push,
+        pr: options.pr,
+        validate: options.validate,
+        maxIterations: options.maxIterations,
+        agent: options.agent,
+      });
     }
   }
 
@@ -1183,7 +1237,9 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
   }
 
   // Auto-install relevant skills from skills.sh (enabled by default)
-  await autoInstallSkillsFromTask(finalTask, cwd, options.from?.toLowerCase());
+  if (options.autoSkills !== false) {
+    await autoInstallSkillsFromTask(finalTask, cwd, options.from?.toLowerCase());
+  }
 
   // Copy design reference image to specs/ so the agent can read it
   let designImagePath: string | undefined;
@@ -1437,14 +1493,18 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
     figmaScreenshotPaths,
     ampMode: options.ampMode,
     review: options.review,
+    headless,
+    enableSkills: options.autoSkills !== false,
   };
 
   // Swarm mode: run with multiple agents in parallel
   if (options.swarm) {
     const { runSwarm } = await import('../loop/swarm.js');
     const strategy = options.strategy || 'race';
-    console.log(chalk.cyan.bold(`Swarm mode: ${strategy} strategy`));
-    console.log();
+    if (!headless) {
+      console.log(chalk.cyan.bold(`Swarm mode: ${strategy} strategy`));
+      console.log();
+    }
 
     const swarmResult = await runSwarm({
       task: loopOptions.task,
@@ -1456,8 +1516,17 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
       pr: loopOptions.pr,
       push: loopOptions.push,
       commit: loopOptions.commit,
-      onProgress: (msg) => console.log(chalk.dim(`  ${msg}`)),
+      onProgress: headless ? undefined : (msg) => console.log(chalk.dim(`  ${msg}`)),
+      headless,
+      enableSkills: options.autoSkills !== false,
     });
+
+    if (headless) {
+      if (!swarmResult.winner) {
+        throw new Error('Swarm failed: no successful result');
+      }
+      return;
+    }
 
     // Print swarm summary
     console.log();
@@ -1481,6 +1550,13 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
   }
 
   const result = await runLoop(loopOptions);
+
+  if (headless) {
+    if (!result.success) {
+      throw new Error(result.error || result.exitReason || 'Loop failed');
+    }
+    return;
+  }
 
   // Print summary
   console.log();
