@@ -10,6 +10,7 @@
 
 // Built-in sources
 import { FileSource } from './builtin/file.js';
+import { OpenSpecSource } from './builtin/openspec.js';
 import { PdfSource } from './builtin/pdf.js';
 import { UrlSource } from './builtin/url.js';
 // Integration sources
@@ -32,7 +33,7 @@ function initializeSources(): void {
   if (sources.size > 0) return;
 
   // Register builtin sources
-  const builtins = [new FileSource(), new UrlSource(), new PdfSource()];
+  const builtins = [new FileSource(), new UrlSource(), new PdfSource(), new OpenSpecSource()];
 
   for (const source of builtins) {
     sources.set(source.name, source);
