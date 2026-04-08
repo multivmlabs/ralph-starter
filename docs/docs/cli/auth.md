@@ -2,12 +2,12 @@
 sidebar_position: 7
 title: auth
 description: Browser-based OAuth authentication for integrations
-keywords: [cli, auth, command, oauth, authentication, linear, notion, github, todoist]
+keywords: [cli, auth, command, oauth, authentication, linear, notion, github]
 ---
 
 # ralph-starter auth
 
-Browser-based OAuth authentication for integrations. Supports OAuth PKCE flows for services like Linear, and manages manual API key configuration for services like Notion, Todoist, and GitHub.
+Browser-based OAuth authentication for integrations. Supports OAuth PKCE flows for services like Linear, and manages manual API key configuration for services like Notion and GitHub.
 
 ## Synopsis
 
@@ -31,7 +31,7 @@ Credentials are stored locally in the ralph-starter sources configuration file.
 
 | Argument | Description |
 |----------|-------------|
-| `service` | The service to authenticate with (e.g., `linear`, `notion`, `todoist`, `github`) |
+| `service` | The service to authenticate with (e.g., `linear`, `notion`, `github`) |
 
 ## Options
 
@@ -46,7 +46,6 @@ Credentials are stored locally in the ralph-starter sources configuration file.
 |---------|-------------|---------|
 | `linear` | Browser OAuth (PKCE) | Seamless browser-based flow. Requires `RALPH_LINEAR_CLIENT_ID` env var. |
 | `notion` | Manual API key | Set via `ralph-starter config set notion.apiKey <key>`. Get key at [notion.so/my-integrations](https://www.notion.so/my-integrations). |
-| `todoist` | Manual API key | Set via `ralph-starter config set todoist.apiKey <key>`. Get key at [todoist.com/prefs/integrations](https://todoist.com/prefs/integrations). |
 | `github` | Manual API key | Set via `ralph-starter config set github.apiKey <key>`. Get token at [github.com/settings/tokens](https://github.com/settings/tokens). |
 
 ## Examples
@@ -75,8 +74,6 @@ Credentials stored in: /home/user/.config/ralph-starter/sources.json
   ✓ Linear - Authenticated
   ○ Notion - Manual API key
       Run: ralph-starter config set notion.apiKey <your-key>
-  ○ Todoist - Manual API key
-      Run: ralph-starter config set todoist.apiKey <your-key>
   ○ GitHub - Manual API key
       Run: ralph-starter config set github.apiKey <your-key>
 ```
@@ -95,9 +92,6 @@ For services that do not support OAuth PKCE, configure API keys manually:
 ```bash
 # Notion
 ralph-starter config set notion.apiKey ntn_your_api_key_here
-
-# Todoist
-ralph-starter config set todoist.apiKey your_todoist_api_key
 
 # GitHub
 ralph-starter config set github.apiKey ghp_your_github_token

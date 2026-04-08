@@ -2,7 +2,7 @@
  * OAuth Provider Configuration
  */
 export interface OAuthProvider {
-  /** Provider name (e.g., 'notion', 'linear', 'todoist') */
+  /** Provider name (e.g., 'notion', 'linear') */
   name: string;
 
   /** Human-readable display name */

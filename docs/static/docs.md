@@ -2,7 +2,7 @@
 
 > AI-powered autonomous coding tool. Connect GitHub, Linear, Notion, Figma and run AI coding loops from specs to production.
 
-> Generated on 2026-02-18 | [ralphstarter.ai](https://ralphstarter.ai)
+> Generated on 2026-04-08 | [ralphstarter.ai](https://ralphstarter.ai)
 
 ## Table of Contents
 
@@ -1292,7 +1292,7 @@ These environment variables override config file values:
 
 ## ralph-starter auth
 
-Browser-based OAuth authentication for integrations. Supports OAuth PKCE flows for services like Linear, and manages manual API key configuration for services like Notion, Todoist, and GitHub.
+Browser-based OAuth authentication for integrations. Supports OAuth PKCE flows for services like Linear, and manages manual API key configuration for services like Notion and GitHub.
 
 ### Synopsis
 
@@ -1316,7 +1316,7 @@ Credentials are stored locally in the ralph-starter sources configuration file.
 
 | Argument | Description |
 |----------|-------------|
-| `service` | The service to authenticate with (e.g., `linear`, `notion`, `todoist`, `github`) |
+| `service` | The service to authenticate with (e.g., `linear`, `notion`, `github`) |
 
 ### Options
 
@@ -1331,7 +1331,6 @@ Credentials are stored locally in the ralph-starter sources configuration file.
 |---------|-------------|---------|
 | `linear` | Browser OAuth (PKCE) | Seamless browser-based flow. Requires `RALPH_LINEAR_CLIENT_ID` env var. |
 | `notion` | Manual API key | Set via `ralph-starter config set notion.apiKey <key>`. Get key at [notion.so/my-integrations](https://www.notion.so/my-integrations). |
-| `todoist` | Manual API key | Set via `ralph-starter config set todoist.apiKey <key>`. Get key at [todoist.com/prefs/integrations](https://todoist.com/prefs/integrations). |
 | `github` | Manual API key | Set via `ralph-starter config set github.apiKey <key>`. Get token at [github.com/settings/tokens](https://github.com/settings/tokens). |
 
 ### Examples
@@ -1360,8 +1359,6 @@ Credentials stored in: /home/user/.config/ralph-starter/sources.json
   ✓ Linear - Authenticated
   ○ Notion - Manual API key
       Run: ralph-starter config set notion.apiKey <your-key>
-  ○ Todoist - Manual API key
-      Run: ralph-starter config set todoist.apiKey <your-key>
   ○ GitHub - Manual API key
       Run: ralph-starter config set github.apiKey <your-key>
 ```
@@ -1380,9 +1377,6 @@ For services that do not support OAuth PKCE, configure API keys manually:
 ```bash
 # Notion
 ralph-starter config set notion.apiKey ntn_your_api_key_here
-
-# Todoist
-ralph-starter config set todoist.apiKey your_todoist_api_key
 
 # GitHub
 ralph-starter config set github.apiKey ghp_your_github_token
@@ -2609,6 +2603,28 @@ Required scopes:
 - `repo` (for private repositories)
 - `public_repo` (for public repositories only)
 
+### Interactive Wizard
+
+The easiest way to get started:
+
+```bash
+ralph-starter github
+```
+
+This will:
+1. Check your authentication (prompt for token if needed)
+2. Let you browse repositories and select issues
+3. Multi-select which issues to work on
+4. Start the build loop automatically
+
+You can also pass options:
+
+```bash
+ralph-starter github --commit --pr --validate
+```
+
+If you prefer the CLI flags approach, use `ralph-starter run --from github` (see below).
+
 ### Usage
 
 ```bash
@@ -2749,11 +2765,36 @@ Verify your authentication:
 ralph-starter source test github
 ```
 
+### Task Management
+
+Beyond fetching specs, you can create, update, and close GitHub issues directly from the CLI:
+
+```bash
+# List open issues
+ralph-starter task list --source github --project owner/repo
+
+# Create an issue
+ralph-starter task create --title "Add dark mode" --project owner/repo --assignee octocat
+
+# Update an issue
+ralph-starter task update #42 --assignee octocat --project owner/repo
+
+# Close an issue
+ralph-starter task close #42 --comment "Fixed in PR #100" --project owner/repo
+```
+
+See [`ralph-starter task`](/docs/cli/task) for full details.
+
 ### Tips
 
 1. **Use labels effectively** - Create a "ready-to-build" or "ralph" label for issues that are well-specified
 2. **Write detailed issues** - Include requirements, acceptance criteria, and context
 3. **One issue = one feature** - Keep issues focused for better results
+
+### See Also
+
+- [run](/docs/cli/run) — The underlying run command with all options
+- [auto](/docs/cli/auto) — Batch-process multiple GitHub issues autonomously
 
 
 ---
@@ -2768,6 +2809,38 @@ Get your API key from [Linear Settings > API > Personal API keys](https://linear
 
 ```bash
 ralph-starter config set linear.apiKey lin_api_xxxxxxxxxxxx
+```
+
+### Interactive Wizard
+
+The easiest way to get started:
+
+```bash
+ralph-starter linear
+```
+
+This will:
+1. Check your authentication (prompt for API key if needed)
+2. Let you select a team, then browse projects or issues
+3. Start the build loop automatically
+
+You can also paste a Linear issue URL directly when prompted.
+
+#### Wizard Options
+
+```bash
+ralph-starter linear --commit          # Auto-commit after tasks
+ralph-starter linear --push            # Push commits to remote
+ralph-starter linear --pr              # Create PR when done
+ralph-starter linear --agent claude-code  # Use a specific agent
+```
+
+#### Fallback
+
+If you run `--from linear` without specifying a project, the wizard launches automatically:
+
+```bash
+ralph-starter run --from linear        # Launches wizard
 ```
 
 ### Usage
@@ -2889,6 +2962,31 @@ Create these labels in Linear:
 2. Add comments with build progress
 3. Close issues when build succeeds
 
+### Task Management
+
+Beyond fetching specs, you can create, update, close, and assign Linear issues from the CLI:
+
+```bash
+# List issues from Linear
+ralph-starter task list --source linear
+
+# Create an issue on a specific team
+ralph-starter task create --title "Add dark mode" --source linear --priority P1
+
+# Assign an issue (resolves display name to user ID automatically)
+ralph-starter task update ENG-42 --assignee ruben
+
+# Update status
+ralph-starter task update ENG-42 --status "In Progress"
+
+# Close an issue
+ralph-starter task close ENG-42 --comment "Shipped in v1.2"
+```
+
+Assignee resolution is case-insensitive and matches against display name, full name, and email prefix. If no match is found, ralph-starter shows available team members.
+
+See [`ralph-starter task`](/docs/cli/task) for full details.
+
 ### Tips
 
 1. **Write detailed issues** - Linear's rich markdown support is perfect for detailed specs
@@ -2932,6 +3030,38 @@ In Notion:
 1. Open the page/database you want to use
 2. Click "..." menu → "Add connections"
 3. Select "ralph-starter"
+
+### Interactive Wizard
+
+The easiest way to get started:
+
+```bash
+ralph-starter notion
+```
+
+This will:
+1. Check your authentication (prompt for token if needed)
+2. Let you search for pages by name and select one
+3. Start the build loop automatically
+
+You can also paste a Notion page URL directly when prompted.
+
+#### Wizard Options
+
+```bash
+ralph-starter notion --commit          # Auto-commit after tasks
+ralph-starter notion --push            # Push commits to remote
+ralph-starter notion --pr              # Create PR when done
+ralph-starter notion --agent claude-code  # Use a specific agent
+```
+
+#### Fallback
+
+If you run `--from notion` without specifying a project, the wizard launches automatically:
+
+```bash
+ralph-starter run --from notion        # Launches wizard
+```
 
 ### Public Pages (No Auth Required)
 
@@ -3295,6 +3425,7 @@ Create a custom mapping file to control how Figma content maps to your component
 | `--figma-target` | Target directory (content mode) | Path (e.g., `src/pages`) |
 | `--figma-preview` | Preview without applying (content mode) | Flag |
 | `--figma-mapping` | Custom mapping file (content mode) | File path (e.g., `mapping.json`) |
+| `--model` | AI model for the coding agent | Model ID (e.g., `claude-sonnet-4-5-20250929`) |
 
 ### Figma URL Formats
 
@@ -3343,6 +3474,30 @@ ralph-starter integrations fetch figma "ABC123" --figma-mode assets
 # Run the generated curl commands to download
 ```
 
+#### Choose Your Model
+
+Use `--model` to pick which AI model implements the design. Sonnet is fast and cost-effective for most UI work; Opus produces more nuanced implementations for complex layouts:
+
+```bash
+# Fast iteration with Sonnet (recommended for most Figma workflows)
+ralph-starter run --from figma \
+  --project "https://figma.com/file/ABC123/Dashboard" \
+  --figma-mode components \
+  --model claude-sonnet-4-5-20250929 \
+  --max-iterations 5
+
+# Maximum quality with Opus
+ralph-starter run --from figma \
+  --project "https://figma.com/file/ABC123/Dashboard" \
+  --figma-mode components \
+  --model claude-opus-4-6 \
+  --max-iterations 3
+```
+
+:::tip Model Selection for Figma
+**Sonnet** is the sweet spot for Figma-to-code. It handles component structure, layout, and styling accurately at ~5x lower cost and faster iteration speed. Use **Opus** when you need complex state logic or intricate responsive behavior alongside the UI.
+:::
+
 ### Test Connection
 
 Verify your authentication:
@@ -3351,7 +3506,71 @@ Verify your authentication:
 ralph-starter integrations test figma
 ```
 
+### Rate Limits & Caching
+
+#### Figma API Rate Limits
+
+Figma enforces rate limits based on your **plan tier** and **seat type**. This matters because it determines how many API requests you can make per minute (or per month).
+
+| Seat Type | Starter | Professional | Enterprise |
+|-----------|---------|-------------|------------|
+| Collab/Viewer (low) | 6/month | 5/min | 10/min |
+| Dev/Full (high) | 10/min | 15-50/min | 20-100/min |
+
+:::warning Free & Starter Plans
+On the **Starter plan with a Collab/Viewer seat** (`limit-type=low`), you get only **6 requests per month**. Each `ralph-starter run --from figma` uses 2-4 API calls, so you can exhaust your budget in 1-2 runs. Upgrade to a **Professional plan with a Dev seat** ($12/month) for 10+ requests per minute.
+:::
+
+#### Community Files
+
+When you access a **community file** (duplicated from the Figma Community), the **file owner's plan** determines your rate limits -- not your own plan. If the original author is on a free/starter plan, you'll be limited to 6 requests per month regardless of your plan.
+
+**Fix:** Duplicate the file to your own workspace. This makes you the owner and applies your plan's limits.
+
+#### Response Caching
+
+ralph-starter automatically caches Figma API responses in `~/.ralph/figma-cache/` with a 1-hour TTL. This means:
+
+- **First run** fetches from the API and populates the cache
+- **Subsequent runs** (within 1 hour) use the cache with zero API calls
+- **Rate limited (429)?** Falls back to stale cache if available
+
+This is especially useful for iterative development -- fetch once, then run the coding loop as many times as you want without touching the API.
+
+To clear the cache and force a fresh fetch:
+
+```bash
+rm -rf ~/.ralph/figma-cache/
+```
+
+#### Debugging API Issues
+
+Use the `RALPH_DEBUG` environment variable to see every API request, response status, and rate limit headers:
+
+```bash
+RALPH_DEBUG=1 ralph-starter run --from figma --project "your-figma-url"
+```
+
+This shows:
+- Each API endpoint being called
+- HTTP status codes and retry-after values
+- Plan tier (`x-figma-plan-tier`) and limit type (`x-figma-rate-limit-type`)
+- Cache hits and stale cache fallbacks
+
 ### Troubleshooting
+
+#### "Figma API blocked for ~N day(s)"
+
+This means CloudFront (Figma's CDN) has blocked your IP after too many rate-limited requests. The `retry-after` header shows days, not minutes.
+
+**Solutions (pick one):**
+1. **Upgrade your Figma plan** to Professional with a Dev seat ($12/month) -- gives you 10+ req/min instead of 6/month
+2. **Use a VPN** to get a fresh IP, fetch once to populate the cache, then disconnect
+3. **Wait** for the block to expire (shown in the error message)
+
+#### "Figma API rate limit hit"
+
+A transient rate limit (not a CDN block). ralph-starter will automatically retry once after respecting the `retry-after` header. If it fails again, wait 1-2 minutes and try again.
 
 #### "Invalid Figma token"
 
@@ -3374,6 +3593,7 @@ Assets are detected by name patterns. Rename your icon frames to include "icon",
 - **Variables API** requires Figma Enterprise plan (falls back to styles)
 - **Image export URLs** expire after 30 days
 - **Large files** may be slow; use `--figma-nodes` to target specific frames
+- **Starter plan (Collab seat)** limited to 6 API requests/month -- use caching or upgrade to Professional
 
 
 ---

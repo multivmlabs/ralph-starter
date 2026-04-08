@@ -2,12 +2,10 @@ export type { OAuthProvider, OAuthTokens } from './base.js';
 export { BaseOAuthProvider } from './base.js';
 export { LinearOAuthProvider, linearProvider } from './linear.js';
 export { NotionOAuthProvider, notionProvider } from './notion.js';
-export { TodoistOAuthProvider, todoistProvider } from './todoist.js';
 
 import type { OAuthProvider } from './base.js';
 import { linearProvider } from './linear.js';
 import { notionProvider } from './notion.js';
-import { todoistProvider } from './todoist.js';
 
 /**
  * All available OAuth providers
@@ -15,7 +13,6 @@ import { todoistProvider } from './todoist.js';
 export const providers: Record<string, OAuthProvider> = {
   notion: notionProvider,
   linear: linearProvider,
-  todoist: todoistProvider,
 };
 
 /**

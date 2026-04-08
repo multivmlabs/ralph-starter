@@ -11,6 +11,11 @@ interface Integration {
 
 const integrations: Integration[] = [
   {
+    name: 'OpenSpec',
+    logo: '/img/openspec-logo.svg',
+    description: 'Spec driven development',
+  },
+  {
     name: 'Figma',
     logo: '/img/figma-logo.svg',
     description: 'Design specs, tokens & assets',

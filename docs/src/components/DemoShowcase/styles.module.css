@@ -19,7 +19,7 @@
 }
 
 .container {
-  max-width: 900px;
+  max-width: 960px;
   margin: 0 auto;
   padding: 0 2rem;
   position: relative;
@@ -62,7 +62,7 @@
 .subtitle {
   font-size: 1.05rem;
   color: #71717A;
-  max-width: 560px;
+  max-width: 600px;
   margin: 0 auto 2rem;
   line-height: 1.6;
 }
@@ -73,13 +73,15 @@
   justify-content: center;
   gap: 0.5rem;
   margin-bottom: 1.5rem;
+  flex-wrap: wrap;
 }
 
 .tab {
   background: transparent;
   border: 1px solid #28282E;
   color: #71717A;
-  font-size: 0.9rem;
+  font-family: 'Geist Mono', 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
   font-weight: 500;
   padding: 0.5rem 1.25rem;
   border-radius: 8px;
@@ -104,18 +106,87 @@
   color: #fff;
 }
 
-/* Demo frame */
-.demoFrame {
+/* Terminal */
+.terminal {
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid #28282E;
-  background: #111113;
+  background: #0C0C0E;
+  text-align: left;
 }
 
-.demoGif {
-  display: block;
-  width: 100%;
-  height: auto;
+.terminalHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px;
+  background: #141416;
+  border-bottom: 1px solid #1E1E22;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.dotRed { background: #FF5F56; }
+.dotYellow { background: #FFBD2E; }
+.dotGreen { background: #27C93F; }
+
+.terminalTitle {
+  font-family: 'Geist Mono', 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: #52525B;
+  margin-left: 8px;
+}
+
+.terminalBody {
+  padding: 20px 24px;
+  font-family: 'Geist Mono', 'JetBrains Mono', monospace;
+  font-size: 0.82rem;
+  line-height: 1.7;
+  min-height: 300px;
+}
+
+.commandLine {
+  margin-bottom: 12px;
+}
+
+.prompt {
+  color: #27C93F;
+  margin-right: 8px;
+  user-select: none;
+}
+
+.command {
+  color: #E4E4E7;
+  word-break: break-all;
+}
+
+.output {
+  color: #A1A1AA;
+}
+
+/* Line types */
+.line_dim {
+  color: #52525B;
+}
+
+.line_normal {
+  color: #A1A1AA;
+}
+
+.line_success {
+  color: #34D399;
+}
+
+.line_accent {
+  color: #8B5CF6;
+}
+
+.line_warn {
+  color: #FBBF24;
 }
 
 /* Caption */
@@ -124,6 +195,17 @@
   color: #71717A;
   margin-top: 1.25rem;
   line-height: 1.5;
+}
+
+.captionLink {
+  color: #8B5CF6;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.captionLink:hover {
+  color: #A78BFA;
+  text-decoration: underline;
 }
 
 /* Responsive */
@@ -136,12 +218,18 @@
     font-size: 1.6rem;
   }
 
-  .tabs {
-    flex-wrap: wrap;
+  .tab {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.9rem;
   }
 
-  .tab {
-    font-size: 0.8rem;
-    padding: 0.4rem 1rem;
+  .terminalBody {
+    padding: 16px;
+    font-size: 0.72rem;
+    min-height: 260px;
+  }
+
+  .command {
+    font-size: 0.7rem;
   }
 }

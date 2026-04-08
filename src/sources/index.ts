@@ -18,7 +18,6 @@ import { FigmaSource } from './integrations/figma.js';
 import { GitHubSource } from './integrations/github.js';
 import { LinearSource } from './integrations/linear.js';
 import { NotionSource } from './integrations/notion.js';
-import { TodoistSource } from './integrations/todoist.js';
 import type { InputSource, SourceInfo, SourceOptions, SourceResult } from './types.js';
 
 /**
@@ -43,7 +42,6 @@ function initializeSources(): void {
   const integrations = [
     new FigmaSource(),
     new GitHubSource(),
-    new TodoistSource(),
     new LinearSource(),
     new NotionSource(),
   ];
@@ -119,10 +117,6 @@ export function detectSource(identifier: string): InputSource | null {
     if (lowerIdentifier.includes('linear.app')) {
       return sources.get('linear') || null;
     }
-    if (lowerIdentifier.includes('todoist.com')) {
-      return sources.get('todoist') || null;
-    }
-
     // Check for PDF URLs
     if (lowerIdentifier.endsWith('.pdf')) {
       return sources.get('pdf') || null;

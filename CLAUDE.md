@@ -13,7 +13,7 @@ Note: ralph-starter itself supports any package manager in user projects via `de
 
 ## What is ralph-starter?
 
-A CLI tool that runs autonomous AI coding loops. It fetches specs from GitHub, Linear, Notion, Figma, and Todoist, then orchestrates coding agents to build software automatically. Each loop iteration spawns a fresh agent process with a progressively trimmed context — continuity is maintained through the filesystem (`IMPLEMENTATION_PLAN.md`, `.ralph/iteration-log.md`), not conversation history.
+A CLI tool that runs autonomous AI coding loops. It fetches specs from GitHub, Linear, Notion, Figma, and OpenSpec, then orchestrates coding agents to build software automatically. Each loop iteration spawns a fresh agent process with a progressively trimmed context — continuity is maintained through the filesystem (`IMPLEMENTATION_PLAN.md`, `.ralph/iteration-log.md`), not conversation history.
 
 ## Quick Commands
 
@@ -43,7 +43,6 @@ pnpm typecheck    # Type-check without emitting
 - Linear: Tickets by team/project
 - Notion: Pages and databases
 - Figma: Design specs and tokens
-- Todoist: Tasks and projects
 
 **Agents** - AI coding assistants ralph-starter orchestrates:
 - Claude Code, Cursor, OpenCode, OpenAI Codex, GitHub Copilot, Gemini CLI, Amp, Openclaw
@@ -78,7 +77,7 @@ pnpm typecheck    # Type-check without emitting
 
 | Directory | Purpose |
 |-----------|---------|
-| `auth/` | OAuth providers (Anthropic, OpenAI, Linear, Notion, Todoist) |
+| `auth/` | OAuth providers (Anthropic, OpenAI, Linear, Notion) |
 | `automation/` | Git operations (commit, push, PR creation) |
 | `commands/` | CLI commands (run, init, plan, auto, fix, pause, resume, etc.) |
 | `config/` | Configuration management |

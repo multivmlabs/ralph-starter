@@ -232,7 +232,6 @@ function getApiKeyUrl(service: string): string {
   const urls: Record<string, string> = {
     notion: 'https://www.notion.so/my-integrations',
     linear: 'https://linear.app/settings/api',
-    todoist: 'https://todoist.com/prefs/integrations',
     github: 'https://github.com/settings/tokens',
   };
   return urls[service] || "the service's developer settings";
@@ -253,15 +252,13 @@ ${chalk.bold('Usage:')}
 ${chalk.bold('Services:')}
   ${chalk.green('linear')}   - Browser OAuth (PKCE) - just run: ralph-starter auth linear
   ${chalk.yellow('notion')}   - Manual API key required
-  ${chalk.yellow('todoist')}  - Manual API key required
 
 ${chalk.bold('Examples:')}
   ${chalk.dim('# Linear - browser OAuth (seamless!)')}
   ralph-starter auth linear
 
-  ${chalk.dim('# Notion/Todoist - manual API key')}
+  ${chalk.dim('# Notion - manual API key')}
   ralph-starter config set notion.apiKey <your-key>
-  ralph-starter config set todoist.apiKey <your-key>
 
   ${chalk.dim('# Check status')}
   ralph-starter auth --list
@@ -272,12 +269,11 @@ ${chalk.bold('Browser OAuth Setup (Linear):')}
 
   Get it from: https://linear.app/settings/api/applications
 
-${chalk.bold('Manual API Keys (Notion, Todoist):')}
-  These services require manual API key configuration:
+${chalk.bold('Manual API Keys (Notion):')}
+  Notion requires manual API key configuration:
 
   ${chalk.dim('Notion:')}  https://www.notion.so/my-integrations
-  ${chalk.dim('Todoist:')} https://todoist.com/prefs/integrations
 
-  Then run: ralph-starter config set <service>.apiKey <key>
+  Then run: ralph-starter config set notion.apiKey <key>
 `);
 }

@@ -16,6 +16,24 @@ interface Integration {
 
 const integrations: Integration[] = [
   {
+    icon: '/img/openspec-logo.svg',
+    name: 'OpenSpec',
+    description: 'Read structured specs from OpenSpec change directories. Validate completeness with RFC 2119 keyword detection and acceptance criteria checks before spending tokens.',
+    features: [
+      'Proposal, design, tasks, and spec parsing',
+      'Spec completeness scoring (0-100)',
+      'RFC 2119 keyword detection (SHALL, MUST, SHOULD)',
+      'Given/When/Then acceptance criteria extraction',
+    ],
+    setupSteps: [
+      'Create an openspec/ directory (or run openspec init)',
+      'Write your change specs in openspec/changes/<name>/',
+      'ralph-starter run --from openspec:<name> --spec-validate',
+    ],
+    docsLink: '/docs/sources/openspec',
+    externalLink: 'https://github.com/Fission-AI/OpenSpec',
+  },
+  {
     icon: '/img/figma-logo.svg',
     name: 'Figma',
     description: 'Extract designs, components, and design tokens directly from your Figma files. ralph-starter understands layers, auto-layout, and styling to generate accurate code.',
@@ -156,7 +174,7 @@ export default function IntegrationsPage(): React.ReactElement {
   return (
     <Layout
       title="Integrations"
-      description="Connect ralph-starter to Figma, GitHub, Linear, Notion and more. Fetch specs from where your work already lives."
+      description="Connect ralph-starter to OpenSpec, Figma, GitHub, Linear, Notion and more. Fetch specs from where your work already lives."
     >
       <main className={styles.main}>
         <section className={styles.hero}>

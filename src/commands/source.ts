@@ -137,7 +137,7 @@ async function previewSource(identifier: string, options?: SourceCommandOptions)
 
   try {
     // If identifier is a source name (like 'github') and project is provided, use explicit format
-    const integrationSources = ['github', 'linear', 'notion', 'todoist'];
+    const integrationSources = ['github', 'linear', 'notion', 'figma'];
     const isSourceName = integrationSources.includes(identifier.toLowerCase());
 
     let result;
@@ -222,8 +222,8 @@ ${chalk.bold('Identifier Formats:')}
   ./path/to/file.md             Local file
   https://example.com/spec.md   Remote URL
   github:owner/repo             GitHub issues
-  todoist:project-name          Todoist tasks
   linear:TEAM-KEY               Linear issues
   notion:page-id                Notion page
+  openspec:change-name          OpenSpec specs
 `);
 }
