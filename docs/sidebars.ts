@@ -19,6 +19,7 @@ const sidebars: SidebarsConfig = {
       collapsed: false,
       items: [
         'sources/overview',
+        'sources/openspec',
         'sources/figma',
         'sources/github',
         'sources/linear',
@@ -51,8 +52,10 @@ const sidebars: SidebarsConfig = {
         'cli/setup',
         'cli/check',
         'cli/skill',
+        'cli/figma',
         'cli/integrations',
         'cli/presets',
+        'cli/spec',
       ],
     },
     {
@@ -66,6 +69,7 @@ const sidebars: SidebarsConfig = {
         'guides/cost-tracking',
         'guides/prd-workflow',
         'guides/skills-system',
+        'guides/spec-driven-development',
       ],
     },
     {
