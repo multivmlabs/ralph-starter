@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.5.0] - 2026-04-08
+
+### Added
+- add OpenSpec as builtin source (#320)
+- add agent reviewer (--review) and bump to v0.4.4 (#292)
+- Linear status sync during loop execution (#274)
+- notion interactive wizard command (#272)
+- linear interactive wizard command (#271)
+- interactive GitHub issues wizard (ralph-starter github) (#270)
+
 ## [0.4.0] - 2026-03-05
 
 ### Added
