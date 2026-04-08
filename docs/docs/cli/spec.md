@@ -33,11 +33,11 @@ Auto-detects the spec format (OpenSpec, Spec-Kit, or raw markdown) and validates
 | Check | Points | Description |
 |-------|--------|-------------|
 | Proposal | 20 | Has a proposal, rationale, or overview section |
-| RFC 2119 | 25 | Contains SHALL, MUST, SHOULD, or MAY keywords |
+| RFC 2119 | 25 / 10 | 25 if SHALL, MUST, SHOULD, or MAY keywords present; 10 if absent but content >200 chars |
 | Design | 15 | Has a design, architecture, or technical section |
 | Tasks | 15 | Has a tasks section or checkbox items |
 | Criteria | 15 | Has Given/When/Then acceptance criteria |
-| Depth | 10 | At least 500 characters of content |
+| Depth | 10 / 5 | 10 if content >= 500 chars; 5 if 200-499 chars |
 
 Specs scoring below 40 are flagged as failing.
 

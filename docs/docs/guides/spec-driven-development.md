@@ -62,11 +62,11 @@ The validator scores specs 0-100 based on:
 | Check | Points | What it looks for |
 |-------|--------|-------------------|
 | Proposal/rationale | 20 | `## Proposal`, `## Why`, `## Overview` section |
-| RFC 2119 keywords | 25 | SHALL, MUST, SHOULD, MAY, REQUIRED |
+| RFC 2119 keywords | 25 / 10 | 25 if SHALL, MUST, SHOULD, MAY present; 10 partial credit if absent but content >200 chars |
 | Design section | 15 | `## Design`, `## Architecture`, `## Technical` |
 | Task breakdown | 15 | `## Tasks` or `- [ ]` checklists |
 | Acceptance criteria | 15 | Given/When/Then blocks |
-| Content depth | 10 | At least 500 characters of content |
+| Content depth | 10 / 5 | 10 if >= 500 chars; 5 if 200-499 chars |
 
 Specs scoring below 40/100 are flagged before the loop starts.
 
@@ -197,7 +197,7 @@ specs/
 ```
 
 ```bash
-ralph-starter run --from file specs/auth-spec.md
+ralph-starter run --from ./specs/auth-spec.md
 ```
 
 ## Next steps

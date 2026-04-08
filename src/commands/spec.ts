@@ -58,12 +58,42 @@ async function specValidate(cwd: string, options: SpecCommandOptions): Promise<v
   const format = detectSpecFormat(cwd);
 
   if (specDir && existsSync(specDir)) {
-    // Validate a specific file or directory
     const stat = statSync(specDir);
     if (stat.isFile()) {
+      // Validate a specific file
       const content = readFileSync(specDir, 'utf-8');
       const result = validateSpec(content);
       console.log(chalk.dim(`File: ${options.path}`));
+      console.log(formatValidationResult(result));
+      return;
+    }
+    if (stat.isDirectory()) {
+      // Validate a specific directory (e.g., an OpenSpec change)
+      const parts: string[] = [];
+      for (const file of ['proposal.md', 'design.md', 'tasks.md']) {
+        const fp = join(specDir, file);
+        if (existsSync(fp)) parts.push(readFileSync(fp, 'utf-8'));
+      }
+      // Also read specs/*/spec.md
+      const specsSubDir = join(specDir, 'specs');
+      if (existsSync(specsSubDir)) {
+        for (const area of readdirSync(specsSubDir)) {
+          const specPath = join(specsSubDir, area, 'spec.md');
+          if (existsSync(specPath)) parts.push(readFileSync(specPath, 'utf-8'));
+        }
+      }
+      // Fallback: read all .md files in the directory
+      if (parts.length === 0) {
+        for (const file of readdirSync(specDir).filter((f) => f.endsWith('.md'))) {
+          parts.push(readFileSync(join(specDir, file), 'utf-8'));
+        }
+      }
+      if (parts.length === 0) {
+        console.log(chalk.yellow(`No spec files found in ${options.path}`));
+        return;
+      }
+      const result = validateSpec(parts.join('\n\n'));
+      console.log(chalk.dim(`Directory: ${options.path}`));
       console.log(formatValidationResult(result));
       return;
     }
@@ -308,6 +338,14 @@ async function specSummary(cwd: string): Promise<void> {
         for (const file of ['proposal.md', 'design.md', 'tasks.md']) {
           const fp = join(changePath, file);
           if (existsSync(fp)) parts.push(readFileSync(fp, 'utf-8'));
+        }
+        // Also read specs/*/spec.md (matching validateOpenSpec behavior)
+        const specsSubDir = join(changePath, 'specs');
+        if (existsSync(specsSubDir)) {
+          for (const area of readdirSync(specsSubDir)) {
+            const specPath = join(specsSubDir, area, 'spec.md');
+            if (existsSync(specPath)) parts.push(readFileSync(specPath, 'utf-8'));
+          }
         }
         const result = validateSpec(parts.join('\n\n'));
         totalScore += result.score;

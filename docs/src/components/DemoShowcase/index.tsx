@@ -2,14 +2,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import Link from '@docusaurus/Link';
 import styles from './styles.module.css';
 
-interface Demo {
+type Demo = {
   id: string;
   label: string;
   command: string;
   lines: { text: string; type: 'dim' | 'normal' | 'success' | 'accent' | 'warn' }[];
   caption: string;
   link: string;
-}
+};
 
 const demos: Demo[] = [
   {
