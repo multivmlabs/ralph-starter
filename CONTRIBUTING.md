@@ -37,7 +37,7 @@ ralph-starter/
 │   ├── commands/           # CLI commands (run, init, plan, etc.)
 │   ├── sources/            # Input source system
 │   │   ├── builtin/        # File, URL, PDF sources
-│   │   └── integrations/   # Todoist, Linear, Notion, GitHub
+│   │   └── integrations/   # GitHub, Linear, Notion, Figma
 │   ├── wizard/             # Interactive wizard & idea mode
 │   ├── loop/               # Autonomous loop engine
 │   ├── mcp/                # MCP server implementation

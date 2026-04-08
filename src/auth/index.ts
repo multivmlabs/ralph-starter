@@ -18,6 +18,4 @@ export {
   type OAuthProvider,
   type OAuthTokens,
   providers,
-  TodoistOAuthProvider,
-  todoistProvider,
 } from './providers/index.js';

@@ -121,7 +121,7 @@ export abstract class BuiltinSource extends BaseSource {
 }
 
 /**
- * Base class for integration sources (todoist, linear, notion, github)
+ * Base class for integration sources (linear, notion, github, figma)
  */
 export abstract class IntegrationSource extends BaseSource {
   type: 'integration' = 'integration';

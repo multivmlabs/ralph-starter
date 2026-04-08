@@ -3,7 +3,7 @@
  *
  * Sources allow fetching specs from various locations:
  * - Built-in: files, URLs, PDFs
- * - Integrations: Todoist, Linear, Notion, GitHub
+ * - Integrations: Linear, Notion, GitHub, Figma
  */
 
 /**

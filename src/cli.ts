@@ -76,7 +76,7 @@ program
     '--amp-mode <mode>',
     'Amp agent mode: smart (frontier), rush (fast), deep (extended reasoning)'
   )
-  .option('--from <source>', 'Fetch spec from source (file, url, github, todoist, linear, notion)')
+  .option('--from <source>', 'Fetch spec from source (file, url, github, linear, notion, openspec)')
   .option('--project <name>', 'Project/repo name for --from integrations')
   .option('--label <name>', 'Label filter for --from integrations')
   .option('--status <status>', 'Status filter for --from integrations')

@@ -12,7 +12,6 @@ const SOURCES_CONFIG_FILE = join(CONFIG_DIR, 'sources.json');
  */
 const ENV_VAR_MAPPINGS: Record<string, Record<string, string>> = {
   figma: { token: 'FIGMA_TOKEN' },
-  todoist: { apiKey: 'TODOIST_API_KEY' },
   linear: { apiKey: 'LINEAR_API_KEY' },
   notion: { apiKey: 'NOTION_API_KEY' },
   github: { token: 'GITHUB_TOKEN' },
