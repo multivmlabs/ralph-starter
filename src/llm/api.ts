@@ -4,7 +4,12 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import { getProviderKeyFromEnv, type LLMProvider, PROVIDERS } from './providers.js';
+import {
+  getProviderKeyFromEnv,
+  type LLMProvider,
+  PROVIDERS,
+  resolveOpenRouterModel,
+} from './providers.js';
 
 // Timeout for API calls (30 seconds)
 const API_TIMEOUT_MS = 30000;
@@ -137,7 +142,8 @@ async function callOpenAICompatible(
   request: LLMRequest
 ): Promise<LLMResponse> {
   const config = PROVIDERS[provider];
-  const model = request.model || config.defaultModel;
+  const rawModel = request.model || config.defaultModel;
+  const model = provider === 'openrouter' ? resolveOpenRouterModel(rawModel) : rawModel;
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

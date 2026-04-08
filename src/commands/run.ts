@@ -17,6 +17,11 @@ import { formatCost, formatTokens } from '../loop/cost-tracker.js';
 import { type LoopOptions, runLoop } from '../loop/executor.js';
 import { formatPrdPrompt, getPrdStats, parsePrdFile } from '../loop/prd-parser.js';
 import { calculateOptimalIterations } from '../loop/task-counter.js';
+import {
+  detectValidationCommands,
+  formatValidationFeedback,
+  runAllValidations,
+} from '../loop/validation.js';
 import { formatPresetsHelp, getPreset, type PresetConfig } from '../presets/index.js';
 import { autoInstallSkillsFromTask } from '../skills/auto-install.js';
 import { getSourceDefaults } from '../sources/config.js';
@@ -263,6 +268,7 @@ export interface RunCommandOptions {
   maxIterations?: number;
   agent?: string;
   model?: string;
+  modelSelector?: boolean;
   // Source options
   from?: string;
   project?: string;
@@ -271,6 +277,8 @@ export interface RunCommandOptions {
   limit?: number;
   issue?: number;
   outputDir?: string;
+  headless?: boolean;
+  autoSkills?: boolean;
   // New options
   preset?: string;
   completionPromise?: string;
@@ -293,10 +301,19 @@ export interface RunCommandOptions {
   figmaTarget?: string;
   figmaPreview?: boolean;
   figmaMapping?: string;
+  // Shift-left validation
+  shiftLeft?: boolean;
+  // Acceptance criteria
+  acceptanceCriteria?: boolean;
   // Design reference
   designImage?: string;
   // Visual comparison
   visualCheck?: boolean;
+  // Swarm mode
+  swarm?: boolean;
+  strategy?: 'race' | 'consensus' | 'pipeline';
+  // Amp options
+  ampMode?: 'smart' | 'rush' | 'deep';
 }
 
 export async function runCommand(
@@ -304,7 +321,18 @@ export async function runCommand(
   options: RunCommandOptions
 ): Promise<void> {
   let cwd = process.cwd();
-  const spinner = ora();
+  const headless = options.headless ?? false;
+  const noopSpinner = {
+    start: (_text?: string) => noopSpinner,
+    stop: () => noopSpinner,
+    succeed: (_text?: string) => noopSpinner,
+    fail: (_text?: string) => noopSpinner,
+    warn: (_text?: string) => noopSpinner,
+    info: (_text?: string) => noopSpinner,
+    text: '',
+    isSpinning: false,
+  };
+  const spinner = headless ? noopSpinner : ora();
 
   // Handle --output-dir flag
   if (options.outputDir) {
@@ -313,7 +341,9 @@ export async function runCommand(
     mkdirSync(cwd, { recursive: true });
   }
 
-  showWelcome();
+  if (!headless) {
+    showWelcome();
+  }
 
   // Check for git repo
   if (options.commit || options.push || options.pr) {
@@ -346,6 +376,17 @@ export async function runCommand(
     if (source === 'linear') {
       const { linearCommand: launchLinear } = await import('./linear.js');
       return launchLinear({
+        commit: options.commit,
+        push: options.push,
+        pr: options.pr,
+        validate: options.validate,
+        maxIterations: options.maxIterations,
+        agent: options.agent,
+      });
+    }
+    if (source === 'notion') {
+      const { notionCommand: launchNotion } = await import('./notion.js');
+      return launchNotion({
         commit: options.commit,
         push: options.push,
         pr: options.pr,
@@ -892,7 +933,7 @@ export async function runCommand(
 
         const { projectLocation } = await inquirer.prompt([
           {
-            type: 'select',
+            type: 'list',
             name: 'projectLocation',
             message: 'Where do you want to run this task?',
             choices,
@@ -974,6 +1015,11 @@ export async function runCommand(
       console.log();
       console.log(chalk.yellow('Please install one of these:'));
       console.log(chalk.gray('  Claude Code: npm install -g @anthropic-ai/claude-code'));
+      console.log(
+        chalk.gray(
+          '  Amp:         npm install -g @sourcegraph/amp  (or see https://ampcode.com/install)'
+        )
+      );
       console.log(chalk.gray('  Cursor:      https://cursor.sh'));
       console.log(chalk.gray('  Codex:       npm install -g codex'));
       console.log(chalk.gray('  OpenCode:    npm install -g opencode'));
@@ -1177,7 +1223,9 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
   }
 
   // Auto-install relevant skills from skills.sh (enabled by default)
-  await autoInstallSkillsFromTask(finalTask, cwd, options.from?.toLowerCase());
+  if (options.autoSkills !== false) {
+    await autoInstallSkillsFromTask(finalTask, cwd, options.from?.toLowerCase());
+  }
 
   // Copy design reference image to specs/ so the agent can read it
   let designImagePath: string | undefined;
@@ -1260,6 +1308,126 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
     }
   }
 
+  // Interactive model selector (fetches live OpenRouter models)
+  if (options.modelSelector && !options.model) {
+    const { fetchOpenRouterModels, formatModelChoice } = await import(
+      '../llm/openrouter-models.js'
+    );
+    try {
+      spinner.start('Fetching live models from OpenRouter...');
+      const allModels = await fetchOpenRouterModels();
+      spinner.stop();
+
+      // Show top coding-relevant models by default
+      const popularIds = [
+        'anthropic/claude-4.5-sonnet',
+        'anthropic/claude-opus-4',
+        'openai/gpt-4o',
+        'openai/o3',
+        'google/gemini-2.5-pro',
+        'google/gemini-2.5-flash',
+        'deepseek/deepseek-chat-v3',
+        'x-ai/grok-4-fast',
+      ];
+      const popular = popularIds
+        .map((id) => allModels.find((m) => m.id.startsWith(id)))
+        .filter(Boolean);
+      const choices = [
+        ...popular.map((m) => ({
+          name: formatModelChoice(m!),
+          value: m!.id,
+        })),
+        { name: chalk.dim(`── All ${allModels.length} models ──`), value: '__browse__' },
+      ];
+
+      const { selectedModel } = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'selectedModel',
+          message: 'Select a model:',
+          choices,
+          pageSize: 15,
+        } as any,
+      ]);
+
+      if (selectedModel === '__browse__') {
+        const { search } = await inquirer.prompt([
+          { type: 'input', name: 'search', message: 'Search models:' },
+        ]);
+        const { filterModels } = await import('../llm/openrouter-models.js');
+        const filtered = search ? filterModels(allModels, search) : allModels;
+        const browseChoices = filtered.slice(0, 30).map((m) => ({
+          name: formatModelChoice(m),
+          value: m.id,
+        }));
+        const { browsedModel } = await inquirer.prompt([
+          {
+            type: 'list',
+            name: 'browsedModel',
+            message: `Select from ${filtered.length} models:`,
+            choices: browseChoices,
+            pageSize: 20,
+          } as any,
+        ]);
+        options.model = browsedModel;
+      } else {
+        options.model = selectedModel;
+      }
+      console.log(chalk.dim(`  Model: ${options.model}`));
+    } catch (err) {
+      console.log(
+        chalk.yellow(`  Model selector failed: ${(err as Error).message}, using default`)
+      );
+    }
+  }
+
+  // Shift-left: run validation BEFORE the loop to capture pre-existing failures
+  let shiftLeftFeedback: string | undefined;
+  if (options.shiftLeft) {
+    const validationCmds = detectValidationCommands(cwd);
+    if (validationCmds.length > 0) {
+      spinner.start('Shift-left: running pre-flight validation...');
+      const preResults = await runAllValidations(cwd, validationCmds);
+      const failures = preResults.filter((r) => !r.success);
+      if (failures.length > 0) {
+        spinner.warn(
+          chalk.yellow(`Shift-left: ${failures.length} pre-existing failure(s) detected`)
+        );
+        const feedback = formatValidationFeedback(preResults);
+        const feedbackWithoutFixPrompt = feedback.replace(
+          /\nPlease fix the above issues before continuing\.\s*$/,
+          ''
+        );
+        shiftLeftFeedback = [
+          '## Pre-existing Failures (Shift-Left)\n',
+          'The following failures existed BEFORE you started working.',
+          'Do NOT attempt to fix these unless the task explicitly asks you to.\n',
+          feedbackWithoutFixPrompt,
+        ].join('\n');
+      } else {
+        spinner.succeed('Shift-left: all validations pass — clean baseline');
+      }
+    } else {
+      console.log(chalk.dim('  Shift-left: no validation commands detected, skipping'));
+    }
+  }
+
+  // Extract acceptance criteria if requested
+  if (options.acceptanceCriteria && finalTask) {
+    const { extractAcceptanceCriteria } = await import('../loop/acceptance-criteria.js');
+    const ac = extractAcceptanceCriteria(finalTask);
+    if (ac.raw) {
+      finalTask = `${finalTask}\n\n${ac.raw}`;
+      if (ac.criteria.length > 0) {
+        console.log(
+          chalk.dim(`  Acceptance criteria: ${ac.criteria.length} criterion(s) extracted`)
+        );
+      } else {
+        console.log(chalk.dim('  Acceptance criteria: agent will generate Given/When/Then'));
+      }
+    }
+  }
+
   // Apply preset values with CLI overrides
   const loopOptions: LoopOptions = {
     task: preset?.promptPrefix ? `${preset.promptPrefix}\n\n${finalTask}` : finalTask,
@@ -1303,14 +1471,77 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
             maxSameErrorCount: options.circuitBreakerErrors ?? 5,
           }
         : undefined,
+    initialValidationFeedback: shiftLeftFeedback,
     figmaImagesDownloaded: figmaImagesDownloaded ?? undefined,
     figmaFontSubstitutions: figmaFontSubstitutions ?? undefined,
     designImagePath,
     visualValidation,
     figmaScreenshotPaths,
+    ampMode: options.ampMode,
+    headless,
+    enableSkills: options.autoSkills !== false,
   };
 
+  // Swarm mode: run with multiple agents in parallel
+  if (options.swarm) {
+    const { runSwarm } = await import('../loop/swarm.js');
+    const strategy = options.strategy || 'race';
+    if (!headless) {
+      console.log(chalk.cyan.bold(`Swarm mode: ${strategy} strategy`));
+      console.log();
+    }
+
+    const swarmResult = await runSwarm({
+      task: loopOptions.task,
+      cwd,
+      strategy,
+      auto: loopOptions.auto,
+      validate: loopOptions.validate,
+      maxIterations: loopOptions.maxIterations,
+      pr: loopOptions.pr,
+      push: loopOptions.push,
+      commit: loopOptions.commit,
+      onProgress: headless ? undefined : (msg) => console.log(chalk.dim(`  ${msg}`)),
+      headless,
+      enableSkills: options.autoSkills !== false,
+    });
+
+    if (headless) {
+      if (!swarmResult.winner) {
+        throw new Error('Swarm failed: no successful result');
+      }
+      return;
+    }
+
+    // Print swarm summary
+    console.log();
+    if (swarmResult.winner) {
+      console.log(chalk.green.bold(`Swarm completed! Winner: ${swarmResult.winner.agent.name}`));
+    } else {
+      console.log(chalk.red.bold('Swarm completed — no successful result'));
+    }
+    console.log(chalk.dim(`Strategy: ${swarmResult.strategy}`));
+    console.log(chalk.dim(`Agents: ${swarmResult.agents.map((a) => a.name).join(', ')}`));
+    console.log(chalk.dim(`Total cost: ${formatCost(swarmResult.totalCost)}`));
+    if (swarmResult.prUrl) {
+      console.log(chalk.dim(`PR: ${swarmResult.prUrl}`));
+    }
+    for (const r of swarmResult.results) {
+      const status = r.success ? chalk.green('success') : chalk.red('failed');
+      console.log(chalk.dim(`  ${r.agent.name}: ${status} (${r.result.iterations} iterations)`));
+    }
+    console.log();
+    return;
+  }
+
   const result = await runLoop(loopOptions);
+
+  if (headless) {
+    if (!result.success) {
+      throw new Error(result.error || result.exitReason || 'Loop failed');
+    }
+    return;
+  }
 
   // Print summary
   console.log();
