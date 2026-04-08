@@ -17,6 +17,38 @@ Get your API key from [Linear Settings > API > Personal API keys](https://linear
 ralph-starter config set linear.apiKey lin_api_xxxxxxxxxxxx
 ```
 
+## Interactive Wizard
+
+The easiest way to get started:
+
+```bash
+ralph-starter linear
+```
+
+This will:
+1. Check your authentication (prompt for API key if needed)
+2. Let you select a team, then browse projects or issues
+3. Start the build loop automatically
+
+You can also paste a Linear issue URL directly when prompted.
+
+### Wizard Options
+
+```bash
+ralph-starter linear --commit          # Auto-commit after tasks
+ralph-starter linear --push            # Push commits to remote
+ralph-starter linear --pr              # Create PR when done
+ralph-starter linear --agent claude-code  # Use a specific agent
+```
+
+### Fallback
+
+If you run `--from linear` without specifying a project, the wizard launches automatically:
+
+```bash
+ralph-starter run --from linear        # Launches wizard
+```
+
 ## Usage
 
 ```bash

@@ -47,6 +47,10 @@ export interface AutoModeOptions {
   batch?: boolean;
   /** Model to use for batch mode */
   model?: string;
+  /** Run tasks in parallel using git worktrees */
+  parallel?: boolean;
+  /** Max concurrent parallel tasks (default: 3) */
+  concurrency?: number;
 }
 
 /**
@@ -162,7 +166,8 @@ export async function autoCommand(options: AutoModeOptions): Promise<void> {
   }
 
   // Execute tasks (standard agent mode)
-  console.log(chalk.bold('Starting batch execution...'));
+  const mode = options.parallel ? 'parallel (worktrees)' : 'sequential';
+  console.log(chalk.bold(`Starting batch execution (${mode})...`));
   console.log();
 
   const results = await executeTaskBatch({
@@ -175,6 +180,8 @@ export async function autoCommand(options: AutoModeOptions): Promise<void> {
     pr: !options.skipPr,
     validate: options.validate ?? true,
     maxIterations: options.maxIterations,
+    parallel: options.parallel,
+    concurrency: options.concurrency,
     onTaskStart: (task, index) => {
       console.log();
       console.log(chalk.cyan.bold(`Task ${index + 1}/${tasks.length}: ${task.title}`));

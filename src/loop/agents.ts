@@ -1,8 +1,23 @@
 import { spawn } from 'node:child_process';
 import chalk from 'chalk';
 import { execa } from 'execa';
+import { runAmpAgent } from './agents/amp-sdk.js';
+import { runAnthropicSdkAgent } from './agents/anthropic-sdk.js';
+import { runOpencodeSdkAgent } from './agents/opencode-sdk.js';
 
-export type AgentType = 'claude-code' | 'cursor' | 'codex' | 'opencode' | 'openclaw' | 'unknown';
+export type AgentType =
+  | 'claude-code'
+  | 'cursor'
+  | 'codex'
+  | 'opencode'
+  | 'openclaw'
+  | 'amp'
+  | 'anthropic-sdk'
+  | 'opencode-sdk'
+  | 'unknown';
+
+/** Amp agent mode — controls model selection and reasoning depth */
+export type AmpMode = 'smart' | 'rush' | 'deep';
 
 export type Agent = {
   type: AgentType;
@@ -30,6 +45,12 @@ export type AgentRunOptions = {
   env?: Record<string, string>;
   /** Suppress all console output (for SDK/CI usage) */
   headless?: boolean;
+  /** Amp agent mode: smart (frontier), rush (fast), deep (extended reasoning) */
+  ampMode?: AmpMode;
+  /** API key for SDK-based agents (anthropic-sdk, opencode-sdk). Overrides env vars. */
+  apiKey?: string;
+  /** Allow the anthropic-sdk agent to execute shell commands. Disabled by default for safety. */
+  allowShellExecution?: boolean;
 };
 
 const AGENTS: Record<AgentType, { name: string; command: string; checkCmd: string[] }> = {
@@ -58,6 +79,21 @@ const AGENTS: Record<AgentType, { name: string; command: string; checkCmd: strin
     command: 'openclaw',
     checkCmd: ['openclaw', '--version'],
   },
+  amp: {
+    name: 'Amp',
+    command: 'amp',
+    checkCmd: ['amp', '--version'],
+  },
+  'anthropic-sdk': {
+    name: 'Anthropic SDK',
+    command: '',
+    checkCmd: [],
+  },
+  'opencode-sdk': {
+    name: 'OpenCode SDK',
+    command: '',
+    checkCmd: [],
+  },
   unknown: {
     name: 'Unknown',
     command: '',
@@ -65,44 +101,89 @@ const AGENTS: Record<AgentType, { name: string; command: string; checkCmd: strin
   },
 };
 
-export async function checkAgentAvailable(type: AgentType): Promise<boolean> {
-  if (type === 'unknown') return false;
-
-  const agent = AGENTS[type];
+async function checkCommandAvailable(command: string, args: string[]): Promise<boolean> {
   try {
-    await execa(agent.checkCmd[0], agent.checkCmd.slice(1), { timeout: 5000 });
+    await execa(command, args, { timeout: 5000 });
     return true;
   } catch {
     return false;
   }
 }
 
-export async function detectAvailableAgents(): Promise<Agent[]> {
+export async function checkAgentAvailable(
+  type: AgentType,
+  options?: { apiKey?: string }
+): Promise<boolean> {
+  if (type === 'unknown') return false;
+
+  if (type === 'anthropic-sdk') {
+    return !!(options?.apiKey || process.env.ANTHROPIC_API_KEY);
+  }
+
+  if (type === 'opencode-sdk') {
+    // OpenCode SDK starts a local opencode server under the hood, so the CLI binary must exist.
+    // Auth may come from API keys or existing local OpenCode auth state.
+    // If apiKey is explicitly supplied, treat it as an explicit availability requirement.
+    const checkCmd = AGENTS.opencode.checkCmd;
+    const cliAvailable = await checkCommandAvailable(checkCmd[0], checkCmd.slice(1));
+    if (!cliAvailable) return false;
+
+    if (options && options.apiKey !== undefined) {
+      return options.apiKey.length > 0;
+    }
+
+    return true;
+  }
+
+  const agent = AGENTS[type];
+  if (agent.checkCmd.length === 0) return false;
+  return checkCommandAvailable(agent.checkCmd[0], agent.checkCmd.slice(1));
+}
+
+export async function detectAvailableAgents(options?: {
+  apiKeys?: Record<string, string>;
+}): Promise<Agent[]> {
   const entries = Object.entries(AGENTS).filter(([type]) => type !== 'unknown');
 
-  // Check all agents in parallel — each spawns an independent subprocess
   const results = await Promise.all(
     entries.map(async ([type, config]) => ({
       type: type as AgentType,
       name: config.name,
       command: config.command,
-      available: await checkAgentAvailable(type as AgentType),
+      available: await checkAgentAvailable(type as AgentType, {
+        apiKey:
+          type === 'anthropic-sdk'
+            ? options?.apiKeys?.ANTHROPIC_API_KEY || options?.apiKeys?.anthropic
+            : undefined,
+      }),
     }))
   );
 
   return results;
 }
 
-export async function detectBestAgent(): Promise<Agent | null> {
-  const agents = await detectAvailableAgents();
+export async function detectBestAgent(options?: {
+  apiKeys?: Record<string, string>;
+}): Promise<Agent | null> {
+  const agents = await detectAvailableAgents(options);
   const available = agents.filter((a) => a.available);
 
   if (available.length === 0) return null;
 
-  // Prefer Claude Code, then others
-  const preferred = ['claude-code', 'cursor', 'codex', 'opencode', 'openclaw'];
+  // Prefer Claude Code, then Amp, then SDK agents, then other CLIs.
+  const preferred: AgentType[] = [
+    'claude-code',
+    'amp',
+    'anthropic-sdk',
+    'opencode-sdk',
+    'cursor',
+    'codex',
+    'opencode',
+    'openclaw',
+  ];
+
   for (const type of preferred) {
-    const agent = available.find((a) => a.type === type);
+    const agent = available.find((candidate) => candidate.type === type);
     if (agent) return agent;
   }
 
@@ -117,20 +198,15 @@ export async function runAgent(
 
   switch (agent.type) {
     case 'claude-code':
-      // Prompt first
       args.push('-p', options.task);
-      // Auto mode
       if (options.auto) {
         args.push('--dangerously-skip-permissions');
       }
-      // Model override (e.g., 'claude-sonnet-4-5-20250929')
       if (options.model) {
         args.push('--model', options.model);
       }
-      // Streaming JSONL output for real-time progress
       args.push('--verbose');
       args.push('--output-format', 'stream-json');
-      // Turn limit
       if (options.maxTurns) {
         args.push('--max-turns', String(options.maxTurns));
       }
@@ -161,13 +237,28 @@ export async function runAgent(
       }
       break;
 
+    case 'amp':
+      return runAmpAgent(agent, options);
+
+    case 'anthropic-sdk':
+      return runAnthropicSdkAgent(agent, options);
+
+    case 'opencode-sdk':
+      return runOpencodeSdkAgent(agent, options);
+
     default:
       throw new Error(`Unknown agent type: ${agent.type}`);
   }
 
-  // Use spawn for real-time streaming with timeout
+  return runSubprocessAgent(agent, args, options);
+}
+
+function runSubprocessAgent(
+  agent: Agent,
+  args: string[],
+  options: AgentRunOptions
+): Promise<{ output: string; exitCode: number }> {
   return new Promise((resolve) => {
-    // Debug: log the exact command being run
     if (process.env.RALPH_DEBUG) {
       console.error('\n[DEBUG] === SPAWNING AGENT ===');
       console.error('[DEBUG] Command:', agent.command);
@@ -180,7 +271,6 @@ export async function runAgent(
 
     const proc = spawn(agent.command, args, {
       cwd: options.cwd,
-      // stdin: 'ignore' - we don't need stdin, and leaving it as 'pipe' without closing causes hangs!
       stdio: ['ignore', 'pipe', 'pipe'],
       env: options.env ? { ...process.env, ...options.env } : undefined,
     });
@@ -188,15 +278,12 @@ export async function runAgent(
     let output = '';
     let outputBytes = 0;
     let stdoutBuffer = '';
-    const maxOutputBytes = options.maxOutputBytes || 50 * 1024 * 1024; // Default 50MB
+    const maxOutputBytes = options.maxOutputBytes || 50 * 1024 * 1024;
 
-    // Track data timing for debugging and silence notifications
     let lastDataTime = Date.now();
     let silenceWarningShown = false;
     let extendedSilenceShown = false;
 
-    // Notify if no data received for 30+ seconds (calm, non-alarming)
-    // Skip in headless mode to avoid polluting SDK/CI output
     const silenceChecker = options.headless
       ? undefined
       : setInterval(() => {
@@ -214,7 +301,6 @@ export async function runAgent(
           }
         }, 5000);
 
-    // Configurable timeout (default: 5 minutes)
     const timeoutMs = options.timeoutMs || 300000;
     const timeout = setTimeout(() => {
       if (silenceChecker) clearInterval(silenceChecker);
@@ -223,20 +309,17 @@ export async function runAgent(
         console.error('[DEBUG] Output so far:', output.slice(-500));
       }
       proc.kill('SIGTERM');
-      resolve({ output: output + '\nProcess timed out', exitCode: 124 });
+      resolve({ output: `${output}\nProcess timed out`, exitCode: 124 });
     }, timeoutMs);
 
-    // Process stdout line-by-line for real-time updates
     proc.stdout?.on('data', (data: Buffer) => {
       const chunk = data.toString();
       outputBytes += data.byteLength;
 
-      // Guard against unbounded memory growth — keep last portion if over limit.
-      // Repeatable: no flag gate, so output stays bounded even with continuous streaming.
       if (outputBytes > maxOutputBytes) {
         const keepBytes = Math.floor(maxOutputBytes * 0.8);
         output = output.slice(-keepBytes);
-        outputBytes = Buffer.byteLength(output); // Reset counter to actual buffer size
+        outputBytes = Buffer.byteLength(output);
         if (process.env.RALPH_DEBUG) {
           console.error(
             `[DEBUG] Output exceeded ${maxOutputBytes} bytes, truncated to ~${outputBytes}`
@@ -247,26 +330,22 @@ export async function runAgent(
       output += chunk;
       stdoutBuffer += chunk;
       lastDataTime = Date.now();
-      silenceWarningShown = false; // Reset warning flag when data received
+      silenceWarningShown = false;
 
-      // Debug: log data timing
       if (process.env.RALPH_DEBUG) {
         console.error('[DEBUG] Data chunk received, length:', chunk.length);
       }
 
-      // Split into lines and process complete ones
       const lines = stdoutBuffer.split('\n');
       stdoutBuffer = lines.pop() || '';
 
       for (const line of lines) {
         if (line.trim()) {
-          // Call onOutput callback for each line (enables progress detection)
           if (options.onOutput) {
             options.onOutput(line);
           }
-          // Optionally stream to console
           if (options.streamOutput) {
-            process.stdout.write(chalk.dim(line + '\n'));
+            process.stdout.write(chalk.dim(`${line}\n`));
           }
         }
       }
@@ -274,9 +353,8 @@ export async function runAgent(
 
     proc.stderr?.on('data', (data: Buffer) => {
       const chunk = data.toString();
-      outputBytes += data.byteLength; // Include stderr in byte accounting
+      outputBytes += data.byteLength;
       output += chunk;
-      // Debug: log stderr output
       if (process.env.RALPH_DEBUG) {
         console.error('[DEBUG] STDERR:', chunk.slice(0, 200));
       }
@@ -285,16 +363,12 @@ export async function runAgent(
     proc.on('close', (code: number | null) => {
       clearTimeout(timeout);
       if (silenceChecker) clearInterval(silenceChecker);
-      // Debug: log process close
       if (process.env.RALPH_DEBUG) {
         console.error('[DEBUG] Process closed with code:', code);
         console.error('[DEBUG] Total output length:', output.length);
       }
-      // Process any remaining buffer
-      if (stdoutBuffer.trim()) {
-        if (options.onOutput) {
-          options.onOutput(stdoutBuffer);
-        }
+      if (stdoutBuffer.trim() && options.onOutput) {
+        options.onOutput(stdoutBuffer);
       }
       resolve({ output, exitCode: code ?? 0 });
     });

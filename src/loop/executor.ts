@@ -36,8 +36,10 @@ import {
 } from './cost-tracker.js';
 import { estimateLoop, formatEstimateDetailed } from './estimator.js';
 import { createLinearSync } from './linear-sync.js';
+import { appendProjectMemory, formatMemoryPrompt, readProjectMemory } from './memory.js';
 import { checkFileBasedCompletion, createProgressTracker, type ProgressEntry } from './progress.js';
 import { RateLimiter } from './rate-limiter.js';
+import { formatReviewAsValidation, formatReviewFeedback, runReview } from './reviewer.js';
 import { analyzeResponse, hasExitSignal } from './semantic-analyzer.js';
 import { detectClaudeSkills, formatSkillsForPrompt } from './skills.js';
 import { detectStepFromOutput } from './step-detector.js';
@@ -256,6 +258,7 @@ export type LoopOptions = {
   agentTimeout?: number;
   initialValidationFeedback?: string;
   maxSkills?: number;
+  enableSkills?: boolean;
   skipPlanInstructions?: boolean;
   fixMode?: 'design' | 'scan' | 'custom';
   taskTitle?: string;
@@ -269,6 +272,18 @@ export type LoopOptions = {
   env?: Record<string, string>;
   /** Linear issue ID to sync status to (e.g., "ENG-42"). Requires LINEAR_API_KEY. */
   linearSync?: string;
+  /** Amp agent mode: smart, rush, deep */
+  ampMode?: import('./agents.js').AmpMode;
+  /** Run LLM-powered diff review after validation passes (before commit) */
+  review?: boolean;
+  /** Product name shown in logs/UI (default: 'Ralph-Starter'). Set to white-label when embedding. */
+  productName?: string;
+  /** Dot-directory for memory/iteration-log/activity (default: '.ralph'). */
+  dotDir?: string;
+  /** API key for SDK-based agents */
+  apiKey?: string;
+  /** Allow the anthropic-sdk agent to execute shell commands. Disabled by default for safety. */
+  allowShellExecution?: boolean;
 };
 
 export type LoopResult = {
@@ -401,13 +416,14 @@ function appendIterationLog(
   iteration: number,
   summary: string,
   validationPassed: boolean,
-  hasChanges: boolean
+  hasChanges: boolean,
+  dotDir = '.ralph'
 ): void {
   try {
-    const ralphDir = join(cwd, '.ralph');
-    if (!existsSync(ralphDir)) mkdirSync(ralphDir, { recursive: true });
+    const stateDir = join(cwd, dotDir);
+    if (!existsSync(stateDir)) mkdirSync(stateDir, { recursive: true });
 
-    const logPath = join(ralphDir, 'iteration-log.md');
+    const logPath = join(stateDir, 'iteration-log.md');
     const entry = `## Iteration ${iteration}
 - Status: ${validationPassed ? 'validation passed' : 'validation failed'}
 - Changes: ${hasChanges ? 'yes' : 'no files changed'}
@@ -423,9 +439,13 @@ function appendIterationLog(
  * Read the last N iteration summaries from .ralph/iteration-log.md.
  * Used by context-builder to give the agent memory of previous iterations.
  */
-export function readIterationLog(cwd: string, maxEntries = 3): string | undefined {
+export function readIterationLog(
+  cwd: string,
+  maxEntries = 3,
+  dotDir = '.ralph'
+): string | undefined {
   try {
-    const logPath = join(cwd, '.ralph', 'iteration-log.md');
+    const logPath = join(cwd, dotDir, 'iteration-log.md');
     if (!existsSync(logPath)) return undefined;
 
     const content = readFileSync(logPath, 'utf-8');
@@ -503,6 +523,9 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
         isSpinning: false,
       }
     : ora();
+  const productName = options.productName || 'Ralph-Starter';
+  const dotDir = options.dotDir || '.ralph';
+
   let maxIterations = options.maxIterations || 50;
   const commits: string[] = [];
   const startTime = Date.now();
@@ -523,7 +546,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
 
   // Initialize progress tracker
   const progressTracker = options.trackProgress
-    ? createProgressTracker(options.cwd, options.task)
+    ? createProgressTracker(options.cwd, options.task, dotDir)
     : null;
 
   // Initialize cost tracker
@@ -557,11 +580,18 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
   let lintCommands = detectLintCommands(options.cwd);
 
   // Detect Claude Code skills (capped by maxSkills option)
-  const detectedSkills = detectClaudeSkills(options.cwd);
+  const detectedSkills = options.enableSkills === false ? [] : detectClaudeSkills(options.cwd);
   let taskWithSkills = options.task;
   if (detectedSkills.length > 0) {
     const skillsPrompt = formatSkillsForPrompt(detectedSkills, options.task, options.maxSkills);
     taskWithSkills = `${options.task}\n\n${skillsPrompt}`;
+  }
+
+  // Inject project memory from previous runs (if available)
+  const projectMemory = readProjectMemory(options.cwd, dotDir);
+  if (projectMemory) {
+    taskWithSkills = `${taskWithSkills}\n\n${formatMemoryPrompt(projectMemory, dotDir)}`;
+    log(chalk.dim(`  Project memory loaded from ${dotDir}/memory.md`));
   }
 
   // Build abbreviated spec summary for context builder (iterations 2+)
@@ -583,7 +613,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
 
   // Show startup summary box
   const startupLines: string[] = [];
-  startupLines.push(chalk.cyan.bold('  Ralph-Starter'));
+  startupLines.push(chalk.cyan.bold(`  ${productName}`));
   startupLines.push(`  Agent:       ${chalk.white(options.agent.name)}`);
   startupLines.push(`  Max loops:   ${chalk.white(String(maxIterations))}`);
   if (validationCommands.length > 0) {
@@ -869,7 +899,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
 
     // Build iteration-specific task with smart context windowing
     // Read iteration log for inter-iteration memory (iterations 2+)
-    const iterationLog = i > 1 ? readIterationLog(options.cwd) : undefined;
+    const iterationLog = i > 1 ? readIterationLog(options.cwd, 3, dotDir) : undefined;
 
     const builtContext = buildIterationContext({
       fullTask: options.task,
@@ -918,6 +948,9 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       auto: options.auto,
       model: options.model,
       env: options.env,
+      ampMode: options.ampMode,
+      apiKey: options.apiKey,
+      allowShellExecution: options.allowShellExecution,
       // maxTurns removed - was causing issues, match wizard behavior
       streamOutput: !!process.env.RALPH_DEBUG, // Show raw JSON when debugging
       headless,
@@ -1504,6 +1537,82 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
       }
     }
 
+    // --- Agent reviewer: LLM-powered diff review before commit ---
+    if (options.review && hasChanges && i > 1 && pastWarmup) {
+      spinner.start(chalk.yellow(`Loop ${i}: Running agent review...`));
+      try {
+        const reviewResult = await runReview(options.cwd);
+        if (reviewResult && !reviewResult.passed) {
+          const reviewValidation = formatReviewAsValidation(reviewResult);
+          validationResults.push(reviewValidation);
+          const feedback = formatReviewFeedback(reviewResult);
+          spinner.fail(
+            chalk.red(
+              `Loop ${i}: Agent review found ${reviewResult.findings.filter((f) => f.severity === 'error').length} error(s)`
+            )
+          );
+          for (const f of reviewResult.findings) {
+            const icon = f.severity === 'error' ? '❌' : f.severity === 'warning' ? '⚠️' : 'ℹ️';
+            const location = f.file ? ` (${f.file}${f.line ? `:${f.line}` : ''})` : '';
+            log(chalk.dim(`  ${icon}${location} ${f.message}`));
+          }
+
+          validationFailures++;
+          const reviewErrorMsg = reviewResult.findings
+            .map((f) => `[${f.severity}] ${f.file ?? ''} ${f.message}`)
+            .join('\n');
+          const tripped = circuitBreaker.recordFailure(reviewErrorMsg);
+          if (tripped) {
+            if (progressTracker && progressEntry) {
+              progressEntry.status = 'failed';
+              progressEntry.summary = `Circuit breaker tripped (agent-review)`;
+              progressEntry.validationResults = validationResults;
+              progressEntry.duration = Date.now() - iterationStart;
+              await progressTracker.appendEntry(progressEntry);
+            }
+            finalIteration = i;
+            exitReason = 'circuit_breaker';
+            break;
+          }
+
+          lastValidationFeedback = feedback;
+
+          if (progressTracker && progressEntry) {
+            progressEntry.status = 'validation_failed';
+            progressEntry.summary = 'Agent review failed';
+            progressEntry.validationResults = validationResults;
+            progressEntry.duration = Date.now() - iterationStart;
+            await progressTracker.appendEntry(progressEntry);
+          }
+
+          continue;
+        }
+        if (reviewResult) {
+          const warnFindings = reviewResult.findings.filter((f) => f.severity === 'warning');
+          const infoFindings = reviewResult.findings.filter((f) => f.severity === 'info');
+          const parts: string[] = [];
+          if (warnFindings.length > 0) parts.push(`${warnFindings.length} warning(s)`);
+          if (infoFindings.length > 0) parts.push(`${infoFindings.length} info`);
+          const suffix = parts.length > 0 ? ` (${parts.join(', ')})` : '';
+          spinner.succeed(chalk.green(`Loop ${i}: Agent review passed${suffix}`));
+          for (const f of [...warnFindings, ...infoFindings]) {
+            const icon = f.severity === 'warning' ? '⚠️' : 'ℹ️';
+            log(chalk.dim(`  ${icon} ${f.message}`));
+          }
+          circuitBreaker.recordSuccess();
+          lastValidationFeedback = '';
+        } else {
+          spinner.info(chalk.dim(`Loop ${i}: Agent review skipped (no diff or no LLM key)`));
+        }
+      } catch (err) {
+        spinner.warn(
+          chalk.yellow(
+            `Loop ${i}: Agent review skipped (${err instanceof Error ? err.message : 'unknown error'})`
+          )
+        );
+      }
+    }
+
     // Auto-commit if enabled and there are changes
     let committed = false;
     let commitMsg = '';
@@ -1555,7 +1664,7 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     // Write iteration summary for inter-iteration memory
     const iterSummary = summarizeChanges(result.output);
     const iterValidationPassed = validationResults.every((r) => r.success);
-    appendIterationLog(options.cwd, i, iterSummary, iterValidationPassed, hasChanges);
+    appendIterationLog(options.cwd, i, iterSummary, iterValidationPassed, hasChanges, dotDir);
 
     if (status === 'done') {
       const completionReason = completionResult.reason || 'Task marked as complete by agent';
@@ -1705,6 +1814,20 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
         iterations: finalIteration,
       });
     }
+  }
+
+  // Save a run summary to project memory for future runs
+  {
+    const isSuccess = exitReason === 'completed' || exitReason === 'file_signal';
+    const memorySummary = [
+      `Task: ${options.taskTitle || options.task.slice(0, 100)}`,
+      `Result: ${isSuccess ? 'success' : exitReason}`,
+      `Iterations: ${finalIteration}, Commits: ${commits.length}`,
+    ];
+    if (costTracker) {
+      memorySummary.push(`Cost: ${formatCost(costTracker.getStats().totalCost.totalCost)}`);
+    }
+    appendProjectMemory(options.cwd, memorySummary.join('\n'), dotDir);
   }
 
   return {
