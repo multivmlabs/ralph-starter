@@ -15,6 +15,7 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [auto](https://ralphstarter.ai/docs/cli/auto): Autonomous batch task processing from GitHub and Linear
 - [check](https://ralphstarter.ai/docs/cli/check): Validate configuration and test LLM connection
 - [config](https://ralphstarter.ai/docs/cli/config): Manage source configuration and credentials
+- [figma](https://ralphstarter.ai/docs/cli/figma): Interactive Figma-to-code wizard
 - [fix](https://ralphstarter.ai/docs/cli/fix): Fix build errors, lint issues, or design problems
 - [init](https://ralphstarter.ai/docs/cli/init): Initialize Ralph Playbook in a project
 - [integrations](https://ralphstarter.ai/docs/cli/integrations): Manage, test, and fetch data from integrations
@@ -24,6 +25,8 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [setup](https://ralphstarter.ai/docs/cli/setup): Interactive setup wizard to configure LLM and agents
 - [ralph-starter skill](https://ralphstarter.ai/docs/cli/skill): Manage agent skills for enhanced AI coding capabilities
 - [source](https://ralphstarter.ai/docs/cli/source): Manage input sources
+- [spec](https://ralphstarter.ai/docs/cli/spec): Validate, list, and summarize specs
+- [task](https://ralphstarter.ai/docs/cli/task): Manage tasks across GitHub and Linear
 - [template](https://ralphstarter.ai/docs/cli/template): Browse and use project templates
 - [Changelog](https://ralphstarter.ai/docs/community/changelog): Release notes and version history for ralph-starter
 - [Contributing](https://ralphstarter.ai/docs/community/contributing): How to contribute to ralph-starter
@@ -33,6 +36,7 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [Extending ralph-starter](https://ralphstarter.ai/docs/guides/extending-ralph-starter): Developer guide for extending ralph-starter with custom sources, agents, and integrations
 - [PRD Workflow](https://ralphstarter.ai/docs/guides/prd-workflow): Use markdown PRD files with checkbox tasks to drive autonomous multi-step implementations
 - [Skills System](https://ralphstarter.ai/docs/guides/skills-system): Discover, install, and create Claude Code skills that enhance agent behavior in ralph-starter loops
+- [Spec Driven Development](https://ralphstarter.ai/docs/guides/spec-driven-development): How ralph-starter implements Spec Driven Development for AI coding agents
 - [Testing Integrations](https://ralphstarter.ai/docs/guides/testing-integrations): How to test ralph-starter integrations and verify everything works
 - [Workflow Presets](https://ralphstarter.ai/docs/guides/workflow-presets): Deep guide on choosing, using, and combining workflow presets to tailor ralph-starter loops to your development scenario
 - [Installation](https://ralphstarter.ai/docs/installation): How to install ralph-starter and get started
@@ -43,6 +47,7 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [GitHub](https://ralphstarter.ai/docs/sources/github): Fetch specs from GitHub Issues
 - [Linear](https://ralphstarter.ai/docs/sources/linear): Fetch specs from Linear issues
 - [Notion](https://ralphstarter.ai/docs/sources/notion): Fetch specs from Notion pages
+- [OpenSpec](https://ralphstarter.ai/docs/sources/openspec): Read specs from OpenSpec change directories
 - [Overview](https://ralphstarter.ai/docs/sources/overview): Fetch specs from anywhere - GitHub, Linear, Notion, URLs, PDFs
 - [Idea Mode](https://ralphstarter.ai/docs/wizard/idea-mode): Brainstorm project ideas when you don't know what to build
 - [Overview](https://ralphstarter.ai/docs/wizard/overview): The interactive wizard for guided project creation

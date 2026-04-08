@@ -1,7 +1,7 @@
 {
   "name": "ralph-starter Documentation",
   "baseUrl": "https://ralphstarter.ai",
-  "generatedAt": "2026-02-13T21:19:43.300Z",
+  "generatedAt": "2026-04-08T20:55:24.183Z",
   "navigation": [
     {
       "type": "category",
@@ -93,6 +93,14 @@
         },
         {
           "type": "doc",
+          "label": "OpenSpec",
+          "path": "/docs/sources/openspec",
+          "url": "https://ralphstarter.ai/docs/sources/openspec",
+          "markdownUrl": "https://ralphstarter.ai/docs/sources/openspec.md",
+          "description": "Read specs from OpenSpec change directories"
+        },
+        {
+          "type": "doc",
           "label": "Overview",
           "path": "/docs/sources/overview",
           "url": "https://ralphstarter.ai/docs/sources/overview",
@@ -158,6 +166,14 @@
           "url": "https://ralphstarter.ai/docs/cli/config",
           "markdownUrl": "https://ralphstarter.ai/docs/cli/config.md",
           "description": "Manage source configuration and credentials"
+        },
+        {
+          "type": "doc",
+          "label": "figma",
+          "path": "/docs/cli/figma",
+          "url": "https://ralphstarter.ai/docs/cli/figma",
+          "markdownUrl": "https://ralphstarter.ai/docs/cli/figma.md",
+          "description": "Interactive Figma-to-code wizard"
         },
         {
           "type": "doc",
@@ -233,6 +249,22 @@
         },
         {
           "type": "doc",
+          "label": "spec",
+          "path": "/docs/cli/spec",
+          "url": "https://ralphstarter.ai/docs/cli/spec",
+          "markdownUrl": "https://ralphstarter.ai/docs/cli/spec.md",
+          "description": "Validate, list, and summarize specs"
+        },
+        {
+          "type": "doc",
+          "label": "task",
+          "path": "/docs/cli/task",
+          "url": "https://ralphstarter.ai/docs/cli/task",
+          "markdownUrl": "https://ralphstarter.ai/docs/cli/task.md",
+          "description": "Manage tasks across GitHub and Linear"
+        },
+        {
+          "type": "doc",
           "label": "template",
           "path": "/docs/cli/template",
           "url": "https://ralphstarter.ai/docs/cli/template",
@@ -276,6 +308,14 @@
           "url": "https://ralphstarter.ai/docs/guides/skills-system",
           "markdownUrl": "https://ralphstarter.ai/docs/guides/skills-system.md",
           "description": "\"Discover, install, and create Claude Code skills that enhance agent behavior in ralph-starter loops\""
+        },
+        {
+          "type": "doc",
+          "label": "Spec Driven Development",
+          "path": "/docs/guides/spec-driven-development",
+          "url": "https://ralphstarter.ai/docs/guides/spec-driven-development",
+          "markdownUrl": "https://ralphstarter.ai/docs/guides/spec-driven-development.md",
+          "description": "How ralph-starter implements Spec Driven Development for AI coding agents"
         },
         {
           "type": "doc",
@@ -428,6 +468,12 @@
       "category": "Cli"
     },
     {
+      "title": "figma",
+      "path": "/docs/cli/figma",
+      "url": "https://ralphstarter.ai/docs/cli/figma",
+      "category": "Cli"
+    },
+    {
       "title": "fix",
       "path": "/docs/cli/fix",
       "url": "https://ralphstarter.ai/docs/cli/fix",
@@ -482,6 +528,18 @@
       "category": "Cli"
     },
     {
+      "title": "spec",
+      "path": "/docs/cli/spec",
+      "url": "https://ralphstarter.ai/docs/cli/spec",
+      "category": "Cli"
+    },
+    {
+      "title": "task",
+      "path": "/docs/cli/task",
+      "url": "https://ralphstarter.ai/docs/cli/task",
+      "category": "Cli"
+    },
+    {
       "title": "template",
       "path": "/docs/cli/template",
       "url": "https://ralphstarter.ai/docs/cli/template",
@@ -533,6 +591,12 @@
       "title": "\"Skills System\"",
       "path": "/docs/guides/skills-system",
       "url": "https://ralphstarter.ai/docs/guides/skills-system",
+      "category": "Guides"
+    },
+    {
+      "title": "Spec Driven Development",
+      "path": "/docs/guides/spec-driven-development",
+      "url": "https://ralphstarter.ai/docs/guides/spec-driven-development",
       "category": "Guides"
     },
     {
@@ -593,6 +657,12 @@
       "title": "Notion",
       "path": "/docs/sources/notion",
       "url": "https://ralphstarter.ai/docs/sources/notion",
+      "category": "Sources"
+    },
+    {
+      "title": "OpenSpec",
+      "path": "/docs/sources/openspec",
+      "url": "https://ralphstarter.ai/docs/sources/openspec",
       "category": "Sources"
     },
     {

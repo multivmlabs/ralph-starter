@@ -5,7 +5,7 @@
   "description": "Connect your tools like GitHub, Linear, and Notion. Fetch specs from anywhere and let AI coding agents build production-ready code automatically with autonomous loops.",
   "url": "https://ralphstarter.ai",
   "version": "1.0.0",
-  "generatedAt": "2026-02-13T21:19:43.300Z",
+  "generatedAt": "2026-04-08T20:55:24.183Z",
   "summary": {
     "purpose": "ralph-starter is an AI-powered CLI tool that fetches specs from tools like Figma, GitHub, Linear, and Notion, then runs autonomous AI coding loops to build production-ready code.",
     "primaryUseCase": "Developers use ralph-starter to automate coding tasks by providing natural language specs or importing requirements from external tools.",
@@ -144,7 +144,7 @@
     },
     {
       "name": "Cli",
-      "documentCount": 14,
+      "documentCount": 17,
       "documents": [
         {
           "title": "auth",
@@ -159,8 +159,7 @@
             "authentication",
             "linear",
             "notion",
-            "github",
-            "todoist"
+            "github"
           ]
         },
         {
@@ -207,6 +206,19 @@
           ]
         },
         {
+          "title": "figma",
+          "description": "Interactive Figma-to-code wizard",
+          "url": "https://ralphstarter.ai/docs/cli/figma",
+          "markdownUrl": "https://ralphstarter.ai/docs/cli/figma.md",
+          "keywords": [
+            "cli",
+            "figma",
+            "wizard",
+            "design",
+            "integration"
+          ]
+        },
+        {
           "title": "fix",
           "description": "Fix build errors, lint issues, or design problems",
           "url": "https://ralphstarter.ai/docs/cli/fix",
@@ -217,7 +229,9 @@
             "command",
             "build errors",
             "lint",
-            "design"
+            "design",
+            "visual",
+            "css"
           ]
         },
         {
@@ -332,6 +346,35 @@
           ]
         },
         {
+          "title": "spec",
+          "description": "Validate, list, and summarize specs",
+          "url": "https://ralphstarter.ai/docs/cli/spec",
+          "markdownUrl": "https://ralphstarter.ai/docs/cli/spec.md",
+          "keywords": [
+            "cli",
+            "spec",
+            "validate",
+            "sdd",
+            "spec driven development"
+          ]
+        },
+        {
+          "title": "task",
+          "description": "Manage tasks across GitHub and Linear",
+          "url": "https://ralphstarter.ai/docs/cli/task",
+          "markdownUrl": "https://ralphstarter.ai/docs/cli/task.md",
+          "keywords": [
+            "cli",
+            "task",
+            "command",
+            "github",
+            "linear",
+            "issues",
+            "unified",
+            "assignee"
+          ]
+        },
+        {
           "title": "template",
           "description": "Browse and use project templates",
           "url": "https://ralphstarter.ai/docs/cli/template",
@@ -423,7 +466,7 @@
     },
     {
       "name": "Guides",
-      "documentCount": 6,
+      "documentCount": 7,
       "documents": [
         {
           "title": "\"Cost Tracking\"",
@@ -482,6 +525,20 @@
             "global-skills",
             "project-skills",
             "tech-stack"
+          ]
+        },
+        {
+          "title": "Spec Driven Development",
+          "description": "How ralph-starter implements Spec Driven Development for AI coding agents",
+          "url": "https://ralphstarter.ai/docs/guides/spec-driven-development",
+          "markdownUrl": "https://ralphstarter.ai/docs/guides/spec-driven-development.md",
+          "keywords": [
+            "sdd",
+            "spec driven development",
+            "openspec",
+            "spec-kit",
+            "specs",
+            "workflow"
           ]
         },
         {
@@ -549,7 +606,7 @@
     },
     {
       "name": "Sources",
-      "documentCount": 5,
+      "documentCount": 6,
       "documents": [
         {
           "title": "Figma",
@@ -595,6 +652,19 @@
           "keywords": [
             "notion",
             "pages",
+            "integration"
+          ]
+        },
+        {
+          "title": "OpenSpec",
+          "description": "Read specs from OpenSpec change directories",
+          "url": "https://ralphstarter.ai/docs/sources/openspec",
+          "markdownUrl": "https://ralphstarter.ai/docs/sources/openspec.md",
+          "keywords": [
+            "openspec",
+            "spec driven development",
+            "sdd",
+            "source",
             "integration"
           ]
         },
@@ -653,8 +723,8 @@
     "sitemap": "https://ralphstarter.ai/sitemap.xml"
   },
   "stats": {
-    "totalDocuments": 40,
+    "totalDocuments": 45,
     "totalCategories": 8,
-    "lastUpdated": "2026-02-13T21:19:43.300Z"
+    "lastUpdated": "2026-04-08T20:55:24.183Z"
   }
 }

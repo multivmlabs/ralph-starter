@@ -1067,7 +1067,7 @@ ralph-starter run "quick fix" --commit
 
 # ralph-starter auth
 
-Browser-based OAuth authentication for integrations. Supports OAuth PKCE flows for services like Linear, and manages manual API key configuration for services like Notion, Todoist, and GitHub.
+Browser-based OAuth authentication for integrations. Supports OAuth PKCE flows for services like Linear, and manages manual API key configuration for services like Notion and GitHub.
 
 ## Synopsis
 
@@ -1091,7 +1091,7 @@ Credentials are stored locally in the ralph-starter sources configuration file.
 
 | Argument | Description |
 |----------|-------------|
-| `service` | The service to authenticate with (e.g., `linear`, `notion`, `todoist`, `github`) |
+| `service` | The service to authenticate with (e.g., `linear`, `notion`, `github`) |
 
 ## Options
 
@@ -1106,7 +1106,6 @@ Credentials are stored locally in the ralph-starter sources configuration file.
 |---------|-------------|---------|
 | `linear` | Browser OAuth (PKCE) | Seamless browser-based flow. Requires `RALPH_LINEAR_CLIENT_ID` env var. |
 | `notion` | Manual API key | Set via `ralph-starter config set notion.apiKey <key>`. Get key at [notion.so/my-integrations](https://www.notion.so/my-integrations). |
-| `todoist` | Manual API key | Set via `ralph-starter config set todoist.apiKey <key>`. Get key at [todoist.com/prefs/integrations](https://todoist.com/prefs/integrations). |
 | `github` | Manual API key | Set via `ralph-starter config set github.apiKey <key>`. Get token at [github.com/settings/tokens](https://github.com/settings/tokens). |
 
 ## Examples
@@ -1135,8 +1134,6 @@ Credentials stored in: /home/user/.config/ralph-starter/sources.json
   ✓ Linear - Authenticated
   ○ Notion - Manual API key
       Run: ralph-starter config set notion.apiKey <your-key>
-  ○ Todoist - Manual API key
-      Run: ralph-starter config set todoist.apiKey <your-key>
   ○ GitHub - Manual API key
       Run: ralph-starter config set github.apiKey <your-key>
 ```
@@ -1155,9 +1152,6 @@ For services that do not support OAuth PKCE, configure API keys manually:
 ```bash
 # Notion
 ralph-starter config set notion.apiKey ntn_your_api_key_here
-
-# Todoist
-ralph-starter config set todoist.apiKey your_todoist_api_key
 
 # GitHub
 ralph-starter config set github.apiKey ghp_your_github_token
@@ -1671,6 +1665,56 @@ These environment variables override config file values:
 
 ---
 
+## figma
+
+# ralph-starter figma
+
+Interactive wizard for building code from Figma designs.
+
+## Synopsis
+
+```bash
+ralph-starter figma [options]
+```
+
+## Description
+
+The `figma` command launches an interactive wizard that guides you through selecting a Figma file, choosing a mode (spec, tokens, components, assets, content), and running an autonomous coding loop to implement the design.
+
+For non-interactive usage and detailed mode documentation, see [Figma Source](/docs/sources/figma).
+
+## Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--commit` | Auto-commit after tasks | false |
+| `--push` | Push commits to remote | false |
+| `--pr` | Create pull request when done | false |
+| `--validate` | Run validation after iterations | true |
+| `--no-validate` | Skip validation | - |
+| `--max-iterations <n>` | Maximum loop iterations | 50 |
+| `--agent <name>` | Agent to use | auto-detect |
+
+## Examples
+
+```bash
+# Launch the interactive wizard
+ralph-starter figma
+
+# With auto-commit and PR creation
+ralph-starter figma --commit --pr
+
+# Using a specific agent
+ralph-starter figma --agent claude-code --max-iterations 10
+```
+
+## See Also
+
+- [Figma Source](/docs/sources/figma) - Detailed mode documentation, authentication, and troubleshooting
+- [run](/docs/cli/run) - Non-interactive Figma usage via `--from figma`
+
+---
+
 ## fix
 
 # ralph-starter fix
@@ -1690,7 +1734,9 @@ The `fix` command runs a focused AI loop to fix project issues. It scans for bui
 When given a custom task describing a visual or design problem (e.g., "fix the paddings and make the colors brighter"), the fix command detects CSS/design keywords and:
 
 - Auto-applies installed design skills (frontend-design, ui-ux-designer, etc.)
-- Instructs the agent to visually verify changes using the `/web-design-reviewer` skill with browser screenshots
+- Instructs the agent to visually verify changes using browser screenshots
+
+For structured visual fix passes, use the `--design` flag — see [Design Mode](#design-mode) below.
 
 ## Arguments
 
@@ -1703,9 +1749,10 @@ When given a custom task describing a visual or design problem (e.g., "fix the p
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--scan` | Force full project scan (build + lint + typecheck + tests) | false |
+| `--design` | Structured visual fix mode with screenshot verification | false |
 | `--agent <name>` | Specify agent (claude-code, cursor, codex, opencode) | auto-detect |
 | `--commit` | Auto-commit the fix | false |
-| `--max-iterations <n>` | Maximum fix iterations | 3 |
+| `--max-iterations <n>` | Maximum fix iterations | 3 (scan), 4 (design keywords), 7 (--design) |
 | `--output-dir <path>` | Project directory | cwd |
 
 ## Examples
@@ -1723,14 +1770,17 @@ ralph-starter fix --scan
 ### Fix Design Issues
 
 ```bash
-# Fix visual/CSS problems
+# Structured visual fix pass (recommended for design work)
+ralph-starter fix --design
+
+# Design mode with specific notes
+ralph-starter fix --design "the hero section spacing is off and colors are too muted"
+
+# Ad-hoc CSS/design fix (auto-detected as design task)
 ralph-starter fix "fix the paddings and make the colors brighter"
 
 # Fix responsive layout
 ralph-starter fix "make the layout responsive on mobile"
-
-# Fix color theme
-ralph-starter fix "change the color scheme to darker tones"
 ```
 
 ### With Options
@@ -1744,6 +1794,9 @@ ralph-starter fix "fix lint errors" --agent claude-code
 
 # Allow more iterations for complex fixes
 ralph-starter fix "fix all test failures" --max-iterations 5
+
+# Design fix with more room to iterate
+ralph-starter fix --design --max-iterations 10
 ```
 
 ## Behavior
@@ -1759,7 +1812,7 @@ ralph-starter fix "fix all test failures" --max-iterations 5
    - Searches skills.sh for complementary skills if needed
 
 3. **Fix Loop**:
-   - Agent works on fixing issues (default: 3 iterations)
+   - Agent works on fixing issues (default: 3 iterations for scan, 7 for `--design`)
    - Lint checks run between iterations (fast feedback)
    - Full build check runs on final iteration
    - If build fails on final iteration → extends loop by 2 extra iterations
@@ -1767,6 +1820,49 @@ ralph-starter fix "fix all test failures" --max-iterations 5
 4. **Verification**:
    - Re-runs original validation commands after the loop
    - Reports success only if all checks pass (not just agent completion)
+
+## Design Mode
+
+The `--design` flag enables a structured visual fix workflow specifically designed for CSS, layout, and styling issues. It runs the agent through a 5-phase process:
+
+### Phase 1: Visual Audit
+
+The agent's **first action** is to start the dev server and take screenshots at 3 viewports:
+- Desktop (1440px)
+- Tablet (768px)
+- Mobile (375px)
+
+### Phase 2: Issue Identification
+
+The agent analyzes screenshots against the project spec and checks for issues in priority order:
+
+0. **CSS cascade conflicts** — Detects unlayered CSS resets (e.g., `* { margin: 0; padding: 0; }`) that silently override Tailwind v4 utilities. This is the most common cause of "classes are correct but nothing works."
+1. **Page structure** — Content centering, max-width wrappers, empty gaps
+2. **Layout & positioning** — Grid/flex rendering, column balance, overlaps
+3. **Responsive issues** — Viewport breakage, overflow, clipping
+4. **Spacing** — Vertical rhythm, abnormal gaps
+5. **Typography & colors** — Font loading, readability, consistency
+
+### Phase 3: Fix Plan
+
+The agent creates a `DESIGN_FIX_PLAN.md` with specific issues, exact files, and CSS properties to change.
+
+### Phase 4: Execute & Verify
+
+Fixes are applied in priority order (structural first, cosmetic last). The agent re-screenshots after each structural fix to verify improvement.
+
+### Phase 5: Completion
+
+The loop requires the agent to output `DESIGN_VERIFIED` after taking final verification screenshots. The loop will **not** accept generic completion signals like "All tasks completed" — only `DESIGN_VERIFIED` after visual confirmation.
+
+### Why Design Mode Exists
+
+Without `--design`, agents often:
+- Read code and see "correct" Tailwind classes, then declare victory without visual verification
+- Add more CSS classes on top of cascade conflicts instead of fixing the root cause
+- Complete in 1 iteration without actually verifying the visual result
+
+Design mode forces visual-first debugging and prevents premature exit.
 
 ## Exit Codes
 
@@ -3250,6 +3346,277 @@ ralph-starter run --from linear --label "in-progress"
 
 ---
 
+## spec
+
+# ralph-starter spec
+
+Validate, list, and summarize specs for spec-driven development workflows.
+
+## Synopsis
+
+```bash
+ralph-starter spec <action> [options]
+```
+
+## Actions
+
+### validate
+
+Validate spec completeness across the project.
+
+```bash
+ralph-starter spec validate
+ralph-starter spec validate --path openspec/changes/add-auth
+```
+
+Auto-detects the spec format (OpenSpec, Spec-Kit, or raw markdown) and validates each spec against a 0-100 completeness score.
+
+**Checks performed:**
+
+| Check | Points | Description |
+|-------|--------|-------------|
+| Proposal | 20 | Has a proposal, rationale, or overview section |
+| RFC 2119 | 25 / 10 | 25 if SHALL, MUST, SHOULD, or MAY keywords present; 10 if absent but content >200 chars |
+| Design | 15 | Has a design, architecture, or technical section |
+| Tasks | 15 | Has a tasks section or checkbox items |
+| Criteria | 15 | Has Given/When/Then acceptance criteria |
+| Depth | 10 / 5 | 10 if content >= 500 chars; 5 if 200-499 chars |
+
+Specs scoring below 40 are flagged as failing.
+
+### list
+
+List available specs from any detected source.
+
+```bash
+ralph-starter spec list
+```
+
+Outputs all discovered specs with their available files.
+
+### summary
+
+Show spec completeness metrics.
+
+```bash
+ralph-starter spec summary
+```
+
+Displays format, change count, average completeness score.
+
+## Options
+
+| Option | Description |
+|--------|-------------|
+| `--path <path>` | Path to a specific spec file or directory to validate |
+
+## Examples
+
+```bash
+# Validate all specs in an OpenSpec project
+ralph-starter spec validate
+#   PASS add-auth (85/100)
+#   FAIL fix-login (30/100)
+#        No acceptance criteria found.
+
+# Validate a specific file
+ralph-starter spec validate --path specs/api-spec.md
+
+# Quick overview
+ralph-starter spec summary
+#   Format:  OpenSpec
+#   Changes: 3 active, 1 archived
+#   Specs:   5 global
+#   Average: 72/100 completeness
+```
+
+## See also
+
+- [Spec Driven Development guide](/docs/guides/spec-driven-development)
+- [OpenSpec source](/docs/sources/openspec)
+- [run --spec-validate](/docs/cli/run) -- Validate before running a loop
+
+---
+
+## task
+
+# ralph-starter task
+
+Unified task management across GitHub and Linear. Issues stay where they are -- ralph-starter detects the platform from the ID format and routes operations accordingly.
+
+## Synopsis
+
+```bash
+ralph-starter task list [options]
+ralph-starter task create --title "..." [options]
+ralph-starter task update <id> [options]
+ralph-starter task close <id> [options]
+ralph-starter task comment <id> "message" [options]
+```
+
+## Description
+
+The `task` command provides a single interface for managing issues on both GitHub and Linear. Instead of switching between `gh issue` and Linear's UI, you can:
+
+- **List** tasks from both platforms in a unified table
+- **Create** issues on either platform
+- **Update** status, priority, or assignee
+- **Close** issues with optional comments
+- **Comment** on issues
+
+### Smart ID Detection
+
+ralph-starter automatically detects which platform an issue belongs to based on the ID format:
+
+| Format | Platform | Example |
+|--------|----------|---------|
+| `#123` or `123` | GitHub | `ralph-starter task close #42` |
+| `TEAM-123` | Linear | `ralph-starter task update ENG-42 --status "In Progress"` |
+
+You can always override detection with `--source github` or `--source linear`.
+
+## Actions
+
+### `task list`
+
+List tasks from all configured integrations.
+
+```bash
+# List from all sources
+ralph-starter task list
+
+# List from GitHub only
+ralph-starter task list --source github --project owner/repo
+
+# List from Linear only
+ralph-starter task list --source linear
+
+# Filter by label and status
+ralph-starter task list --label "bug" --status "open" --limit 10
+```
+
+### `task create`
+
+Create a new issue on GitHub or Linear.
+
+```bash
+# Create on GitHub (default)
+ralph-starter task create --title "Add dark mode" --project owner/repo
+
+# Create on Linear
+ralph-starter task create --title "Add dark mode" --source linear --priority P1
+
+# Create with assignee and labels
+ralph-starter task create --title "Fix auth bug" --source github \
+  --project owner/repo --assignee octocat --label "bug,urgent"
+```
+
+### `task update`
+
+Update an existing issue.
+
+```bash
+# Update status on Linear (auto-detected from ID)
+ralph-starter task update ENG-42 --status "In Progress"
+
+# Assign a task
+ralph-starter task update ENG-42 --assignee ruben
+
+# Update priority
+ralph-starter task update ENG-42 --priority P0
+
+# Update a GitHub issue
+ralph-starter task update #123 --assignee octocat --project owner/repo
+```
+
+### `task close`
+
+Close an issue with an optional comment.
+
+```bash
+# Close a Linear issue
+ralph-starter task close ENG-42
+
+# Close with a comment
+ralph-starter task close #123 --comment "Fixed in PR #456" --project owner/repo
+```
+
+### `task comment`
+
+Add a comment to an issue.
+
+```bash
+ralph-starter task comment ENG-42 "Working on this now"
+ralph-starter task comment #123 "Needs design review" --project owner/repo
+```
+
+## Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--source <source>` | Filter by source: `github`, `linear`, or `all` | `all` (list) / `github` (create) |
+| `--project <name>` | Project filter (`owner/repo` for GitHub, team name for Linear) | - |
+| `--label <name>` | Filter by label or set labels (comma-separated) | - |
+| `--status <status>` | Filter by status or set status on update | - |
+| `--limit <n>` | Max tasks to fetch | `50` |
+| `--title <title>` | Task title (for create) | - |
+| `--body <body>` | Task description (for create) | - |
+| `--priority ` | Priority: `P0`, `P1`, `P2`, `P3` | - |
+| `--assignee <name>` | Assign to team member (GitHub username or Linear display name) | - |
+| `--comment <text>` | Comment text (for close/update) | - |
+
+## Assignee Resolution
+
+### GitHub
+
+Pass a GitHub username directly:
+
+```bash
+ralph-starter task update #123 --assignee octocat --project owner/repo
+```
+
+### Linear
+
+ralph-starter resolves display names, full names, and email prefixes to Linear user IDs:
+
+```bash
+# Match by display name
+ralph-starter task update ENG-42 --assignee "Ruben"
+
+# Match by email prefix
+ralph-starter task update ENG-42 --assignee "ruben"
+```
+
+Matching is case-insensitive. If no match is found, ralph-starter shows available team members.
+
+## Prerequisites
+
+At least one integration must be configured:
+
+```bash
+# GitHub (via GitHub CLI)
+gh auth login
+
+# Linear (via API key)
+ralph-starter config set linear.apiKey lin_api_xxxxxxxxxxxx
+```
+
+Check integration status:
+
+```bash
+ralph-starter integrations list
+```
+
+## See Also
+
+- [`ralph-starter auto`](auto.md) -- Batch-process tasks autonomously
+- [`ralph-starter integrations`](integrations.md) -- Manage integrations
+- [`ralph-starter auth`](auth.md) -- Authenticate with services
+- [GitHub Source](../sources/github.md) -- GitHub integration details
+- [Linear Source](../sources/linear.md) -- Linear integration details
+
+---
+
 ## template
 
 # ralph-starter template
@@ -3409,6 +3776,24 @@ To contribute templates, see the [ralph-templates repository](https://github.com
 
 
 All notable changes to ralph-starter are documented here. This project follows [Semantic Versioning](https://semver.org/).
+
+---
+
+## [0.1.1-beta.17] - 2026-02-14
+
+### Added
+- **`fix --design` mode**: Structured 5-phase visual fix workflow with screenshot verification, CSS cascade conflict detection, and `DESIGN_VERIFIED` completion token
+- **Smart UI defaults**: Web projects now default to Tailwind CSS + shadcn/ui + motion-primitives when no styling is specified (framework-aware: shadcn-vue for Vue, shadcn-svelte for Svelte)
+- **`uiLibrary` field** in TechStack for explicit UI component library selection
+- **Rich spec generation**: Specs and AGENTS.md now include Tailwind v4 setup notes, CSS cascade layer warnings, and shadcn component setup instructions
+
+### Fixed
+- Design loop premature exit — `fix --design` now requires explicit `DESIGN_VERIFIED` token after visual confirmation (prevents 1-iteration false completions)
+- Design loop stall detection — screenshot/viewport analysis no longer falsely triggers idle detection
+- Default design iterations increased from 5 to 7 for more thorough visual fixes
+
+### Changed
+- Completion instruction in agent preamble is now conditional — design mode uses task-specific completion flow instead of generic "All tasks completed"
 
 ---
 
@@ -5497,6 +5882,210 @@ For explicit overrides, use a project skill with the same name as a global skill
 
 ---
 
+## Spec Driven Development
+
+
+Spec Driven Development (SDD) is a methodology where you write a structured specification before any code is generated. The spec becomes the contract between human intent and AI execution.
+
+ralph-starter is built around this principle: **pull specs from where they already live, validate them, then run autonomous loops until done.**
+
+## Why specs matter for AI coding
+
+Without a spec, AI agents guess. A vague prompt like "add authentication" produces plausible but wrong code. You waste iterations fixing misunderstandings.
+
+With a clear spec:
+- **2 loops** instead of 5
+- **$0.50** instead of $3+
+- **Correct output** instead of close-but-wrong
+
+The spec is the highest-leverage investment in any AI coding workflow.
+
+## How ralph-starter does SDD
+
+```
+Spec → Validate → Plan → Agent builds → Lint/Build/Test → Commit → PR
+```
+
+### 1. Pull specs from any source
+
+Your specs already exist somewhere. ralph-starter fetches them:
+
+```bash
+# From OpenSpec directories
+ralph-starter run --from openspec:add-auth
+
+# From GitHub issues
+ralph-starter run --from github --project myorg/api --label ready
+
+# From Linear tickets
+ralph-starter run --from linear --project "Backend"
+
+# From Notion docs
+ralph-starter run --from notion --project "https://notion.so/spec-abc"
+
+# From Figma designs
+ralph-starter figma
+```
+
+### 2. Validate before building
+
+The `--spec-validate` flag checks completeness before spending tokens:
+
+```bash
+ralph-starter run --from openspec:add-auth --spec-validate
+```
+
+The validator scores specs 0-100 based on:
+
+| Check | Points | What it looks for |
+|-------|--------|-------------------|
+| Proposal/rationale | 20 | `## Proposal`, `## Why`, `## Overview` section |
+| RFC 2119 keywords | 25 / 10 | 25 if SHALL, MUST, SHOULD, MAY present; 10 partial credit if absent but content >200 chars |
+| Design section | 15 | `## Design`, `## Architecture`, `## Technical` |
+| Task breakdown | 15 | `## Tasks` or `- [ ]` checklists |
+| Acceptance criteria | 15 | Given/When/Then blocks |
+| Content depth | 10 / 5 | 10 if >= 500 chars; 5 if 200-499 chars |
+
+Specs scoring below 40/100 are flagged before the loop starts.
+
+### 3. Autonomous execution
+
+Once validated, ralph-starter runs the loop:
+1. Build iteration context from spec + plan
+2. Spawn the AI agent with trimmed prompt
+3. Collect agent output
+4. Run validation (lint, build, tests)
+5. If validation fails, feed errors back to agent
+6. If validation passes, commit
+7. Repeat until task is complete
+
+## The `spec` command
+
+ralph-starter includes a dedicated CLI for spec operations:
+
+```bash
+# Validate all specs in the project
+ralph-starter spec validate
+
+# List available specs (auto-detects format)
+ralph-starter spec list
+
+# Show completeness metrics
+ralph-starter spec summary
+```
+
+It auto-detects **OpenSpec**, **Spec-Kit**, or **raw markdown** format.
+
+## Comparison: ralph-starter vs other SDD tools
+
+| Capability | ralph-starter | OpenSpec | Spec-Kit | Kiro |
+|-----------|--------------|---------|---------|------|
+| **Spec format** | Any (OpenSpec, Spec-Kit, raw, GitHub, Linear, Notion, Figma) | OpenSpec only | Spec-Kit only | EARS notation |
+| **Execution** | Fully autonomous loops | Manual (`/opsx:apply`) | Manual per phase | IDE-integrated agents |
+| **Agent support** | Claude Code, Cursor, Codex, OpenCode, Amp | Any chat agent | Any chat agent | Kiro agents only |
+| **Validation** | Lint + build + test + visual | None | None | Agent hooks |
+| **Spec validation** | 0-100 scoring with RFC 2119 check | Zod schema | Phase gates | Auto-generated |
+| **Multi-source** | GitHub, Linear, Notion, Figma, OpenSpec, URLs, files | Local filesystem | Local filesystem | IDE workspace |
+| **Cost tracking** | Per-iteration token + cost tracking | N/A | N/A | Subscription model |
+| **Lock-in** | None (CLI, any OS) | None | GitHub ecosystem | AWS account required |
+| **Pricing** | Free + pay-per-API | Free | Free | $19-39/month |
+
+## Writing good specs
+
+A spec does not need to be long. 10-20 lines is enough:
+
+```markdown
+## Proposal
+
+Add JWT authentication to the Express API.
+
+## Requirements
+
+- POST /api/auth/login takes { email, password }, validates against users table
+- Return { token, expiresIn } on success, 401 with { error } on failure
+- Token TTL: 24h
+- Auth middleware in src/middleware/auth.ts (Authorization: Bearer header)
+- The API MUST reject expired tokens with 401
+- The API SHALL rate-limit login attempts to 5/minute per IP
+
+## Tasks
+
+- [ ] Create auth middleware
+- [ ] Add login endpoint
+- [ ] Add token refresh endpoint
+- [ ] Write tests
+
+## Acceptance Criteria
+
+Given: A user with valid credentials
+When: They POST to /api/auth/login
+Then: They receive a JWT token with 24h TTL
+
+Given: A request with an expired token
+When: It hits a protected endpoint
+Then: The API returns 401 Unauthorized
+```
+
+This spec takes 3 minutes to write. It tells the agent exactly what to build, where to put it, and how to verify it works.
+
+## Supported spec formats
+
+### OpenSpec
+
+```
+openspec/
+├── changes/
+│   └── add-auth/
+│       ├── proposal.md
+│       ├── design.md
+│       ├── tasks.md
+│       └── specs/
+│           └── auth/
+│               └── spec.md
+└── specs/
+    └── api/
+        └── spec.md
+```
+
+```bash
+ralph-starter run --from openspec:add-auth
+```
+
+### Spec-Kit (GitHub)
+
+```
+specs/
+├── constitution.md
+├── specification.md
+├── plan.md
+└── tasks.md
+```
+
+```bash
+ralph-starter spec validate   # auto-detects Spec-Kit format
+```
+
+### Raw markdown
+
+```
+specs/
+├── auth-spec.md
+├── api-spec.md
+└── db-migration.md
+```
+
+```bash
+ralph-starter run --from ./specs/auth-spec.md
+```
+
+## Next steps
+
+- [OpenSpec source docs](/docs/sources/openspec) -- How to use OpenSpec with ralph-starter
+- [Spec CLI reference](/docs/cli/spec) -- Full `ralph-starter spec` command docs
+- [Workflow presets](/docs/guides/workflow-presets) -- Pre-configured SDD presets
+
+---
+
 ## Testing Integrations
 
 # Testing ralph-starter Integrations
@@ -6531,6 +7120,10 @@ After installation:
 
 > **Ralph Wiggum made easy.** One command to run autonomous AI coding loops.
 
+import DownloadDocs from '@site/src/components/DownloadDocs'
+
+<DownloadDocs />
+
 ## What is Ralph Wiggum?
 
 Ralph Wiggum is a technique for running AI coding agents in autonomous loops until tasks are completed. Instead of prompting back and forth, you give the AI a task and let it iterate until done.
@@ -6869,7 +7462,7 @@ Run validation commands (tests, lint, build).
 
 ---
 
-## Figma
+## Figma(Sources)
 
 # Figma Source
 
@@ -7065,6 +7658,7 @@ Create a custom mapping file to control how Figma content maps to your component
 | `--figma-target` | Target directory (content mode) | Path (e.g., `src/pages`) |
 | `--figma-preview` | Preview without applying (content mode) | Flag |
 | `--figma-mapping` | Custom mapping file (content mode) | File path (e.g., `mapping.json`) |
+| `--model` | AI model for the coding agent | Model ID (e.g., `claude-sonnet-4-5-20250929`) |
 
 ## Figma URL Formats
 
@@ -7113,6 +7707,30 @@ ralph-starter integrations fetch figma "ABC123" --figma-mode assets
 # Run the generated curl commands to download
 ```
 
+### Choose Your Model
+
+Use `--model` to pick which AI model implements the design. Sonnet is fast and cost-effective for most UI work; Opus produces more nuanced implementations for complex layouts:
+
+```bash
+# Fast iteration with Sonnet (recommended for most Figma workflows)
+ralph-starter run --from figma \
+  --project "https://figma.com/file/ABC123/Dashboard" \
+  --figma-mode components \
+  --model claude-sonnet-4-5-20250929 \
+  --max-iterations 5
+
+# Maximum quality with Opus
+ralph-starter run --from figma \
+  --project "https://figma.com/file/ABC123/Dashboard" \
+  --figma-mode components \
+  --model claude-opus-4-6 \
+  --max-iterations 3
+```
+
+:::tip Model Selection for Figma
+**Sonnet** is the sweet spot for Figma-to-code. It handles component structure, layout, and styling accurately at ~5x lower cost and faster iteration speed. Use **Opus** when you need complex state logic or intricate responsive behavior alongside the UI.
+:::
+
 ## Test Connection
 
 Verify your authentication:
@@ -7121,7 +7739,71 @@ Verify your authentication:
 ralph-starter integrations test figma
 ```
 
+## Rate Limits & Caching
+
+### Figma API Rate Limits
+
+Figma enforces rate limits based on your **plan tier** and **seat type**. This matters because it determines how many API requests you can make per minute (or per month).
+
+| Seat Type | Starter | Professional | Enterprise |
+|-----------|---------|-------------|------------|
+| Collab/Viewer (low) | 6/month | 5/min | 10/min |
+| Dev/Full (high) | 10/min | 15-50/min | 20-100/min |
+
+:::warning Free & Starter Plans
+On the **Starter plan with a Collab/Viewer seat** (`limit-type=low`), you get only **6 requests per month**. Each `ralph-starter run --from figma` uses 2-4 API calls, so you can exhaust your budget in 1-2 runs. Upgrade to a **Professional plan with a Dev seat** ($12/month) for 10+ requests per minute.
+:::
+
+### Community Files
+
+When you access a **community file** (duplicated from the Figma Community), the **file owner's plan** determines your rate limits -- not your own plan. If the original author is on a free/starter plan, you'll be limited to 6 requests per month regardless of your plan.
+
+**Fix:** Duplicate the file to your own workspace. This makes you the owner and applies your plan's limits.
+
+### Response Caching
+
+ralph-starter automatically caches Figma API responses in `~/.ralph/figma-cache/` with a 1-hour TTL. This means:
+
+- **First run** fetches from the API and populates the cache
+- **Subsequent runs** (within 1 hour) use the cache with zero API calls
+- **Rate limited (429)?** Falls back to stale cache if available
+
+This is especially useful for iterative development -- fetch once, then run the coding loop as many times as you want without touching the API.
+
+To clear the cache and force a fresh fetch:
+
+```bash
+rm -rf ~/.ralph/figma-cache/
+```
+
+### Debugging API Issues
+
+Use the `RALPH_DEBUG` environment variable to see every API request, response status, and rate limit headers:
+
+```bash
+RALPH_DEBUG=1 ralph-starter run --from figma --project "your-figma-url"
+```
+
+This shows:
+- Each API endpoint being called
+- HTTP status codes and retry-after values
+- Plan tier (`x-figma-plan-tier`) and limit type (`x-figma-rate-limit-type`)
+- Cache hits and stale cache fallbacks
+
 ## Troubleshooting
+
+### "Figma API blocked for ~N day(s)"
+
+This means CloudFront (Figma's CDN) has blocked your IP after too many rate-limited requests. The `retry-after` header shows days, not minutes.
+
+**Solutions (pick one):**
+1. **Upgrade your Figma plan** to Professional with a Dev seat ($12/month) -- gives you 10+ req/min instead of 6/month
+2. **Use a VPN** to get a fresh IP, fetch once to populate the cache, then disconnect
+3. **Wait** for the block to expire (shown in the error message)
+
+### "Figma API rate limit hit"
+
+A transient rate limit (not a CDN block). ralph-starter will automatically retry once after respecting the `retry-after` header. If it fails again, wait 1-2 minutes and try again.
 
 ### "Invalid Figma token"
 
@@ -7144,6 +7826,7 @@ Assets are detected by name patterns. Rename your icon frames to include "icon",
 - **Variables API** requires Figma Enterprise plan (falls back to styles)
 - **Image export URLs** expire after 30 days
 - **Large files** may be slow; use `--figma-nodes` to target specific frames
+- **Starter plan (Collab seat)** limited to 6 API requests/month -- use caching or upgrade to Professional
 
 ---
 
@@ -7178,6 +7861,28 @@ Create a token at [GitHub Settings > Developer settings > Personal access tokens
 Required scopes:
 - `repo` (for private repositories)
 - `public_repo` (for public repositories only)
+
+## Interactive Wizard
+
+The easiest way to get started:
+
+```bash
+ralph-starter github
+```
+
+This will:
+1. Check your authentication (prompt for token if needed)
+2. Let you browse repositories and select issues
+3. Multi-select which issues to work on
+4. Start the build loop automatically
+
+You can also pass options:
+
+```bash
+ralph-starter github --commit --pr --validate
+```
+
+If you prefer the CLI flags approach, use `ralph-starter run --from github` (see below).
 
 ## Usage
 
@@ -7319,11 +8024,36 @@ Verify your authentication:
 ralph-starter source test github
 ```
 
+## Task Management
+
+Beyond fetching specs, you can create, update, and close GitHub issues directly from the CLI:
+
+```bash
+# List open issues
+ralph-starter task list --source github --project owner/repo
+
+# Create an issue
+ralph-starter task create --title "Add dark mode" --project owner/repo --assignee octocat
+
+# Update an issue
+ralph-starter task update #42 --assignee octocat --project owner/repo
+
+# Close an issue
+ralph-starter task close #42 --comment "Fixed in PR #100" --project owner/repo
+```
+
+See [`ralph-starter task`](/docs/cli/task) for full details.
+
 ## Tips
 
 1. **Use labels effectively** - Create a "ready-to-build" or "ralph" label for issues that are well-specified
 2. **Write detailed issues** - Include requirements, acceptance criteria, and context
 3. **One issue = one feature** - Keep issues focused for better results
+
+## See Also
+
+- [run](/docs/cli/run) — The underlying run command with all options
+- [auto](/docs/cli/auto) — Batch-process multiple GitHub issues autonomously
 
 ---
 
@@ -7339,6 +8069,38 @@ Get your API key from [Linear Settings > API > Personal API keys](https://linear
 
 ```bash
 ralph-starter config set linear.apiKey lin_api_xxxxxxxxxxxx
+```
+
+## Interactive Wizard
+
+The easiest way to get started:
+
+```bash
+ralph-starter linear
+```
+
+This will:
+1. Check your authentication (prompt for API key if needed)
+2. Let you select a team, then browse projects or issues
+3. Start the build loop automatically
+
+You can also paste a Linear issue URL directly when prompted.
+
+### Wizard Options
+
+```bash
+ralph-starter linear --commit          # Auto-commit after tasks
+ralph-starter linear --push            # Push commits to remote
+ralph-starter linear --pr              # Create PR when done
+ralph-starter linear --agent claude-code  # Use a specific agent
+```
+
+### Fallback
+
+If you run `--from linear` without specifying a project, the wizard launches automatically:
+
+```bash
+ralph-starter run --from linear        # Launches wizard
 ```
 
 ## Usage
@@ -7460,6 +8222,31 @@ Create these labels in Linear:
 2. Add comments with build progress
 3. Close issues when build succeeds
 
+## Task Management
+
+Beyond fetching specs, you can create, update, close, and assign Linear issues from the CLI:
+
+```bash
+# List issues from Linear
+ralph-starter task list --source linear
+
+# Create an issue on a specific team
+ralph-starter task create --title "Add dark mode" --source linear --priority P1
+
+# Assign an issue (resolves display name to user ID automatically)
+ralph-starter task update ENG-42 --assignee ruben
+
+# Update status
+ralph-starter task update ENG-42 --status "In Progress"
+
+# Close an issue
+ralph-starter task close ENG-42 --comment "Shipped in v1.2"
+```
+
+Assignee resolution is case-insensitive and matches against display name, full name, and email prefix. If no match is found, ralph-starter shows available team members.
+
+See [`ralph-starter task`](/docs/cli/task) for full details.
+
 ## Tips
 
 1. **Write detailed issues** - Linear's rich markdown support is perfect for detailed specs
@@ -7504,6 +8291,38 @@ In Notion:
 1. Open the page/database you want to use
 2. Click "..." menu → "Add connections"
 3. Select "ralph-starter"
+
+## Interactive Wizard
+
+The easiest way to get started:
+
+```bash
+ralph-starter notion
+```
+
+This will:
+1. Check your authentication (prompt for token if needed)
+2. Let you search for pages by name and select one
+3. Start the build loop automatically
+
+You can also paste a Notion page URL directly when prompted.
+
+### Wizard Options
+
+```bash
+ralph-starter notion --commit          # Auto-commit after tasks
+ralph-starter notion --push            # Push commits to remote
+ralph-starter notion --pr              # Create PR when done
+ralph-starter notion --agent claude-code  # Use a specific agent
+```
+
+### Fallback
+
+If you run `--from notion` without specifying a project, the wizard launches automatically:
+
+```bash
+ralph-starter run --from notion        # Launches wizard
+```
 
 ## Public Pages (No Auth Required)
 
@@ -7669,6 +8488,160 @@ ralph-starter converts the following Notion blocks to markdown:
 3. **Rich content** - Notion's blocks (code, callouts, etc.) are converted to markdown
 4. **Linked databases** - Reference other pages for additional context
 5. **Large pages** - No content limits! Pages with 100+ blocks are fully fetched
+
+---
+
+## OpenSpec
+
+# OpenSpec Source
+
+Read structured specifications from [OpenSpec](https://github.com/Fission-AI/OpenSpec) change directories. No authentication required -- reads directly from the local filesystem.
+
+## What is OpenSpec?
+
+OpenSpec is a spec-driven development framework that organizes specs into a structured directory:
+
+```
+openspec/
+├── config.yaml
+├── changes/
+│   ├── add-auth/
+│   │   ├── proposal.md       # Why: rationale and scope
+│   │   ├── design.md         # How: technical approach
+│   │   ├── tasks.md          # What: implementation checklist
+│   │   └── specs/
+│   │       └── auth/
+│   │           └── spec.md   # Requirements with SHALL/MUST keywords
+│   └── archive/              # Completed changes
+└── specs/                    # Global specifications
+    └── api/
+        └── spec.md
+```
+
+## Usage
+
+### Fetch a specific change
+
+```bash
+ralph-starter run --from openspec:add-auth
+```
+
+This reads `proposal.md` + `design.md` + `tasks.md` + all `specs/*/spec.md` from the `add-auth` change and feeds them as a single structured spec to the AI agent.
+
+### List available changes
+
+```bash
+ralph-starter run --from openspec
+# or
+ralph-starter run --from openspec:list
+```
+
+Returns a summary of all active (non-archived) changes with their available files.
+
+### Fetch all active changes
+
+```bash
+ralph-starter run --from openspec:all
+```
+
+Concatenates all active changes into one document, separated by horizontal rules.
+
+### Fetch global specs only
+
+```bash
+ralph-starter run --from openspec:specs
+# or
+ralph-starter run --from openspec:global
+```
+
+Reads only the `openspec/specs/*/spec.md` files (not change-specific specs).
+
+### Validate before running
+
+```bash
+ralph-starter run --from openspec:add-auth --spec-validate
+```
+
+Checks spec completeness (0-100 score) before starting the loop. See [Spec Driven Development](/docs/guides/spec-driven-development) for scoring details.
+
+## Spec CLI
+
+Use the `spec` command for standalone operations:
+
+```bash
+# Validate all OpenSpec changes
+ralph-starter spec validate
+
+# List available specs
+ralph-starter spec list
+
+# Show completeness metrics
+ralph-starter spec summary
+```
+
+## Output format
+
+When ralph-starter reads an OpenSpec change, it produces structured markdown:
+
+```markdown
+# OpenSpec Change: add-auth
+
+## Proposal
+[contents of proposal.md]
+
+## Design
+[contents of design.md]
+
+## Tasks
+[contents of tasks.md]
+
+## Specs
+### auth
+[contents of specs/auth/spec.md]
+```
+
+Missing files are silently skipped -- if there is no `design.md`, the Design section is omitted.
+
+## Metadata
+
+The source returns metadata useful for downstream processing:
+
+| Field | Description |
+|-------|-------------|
+| `type` | Always `"openspec"` |
+| `changeName` | Name of the change directory |
+| `files` | List of files read (relative paths) |
+| `hasProposal` | Whether `proposal.md` exists |
+| `hasDesign` | Whether `design.md` exists |
+| `hasTasks` | Whether `tasks.md` exists |
+| `specAreas` | List of spec area names (e.g., `["auth", "api"]`) |
+
+## Getting started with OpenSpec
+
+If you do not have an `openspec/` directory yet:
+
+```bash
+# Install OpenSpec
+npm install -g openspec
+
+# Initialize in your project
+openspec init
+
+# Create a new change
+openspec propose add-auth
+```
+
+Then use ralph-starter to implement it:
+
+```bash
+ralph-starter run --from openspec:add-auth --commit --pr
+```
+
+## See also
+
+- [Spec Driven Development guide](/docs/guides/spec-driven-development) -- Full SDD workflow
+- [Spec CLI reference](/docs/cli/spec) -- `ralph-starter spec` command
+- [OpenSpec GitHub](https://github.com/Fission-AI/OpenSpec) -- OpenSpec framework
 
 ---
 
@@ -7982,9 +8955,11 @@ Once you describe your idea (e.g., "a habit tracker app"), the AI:
 You can then customize:
 
 - **Project Type** - Web, API, CLI, Mobile, Library, Automation
-- **Tech Stack** - Frontend, backend, database choices
+- **Tech Stack** - Frontend, backend, database, styling, UI library choices
 - **Features** - Select which features to include
 - **Complexity** - Prototype, MVP, or Full-featured
+
+**Smart UI defaults**: For web projects, if you don't specify a styling or UI library, ralph-starter defaults to **Tailwind CSS + shadcn/ui + motion-primitives**. The shadcn variant is framework-aware: shadcn/ui for React/Next.js, shadcn-vue for Vue, and shadcn-svelte for Svelte. These defaults produce richer specs with Tailwind v4 setup notes that prevent common CSS cascade conflicts.
 
 ### Step 4: Execution Options
 
@@ -8031,9 +9006,11 @@ $ ralph-starter
   Type: Web Application
 
   Tech Stack:
-    Frontend: react
-    Backend: nodejs
-    Database: sqlite
+    Frontend: React
+    Backend: Node.js
+    Database: SQLite
+    Styling: Tailwind CSS
+    UI Library: shadcn/ui
 
   Key Features:
     • Transaction tracking
