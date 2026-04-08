@@ -52,7 +52,7 @@ importers:
         version: 0.34.5
       simple-git:
         specifier: ^3.27.0
-        version: 3.32.3
+        version: 3.35.2
       yaml:
         specifier: ^2.7.0
         version: 2.8.3
@@ -807,80 +807,80 @@ packages:
     resolution: {integrity: sha512-DxuT1ClnIPts1kQx8FBmkk4BQDTfI5kIzywAaMjQSXfNnra5UFU9PwurXrl+Je3bJ6BGsp/zmshVVFbCmyI+ww==}
     engines: {node: '>= 10'}
 
-  '@napi-rs/keyring-darwin-arm64@1.1.9':
-    resolution: {integrity: sha512-/lVnrSFrut+8pQC6IcqlfHKzcEmf2XvQDOZPB5X4vI23GrNXBd56EuBlFPdTBtx46A8Bn+Aqi6pS8cnprHtcCw==}
+  '@napi-rs/keyring-darwin-arm64@1.1.10':
+    resolution: {integrity: sha512-qdXBVypPNgTzso5F/YXWy5dOfFEb9eo43uROMlvwlhj7Aw137iwqwHiqlxR0teFKA33cWnem+ZKeVSIPoobtNA==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [darwin]
 
-  '@napi-rs/keyring-darwin-x64@1.1.9':
-    resolution: {integrity: sha512-G3PiFZTAFTzUnpSB31A/UaPjl48/3sDTLmLxaAZBEk7HcOyBnL31gA1YqhDCO7F2y5sD5TWiFiuID9MyqYOcjw==}
+  '@napi-rs/keyring-darwin-x64@1.1.10':
+    resolution: {integrity: sha512-53DgSzhTAJwxR3KCyggHWcLwp+cw2v1zAhBiqNn1P8XwSJSba7HzFwsei6zZMn7bn3UY1ngIHEtaA74UUJVJyw==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [darwin]
 
-  '@napi-rs/keyring-freebsd-x64@1.1.9':
-    resolution: {integrity: sha512-R4XbvRhEzQyOy4yM+SMDgk8BgkLPkIzXGwR6QR0wJ2YrPeBx3F2TrgdHfsIGSn/X5Axg/2UlrCiZVciZ5BmusA==}
+  '@napi-rs/keyring-freebsd-x64@1.1.10':
+    resolution: {integrity: sha512-pI6lect/Dp8NnV+g3w1hmYLt69FbSwKFAHn77vjeUaIT5H9C0ikAgwLk89Sd8/Ei/AHHldGkrLeWkNjnIiHfoQ==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [freebsd]
 
-  '@napi-rs/keyring-linux-arm-gnueabihf@1.1.9':
-    resolution: {integrity: sha512-UrKy110I+zQyBtw4HLVUqZ1jDq11K3PmQIYgWAJNwB5VQOj4IQ63zLxk4V01Jx4bNOJmGNlvHDJUAyh/lC5Yww==}
+  '@napi-rs/keyring-linux-arm-gnueabihf@1.1.10':
+    resolution: {integrity: sha512-w4psOx5m1ltvNLABT/BpIzP5roVcglR1kDhzZgSEOIIrf2i4FKPQqUIo5UQtjsu+AqhhYwnlnketKDf4h+D06g==}
     engines: {node: '>= 10'}
     cpu: [arm]
     os: [linux]
 
-  '@napi-rs/keyring-linux-arm64-gnu@1.1.9':
-    resolution: {integrity: sha512-yOrhVpNGexDYzybe3dhmHQRPBDjlZPtJDE+eGSi1JwEqYlWDB+4IWjRsetxnO63DhnMFRLeMTdwWghsYrA7VwA==}
+  '@napi-rs/keyring-linux-arm64-gnu@1.1.10':
+    resolution: {integrity: sha512-YMC+ZLj3RldGD2Q5wzlZbc8vTh5Fteln+FpB2lw7EbDib3mmIribNH1NG21E4SwculFRDkVJqYGzwIhafloT8Q==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [linux]
 
-  '@napi-rs/keyring-linux-arm64-musl@1.1.9':
-    resolution: {integrity: sha512-82EcuzoV/+Dxwi1HHhrEEprN5Ou7OsRKyTJSaRqiVuGvLaQDUhZX/4zXTTh4Pz24m22Q4aoJogafS31w8iKGGw==}
+  '@napi-rs/keyring-linux-arm64-musl@1.1.10':
+    resolution: {integrity: sha512-X/Gr5q2vJW7HMpcWRKj7eXer00a1PYb3zt3xsEG/VbcEo5A973pJANTBhYuoW098O/b7ORkunFt9WSbCgenw2A==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [linux]
 
-  '@napi-rs/keyring-linux-riscv64-gnu@1.1.9':
-    resolution: {integrity: sha512-Q1ar7DszC1X8FW6w7Ql7b72GFeAUxkTiOuxXChCFBy7eWCQSDrr52ZLroIowp82RmkQLZebnK+IwSssD2Ntoag==}
+  '@napi-rs/keyring-linux-riscv64-gnu@1.1.10':
+    resolution: {integrity: sha512-vA3R4NVBlU0TVDHavwr5hSqePSs9OwTzzzFlTbZzqgh9s7OqcSwNT096nbr5dRjuQfG9o4/xvjfvVJ4v5z0Egg==}
     engines: {node: '>= 10'}
     cpu: [riscv64]
     os: [linux]
 
-  '@napi-rs/keyring-linux-x64-gnu@1.1.9':
-    resolution: {integrity: sha512-LMvrYt1ho3pEDECssA7ATbcMDgayEUwwSD+UfrC7Hj1+C6dlvipwt5njwUDCno2OeXbjjisCo4CR9fDmXa4sZA==}
+  '@napi-rs/keyring-linux-x64-gnu@1.1.10':
+    resolution: {integrity: sha512-qbKE72UeVOrIoiYYHh7joTpDIgQCZpW5OJHG4Ir19GHLdQwNZGKLfFxrTT2DvZ5EXwFJWbOp4Dew4OvvQ0E63g==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
 
-  '@napi-rs/keyring-linux-x64-musl@1.1.9':
-    resolution: {integrity: sha512-x2i/TgS2/fM+6LRj1MrtVC580sepz5GcxbSCXpttx2H58uZKBF0vVM9HDPHoKP2w5++fyrA17eltJNYN3Ob46A==}
+  '@napi-rs/keyring-linux-x64-musl@1.1.10':
+    resolution: {integrity: sha512-niLWyjD/JxQwlOTPeldIx8Xnf03Mp4ooorpWJMWbMuVz/6hSyLVghY/BDYu2Oaxhc+XlTEjmqwhoTWYhmti5eA==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
 
-  '@napi-rs/keyring-win32-arm64-msvc@1.1.9':
-    resolution: {integrity: sha512-14t6p8CTBNfGzLO5LXqurT+pAOf/ocGjOM/qiG/LW+jPkhyJYBNI9e3HKq3QX+ObbnxVpt4fAY02b4XLt7EWig==}
+  '@napi-rs/keyring-win32-arm64-msvc@1.1.10':
+    resolution: {integrity: sha512-VBlqZ0MF5ksc/Z+yxoL2+p6TDu2rqBOcgZ+HwXzSfgFnfnuPds7xOVdFwwaiJbj9CsCrgnByr1jtHRvfEQ6Iiw==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [win32]
 
-  '@napi-rs/keyring-win32-ia32-msvc@1.1.9':
-    resolution: {integrity: sha512-7+7aXz5op6PtOnWYcK1GYXWQlk2zfpdPt9taLqmCCVpk1g4m3Gw1wyKyQxjrg9clHWdNhdWxhFEA0osDxG8/Eg==}
+  '@napi-rs/keyring-win32-ia32-msvc@1.1.10':
+    resolution: {integrity: sha512-0AvwivxgtjdpTCZCFAQUCxFA45DNKXOsdZYXBCIDfPIpUPgLxhIAsg6q7NJK00r1M24StwwfD+AzZDu14J1PKQ==}
     engines: {node: '>= 10'}
     cpu: [ia32]
     os: [win32]
 
-  '@napi-rs/keyring-win32-x64-msvc@1.1.9':
-    resolution: {integrity: sha512-P1wsSrSqDqvcXLL7yiH2RsO3De65wuEQj1ZjV9s1MHfEP5dIdriNYZfFsRBlOsl32GoK3qFzsuH5DTVviGEHSw==}
+  '@napi-rs/keyring-win32-x64-msvc@1.1.10':
+    resolution: {integrity: sha512-T02DfUUvp3epOJ5lC7hcM5ff6xaLhIfymBf0LEa0oQMi+yCVoDrgjeKeGCUGwtVJWfphu58Tf9twX+hRiAD0dg==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [win32]
 
-  '@napi-rs/keyring@1.1.9':
-    resolution: {integrity: sha512-qjg04yaJ/gFqgG7wDqLlWBvZpsjvYDtwL+xOr2vSM2JrhojuIKsw7pH013U7xJOradTVGeQqhwqgZtt2IblgOw==}
+  '@napi-rs/keyring@1.1.10':
+    resolution: {integrity: sha512-PTMyX7FVZGP4s0LcjgrFonek7Sr9ZTdi0TgpR4/4RQmC2TiDcjpdZOXxRMe2aP+5N89Ix9RG9QWclgqRHLk/Xw==}
     engines: {node: '>= 10'}
 
   '@opencode-ai/sdk@1.3.0':
@@ -1014,6 +1014,12 @@ packages:
   '@sec-ant/readable-stream@0.4.1':
     resolution: {integrity: sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg==}
 
+  '@simple-git/args-pathspec@1.0.2':
+    resolution: {integrity: sha512-nEFVejViHUoL8wU8GTcwqrvqfUG40S5ts6S4fr1u1Ki5CklXlRDYThPVA/qurTmCYFGnaX3XpVUmICLHdvhLaA==}
+
+  '@simple-git/argv-parser@1.0.3':
+    resolution: {integrity: sha512-NMKv9sJcSN2VvnPT9Ja7eKfGy8Q8mMFLwPTCcuZMtv3+mYcLIZflg31S/tp2XCCyiY7YAx6cgBHQ0fwA2fWHpQ==}
+
   '@simple-libs/stream-utils@1.2.0':
     resolution: {integrity: sha512-KxXvfapcixpz6rVEB6HPjOUZT22yN6v0vI0urQSk1L8MlEWPDFCZkhw2xmkyoTGYeFw7tWTZd7e3lVzRZRN/EA==}
     engines: {node: '>=18'}
@@ -1026,8 +1032,8 @@ packages:
     resolution: {integrity: sha512-TcUjEH64gbGLvNszUvubxP0mYHsyaAWfVEJedATQ5aoYe1swjqWoKMpb8XpHO2B3Q2P3DlFciELIzMkNnbodCg==}
     engines: {node: '>=18'}
 
-  '@sourcegraph/amp@0.0.1774253627-g076cc3':
-    resolution: {integrity: sha512-cgpIaHfYpG2XKDRGntixavYbZkF//I3+nzS+lUZAXyUbkimQHI8aFVmSua8L4221k2bfXxsckbObQgVBGIeLGA==}
+  '@sourcegraph/amp@0.0.1775636421-g1ea6b1':
+    resolution: {integrity: sha512-1GOxHFkBqD3SX4+MJJbPK2W+RaiQ3P5Iri4t3claeGnywvPcQZeFP7adrAwsOP1dY9bUqQKia9zkTKGwNCvHxw==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -2339,8 +2345,8 @@ packages:
     resolution: {integrity: sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw==}
     engines: {node: '>=14'}
 
-  simple-git@3.32.3:
-    resolution: {integrity: sha512-56a5oxFdWlsGygOXHWrG+xjj5w9ZIt2uQbzqiIGdR/6i5iococ7WQ/bNPzWxCJdEUGUCmyMH0t9zMpRJTaKxmw==}
+  simple-git@3.35.2:
+    resolution: {integrity: sha512-ZMjl06lzTm1EScxEGuM6+mEX+NQd14h/B3x0vWU+YOXAMF8sicyi1K4cjTfj5is+35ChJEHDl1EjypzYFWH2FA==}
 
   slice-ansi@7.1.2:
     resolution: {integrity: sha512-iOBWFgUX7caIZiuutICxVgX1SdxwAVFFKwt1EvMYYec/NWO5meOJ6K5uQxhrYBdQJne4KxiqZc+KptFOWFSI9w==}
@@ -3271,56 +3277,56 @@ snapshots:
       '@napi-rs/canvas-linux-x64-musl': 0.1.80
       '@napi-rs/canvas-win32-x64-msvc': 0.1.80
 
-  '@napi-rs/keyring-darwin-arm64@1.1.9':
+  '@napi-rs/keyring-darwin-arm64@1.1.10':
     optional: true
 
-  '@napi-rs/keyring-darwin-x64@1.1.9':
+  '@napi-rs/keyring-darwin-x64@1.1.10':
     optional: true
 
-  '@napi-rs/keyring-freebsd-x64@1.1.9':
+  '@napi-rs/keyring-freebsd-x64@1.1.10':
     optional: true
 
-  '@napi-rs/keyring-linux-arm-gnueabihf@1.1.9':
+  '@napi-rs/keyring-linux-arm-gnueabihf@1.1.10':
     optional: true
 
-  '@napi-rs/keyring-linux-arm64-gnu@1.1.9':
+  '@napi-rs/keyring-linux-arm64-gnu@1.1.10':
     optional: true
 
-  '@napi-rs/keyring-linux-arm64-musl@1.1.9':
+  '@napi-rs/keyring-linux-arm64-musl@1.1.10':
     optional: true
 
-  '@napi-rs/keyring-linux-riscv64-gnu@1.1.9':
+  '@napi-rs/keyring-linux-riscv64-gnu@1.1.10':
     optional: true
 
-  '@napi-rs/keyring-linux-x64-gnu@1.1.9':
+  '@napi-rs/keyring-linux-x64-gnu@1.1.10':
     optional: true
 
-  '@napi-rs/keyring-linux-x64-musl@1.1.9':
+  '@napi-rs/keyring-linux-x64-musl@1.1.10':
     optional: true
 
-  '@napi-rs/keyring-win32-arm64-msvc@1.1.9':
+  '@napi-rs/keyring-win32-arm64-msvc@1.1.10':
     optional: true
 
-  '@napi-rs/keyring-win32-ia32-msvc@1.1.9':
+  '@napi-rs/keyring-win32-ia32-msvc@1.1.10':
     optional: true
 
-  '@napi-rs/keyring-win32-x64-msvc@1.1.9':
+  '@napi-rs/keyring-win32-x64-msvc@1.1.10':
     optional: true
 
-  '@napi-rs/keyring@1.1.9':
+  '@napi-rs/keyring@1.1.10':
     optionalDependencies:
-      '@napi-rs/keyring-darwin-arm64': 1.1.9
-      '@napi-rs/keyring-darwin-x64': 1.1.9
-      '@napi-rs/keyring-freebsd-x64': 1.1.9
-      '@napi-rs/keyring-linux-arm-gnueabihf': 1.1.9
-      '@napi-rs/keyring-linux-arm64-gnu': 1.1.9
-      '@napi-rs/keyring-linux-arm64-musl': 1.1.9
-      '@napi-rs/keyring-linux-riscv64-gnu': 1.1.9
-      '@napi-rs/keyring-linux-x64-gnu': 1.1.9
-      '@napi-rs/keyring-linux-x64-musl': 1.1.9
-      '@napi-rs/keyring-win32-arm64-msvc': 1.1.9
-      '@napi-rs/keyring-win32-ia32-msvc': 1.1.9
-      '@napi-rs/keyring-win32-x64-msvc': 1.1.9
+      '@napi-rs/keyring-darwin-arm64': 1.1.10
+      '@napi-rs/keyring-darwin-x64': 1.1.10
+      '@napi-rs/keyring-freebsd-x64': 1.1.10
+      '@napi-rs/keyring-linux-arm-gnueabihf': 1.1.10
+      '@napi-rs/keyring-linux-arm64-gnu': 1.1.10
+      '@napi-rs/keyring-linux-arm64-musl': 1.1.10
+      '@napi-rs/keyring-linux-riscv64-gnu': 1.1.10
+      '@napi-rs/keyring-linux-x64-gnu': 1.1.10
+      '@napi-rs/keyring-linux-x64-musl': 1.1.10
+      '@napi-rs/keyring-win32-arm64-msvc': 1.1.10
+      '@napi-rs/keyring-win32-ia32-msvc': 1.1.10
+      '@napi-rs/keyring-win32-x64-msvc': 1.1.10
     optional: true
 
   '@opencode-ai/sdk@1.3.0': {}
@@ -3402,19 +3408,25 @@ snapshots:
 
   '@sec-ant/readable-stream@0.4.1': {}
 
+  '@simple-git/args-pathspec@1.0.2': {}
+
+  '@simple-git/argv-parser@1.0.3':
+    dependencies:
+      '@simple-git/args-pathspec': 1.0.2
+
   '@simple-libs/stream-utils@1.2.0': {}
 
   '@sindresorhus/merge-streams@4.0.0': {}
 
   '@sourcegraph/amp-sdk@0.1.0-20260312122132-g783443e':
     dependencies:
-      '@sourcegraph/amp': 0.0.1774253627-g076cc3
+      '@sourcegraph/amp': 0.0.1775636421-g1ea6b1
       zod: 3.25.76
     optional: true
 
-  '@sourcegraph/amp@0.0.1774253627-g076cc3':
+  '@sourcegraph/amp@0.0.1775636421-g1ea6b1':
     dependencies:
-      '@napi-rs/keyring': 1.1.9
+      '@napi-rs/keyring': 1.1.10
     optional: true
 
   '@standard-schema/spec@1.1.0': {}
@@ -4820,10 +4832,12 @@ snapshots:
 
   signal-exit@4.1.0: {}
 
-  simple-git@3.32.3:
+  simple-git@3.35.2:
     dependencies:
       '@kwsites/file-exists': 1.1.1
       '@kwsites/promise-deferred': 1.1.1
+      '@simple-git/args-pathspec': 1.0.2
+      '@simple-git/argv-parser': 1.0.3
       debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
