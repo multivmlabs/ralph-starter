@@ -20,6 +20,7 @@ import { runCommand } from './commands/run.js';
 import { setupCommand } from './commands/setup.js';
 import { skillCommand } from './commands/skill.js';
 import { sourceCommand } from './commands/source.js';
+import { specCommand } from './commands/spec.js';
 import { taskCommand } from './commands/task.js';
 import { templateCommand } from './commands/template.js';
 import { startMcpServer } from './mcp/server.js';
@@ -135,6 +136,10 @@ program
   .option(
     '--acceptance-criteria',
     'Extract or generate Given/When/Then acceptance criteria and inject into agent prompt'
+  )
+  .option(
+    '--spec-validate',
+    'Validate spec completeness before starting the loop (checks structure, keywords, criteria)'
   )
   .option(
     '--design-image <path>',
@@ -259,6 +264,16 @@ program
       maxIterations: options.maxIterations ? parseInt(options.maxIterations, 10) : undefined,
       agent: options.agent,
     });
+  });
+
+// ralph-starter spec - Spec-driven development operations
+program
+  .command('spec')
+  .description('Validate, list, and summarize specs (OpenSpec, Spec-Kit, or raw)')
+  .argument('<action>', 'Action: validate, list, summary')
+  .option('--path <path>', 'Path to spec file or directory')
+  .action(async (action, options) => {
+    await specCommand(action, { path: options.path });
   });
 
 // ralph-starter init - Initialize Ralph in a project
