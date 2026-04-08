@@ -306,6 +306,8 @@ export interface RunCommandOptions {
   shiftLeft?: boolean;
   // Acceptance criteria
   acceptanceCriteria?: boolean;
+  // Spec validation
+  specValidate?: boolean;
   // Design reference
   designImage?: string;
   // Visual comparison
@@ -1425,6 +1427,23 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
       }
     } else {
       console.log(chalk.dim('  Shift-left: no validation commands detected, skipping'));
+    }
+  }
+
+  // Validate spec completeness if requested
+  if (options.specValidate && finalTask) {
+    const { formatValidationResult, validateSpec } = await import('../loop/spec-validator.js');
+    const result = validateSpec(finalTask);
+    console.log(chalk.dim(`  Spec validation: ${result.score}/100`));
+    if (!result.valid) {
+      console.log();
+      console.log(formatValidationResult(result));
+      console.log();
+      console.log(chalk.yellow('Spec validation failed. The spec may not have enough detail.'));
+      console.log(
+        chalk.dim('Run without --spec-validate to skip this check, or improve the spec.')
+      );
+      return;
     }
   }
 

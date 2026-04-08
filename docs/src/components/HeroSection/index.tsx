@@ -205,7 +205,7 @@ export default function HeroSection(): React.ReactElement {
               <span className={styles.integrationLabel}>Integrations</span>
               <div className={styles.integrationLogos}>
                 {[
-                  { id: 'figma' as const, to: '/docs/cli/figma', src: '/img/figma-logo.svg', alt: 'Figma' },
+                  { id: 'figma' as const, to: '/docs/sources/figma', src: '/img/figma-logo.svg', alt: 'Figma' },
                   { id: 'github' as const, to: '/docs/sources/github', src: '/img/github logo.webp', alt: 'GitHub' },
                   { id: 'linear' as const, to: '/docs/sources/linear', src: '/img/linear.jpeg', alt: 'Linear' },
                   { id: 'notion' as const, to: '/docs/sources/notion', src: '/img/notion logo.png', alt: 'Notion' },
