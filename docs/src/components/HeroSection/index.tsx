@@ -4,7 +4,7 @@ import useBaseUrl from '@docusaurus/useBaseUrl';
 import styles from './styles.module.css';
 
 interface DemoScenario {
-  id: 'figma' | 'github' | 'linear' | 'notion';
+  id: 'openspec' | 'figma' | 'github' | 'linear' | 'notion';
   tagline: [string, string];
   subtitle: string;
   command: string;
@@ -13,6 +13,21 @@ interface DemoScenario {
 }
 
 const DEMO_SCENARIOS: DemoScenario[] = [
+  {
+    id: 'openspec',
+    tagline: ['Specs drive code.', 'AI handles the rest.'],
+    subtitle:
+      'Write structured specs with OpenSpec. Validate completeness. Let AI implement with full traceability.',
+    command: 'ralph-starter run --from openspec:add-auth --spec-validate',
+    outputLines: [
+      '  Spec validation: 87/100',
+      '  Format: OpenSpec (proposal + design + 3 specs)',
+      '\u2192 Loop 1/5: Building auth middleware...',
+      '\u2192 Loop 2/5: Adding JWT validation + tests...',
+      '\u2192 Lint: pass | Build: pass | Tests: 12/12',
+    ],
+    successLine: '\u2713 Done! Cost: $0.42 | PR #42 created',
+  },
   {
     id: 'figma',
     tagline: ['Design in Figma.', 'Ship pixel-perfect code.'],
@@ -136,7 +151,7 @@ export default function HeroSection(): React.ReactElement {
 
             <p className={`${styles.subtitle} ${styles.animateIn} ${styles.delay2}`}>
               {scenario.subtitle} Also works with {
-                ['Figma', 'GitHub', 'Linear', 'Notion']
+                ['OpenSpec', 'Figma', 'GitHub', 'Linear', 'Notion']
                   .filter(name => name.toLowerCase() !== scenario.id)
                   .join(', ')
               } specs.
@@ -205,6 +220,7 @@ export default function HeroSection(): React.ReactElement {
               <span className={styles.integrationLabel}>Integrations</span>
               <div className={styles.integrationLogos}>
                 {[
+                  { id: 'openspec' as const, to: '/docs/sources/openspec', src: '/img/openspec-logo.svg', alt: 'OpenSpec' },
                   { id: 'figma' as const, to: '/docs/sources/figma', src: '/img/figma-logo.svg', alt: 'Figma' },
                   { id: 'github' as const, to: '/docs/sources/github', src: '/img/github logo.webp', alt: 'GitHub' },
                   { id: 'linear' as const, to: '/docs/sources/linear', src: '/img/linear.jpeg', alt: 'Linear' },

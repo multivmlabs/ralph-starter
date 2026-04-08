@@ -13,6 +13,13 @@ interface UseCase {
 
 const useCases: UseCase[] = [
   {
+    icon: '/img/openspec-logo.svg',
+    title: 'Spec Driven Development',
+    description: 'Write structured specs with OpenSpec, validate completeness, then let AI implement with full traceability.',
+    source: 'OpenSpec',
+    link: '/docs/sources/openspec',
+  },
+  {
     icon: '/img/figma-logo.svg',
     title: 'Build React from Figma',
     description: 'Transform Figma designs into production-ready React components with proper styling and responsive layouts.',
