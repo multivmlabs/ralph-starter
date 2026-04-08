@@ -3,6 +3,9 @@
  * Pre-configured settings for common development scenarios
  */
 
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 export interface PresetConfig {
   name: string;
   description: string;
@@ -234,24 +237,91 @@ export const PRESETS: Record<string, PresetConfig> = {
 };
 
 /**
- * Get a preset by name
+ * Load custom presets from .ralph/presets/*.json in the given directory.
+ * Each JSON file should match the PresetConfig shape (name is derived from filename if missing).
  */
-export function getPreset(name: string): PresetConfig | undefined {
+export function loadCustomPresets(cwd: string): Record<string, PresetConfig> {
+  const presetsDir = join(cwd, '.ralph', 'presets');
+  if (!existsSync(presetsDir)) {
+    return {};
+  }
+
+  const custom: Record<string, PresetConfig> = {};
+
+  let files: string[];
+  try {
+    files = readdirSync(presetsDir).filter((f) => f.endsWith('.json'));
+  } catch {
+    return {};
+  }
+
+  for (const file of files) {
+    try {
+      const content = readFileSync(join(presetsDir, file), 'utf-8');
+      const parsed = JSON.parse(content) as Partial<PresetConfig>;
+
+      // Derive name from filename if not specified
+      const name = parsed.name || file.replace(/\.json$/, '');
+
+      // Validate required fields
+      if (
+        typeof parsed.maxIterations !== 'number' ||
+        typeof parsed.validate !== 'boolean' ||
+        typeof parsed.commit !== 'boolean'
+      ) {
+        continue;
+      }
+
+      custom[name] = {
+        name,
+        description: parsed.description || 'Custom preset',
+        maxIterations: parsed.maxIterations,
+        validate: parsed.validate,
+        commit: parsed.commit,
+        ...(parsed.completionPromise && { completionPromise: parsed.completionPromise }),
+        ...(parsed.promptPrefix && { promptPrefix: parsed.promptPrefix }),
+        ...(parsed.rateLimit && { rateLimit: parsed.rateLimit }),
+        ...(parsed.circuitBreaker && { circuitBreaker: parsed.circuitBreaker }),
+      };
+    } catch {
+      // Skip invalid JSON files
+    }
+  }
+
+  return custom;
+}
+
+/**
+ * Get a preset by name. Checks custom presets (from cwd) first, then built-in presets.
+ */
+export function getPreset(name: string, cwd?: string): PresetConfig | undefined {
+  if (cwd) {
+    const custom = loadCustomPresets(cwd);
+    if (custom[name]) {
+      return custom[name];
+    }
+  }
   return PRESETS[name];
 }
 
 /**
- * Get all available preset names
+ * Get all available preset names (built-in + custom from cwd).
  */
-export function getPresetNames(): string[] {
-  return Object.keys(PRESETS);
+export function getPresetNames(cwd?: string): string[] {
+  const builtIn = Object.keys(PRESETS);
+  if (!cwd) {
+    return builtIn;
+  }
+  const custom = Object.keys(loadCustomPresets(cwd));
+  // Custom presets after built-in, deduplicated
+  return [...new Set([...builtIn, ...custom])];
 }
 
 /**
  * Get presets grouped by category
  */
-export function getPresetsByCategory(): Record<string, PresetConfig[]> {
-  return {
+export function getPresetsByCategory(cwd?: string): Record<string, PresetConfig[]> {
+  const categories: Record<string, PresetConfig[]> = {
     Development: [
       PRESETS.feature,
       PRESETS['feature-minimal'],
@@ -271,13 +341,23 @@ export function getPresetsByCategory(): Record<string, PresetConfig[]> {
       PRESETS['gap-analysis'],
     ],
   };
+
+  if (cwd) {
+    const custom = loadCustomPresets(cwd);
+    const customPresets = Object.values(custom).filter((p) => !PRESETS[p.name]);
+    if (customPresets.length > 0) {
+      categories.Custom = customPresets;
+    }
+  }
+
+  return categories;
 }
 
 /**
  * Format presets for CLI help
  */
-export function formatPresetsHelp(): string {
-  const categories = getPresetsByCategory();
+export function formatPresetsHelp(cwd?: string): string {
+  const categories = getPresetsByCategory(cwd);
   const lines: string[] = ['Available presets:', ''];
 
   for (const [category, presets] of Object.entries(categories)) {

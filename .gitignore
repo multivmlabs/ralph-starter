@@ -20,6 +20,10 @@ docs/node_modules/
 docs/build/
 docs/.docusaurus/
 
+# VHS demo output (generated GIF/MP4)
+demos/output/*
+!demos/output/.gitkeep
+
 # Reference projects (not part of ralph-starter)
 projects/
 

@@ -1,7 +1,7 @@
 /**
  * Task Executor
  *
- * Executes batch tasks sequentially with git automation.
+ * Executes batch tasks sequentially or in parallel (via git worktrees) with git automation.
  */
 
 import { existsSync, rmSync } from 'node:fs';
@@ -16,6 +16,7 @@ import {
   gitPush,
   hasUncommittedChanges,
 } from '../automation/git.js';
+import { cleanupAllWorktrees, createWorktree, removeWorktree } from '../automation/worktree.js';
 import type { Agent } from './agents.js';
 import { type BatchTask, claimTask } from './batch-fetcher.js';
 import { type LoopOptions, runLoop } from './executor.js';
@@ -62,6 +63,10 @@ export interface TaskExecutionOptions {
   validate?: boolean;
   /** Max iterations per task */
   maxIterations?: number;
+  /** Run tasks in parallel using git worktrees */
+  parallel?: boolean;
+  /** Max concurrent parallel tasks (default: 3) */
+  concurrency?: number;
   /** Callback when task starts */
   onTaskStart?: (task: BatchTask, index: number) => void;
   /** Callback when task completes */
@@ -71,12 +76,19 @@ export interface TaskExecutionOptions {
 }
 
 /**
- * Execute tasks sequentially with cascading branches
+ * Execute tasks sequentially with cascading branches, or in parallel via worktrees.
  *
- * Each task creates a branch from the previous task's branch,
- * and PRs cascade: PR3 -> PR2 -> PR1 -> main
+ * Sequential mode: each task creates a branch from the previous task's branch,
+ * and PRs cascade: PR3 -> PR2 -> PR1 -> main.
+ *
+ * Parallel mode (--parallel): each task runs in an isolated git worktree,
+ * all PRs target the default branch independently.
  */
 export async function executeTaskBatch(options: TaskExecutionOptions): Promise<TaskResult[]> {
+  if (options.parallel) {
+    return executeTaskBatchParallel(options);
+  }
+
   const {
     tasks,
     cwd,
@@ -213,6 +225,142 @@ export async function executeTaskBatch(options: TaskExecutionOptions): Promise<T
   } catch {
     // Ignore checkout errors
   }
+
+  return results;
+}
+
+/**
+ * Execute tasks in parallel using git worktrees.
+ *
+ * Each task runs in an isolated worktree with its own branch,
+ * enabling true parallel execution. All PRs target the default branch.
+ */
+export async function executeTaskBatchParallel(
+  options: TaskExecutionOptions
+): Promise<TaskResult[]> {
+  const {
+    tasks,
+    cwd,
+    agent,
+    auto = true,
+    commit = true,
+    push = true,
+    pr = true,
+    validate = true,
+    maxIterations,
+    concurrency = 3,
+    onTaskStart,
+    onTaskComplete,
+    onTaskFail,
+  } = options;
+
+  const defaultBranch = await getDefaultBranch(cwd);
+
+  // Clean up any stale worktrees from previous crashed runs
+  await cleanupAllWorktrees(cwd);
+
+  // Process tasks with concurrency limit
+  const results: TaskResult[] = new Array(tasks.length);
+  const executing: Set<Promise<void>> = new Set();
+
+  for (let i = 0; i < tasks.length; i++) {
+    const task = tasks[i];
+    const index = i;
+
+    const run = async () => {
+      const result: TaskResult = { task, success: false };
+      const branchName = `auto/${task.source}-${task.id}`;
+      result.branch = branchName;
+      let worktreePath: string | undefined;
+
+      try {
+        onTaskStart?.(task, index);
+        await claimTask(task);
+
+        // Create an isolated worktree for this task
+        worktreePath = await createWorktree(cwd, branchName, defaultBranch);
+
+        // Build the task prompt
+        const taskPrompt = buildTaskPrompt(task);
+
+        // Run the loop in the worktree directory
+        const loopOptions: LoopOptions = {
+          task: taskPrompt,
+          cwd: worktreePath,
+          agent,
+          auto,
+          commit: false,
+          push: false,
+          pr: false,
+          validate,
+          maxIterations: maxIterations ?? 15,
+          trackProgress: true,
+          trackCost: true,
+          skipPlanInstructions: true,
+        };
+
+        const loopResult = await runLoop(loopOptions);
+
+        result.iterations = loopResult.iterations;
+        if (loopResult.stats?.costStats) {
+          result.cost = loopResult.stats.costStats.totalCost.totalCost;
+        }
+
+        // Commit and push from worktree
+        if (commit && (await hasUncommittedChanges(worktreePath))) {
+          const commitMessage = buildCommitMessage(task);
+          await gitCommit(worktreePath, commitMessage);
+        }
+
+        if (push) {
+          await gitPush(worktreePath, branchName);
+
+          if (pr) {
+            const cleanTitle = task.title.replace(
+              /^(feat|fix|chore|docs|refactor|test|style|ci|perf|build):\s*/i,
+              ''
+            );
+            const prUrl = await createPullRequest(worktreePath, {
+              title: `feat: ${cleanTitle}`,
+              body: buildPrBody(task, result, defaultBranch),
+              base: defaultBranch,
+            });
+            result.prUrl = prUrl;
+          }
+        }
+
+        result.success = true;
+        await onTaskComplete?.(task, result, index);
+      } catch (error) {
+        result.success = false;
+        result.error = error instanceof Error ? error.message : 'Unknown error';
+        onTaskFail?.(task, error instanceof Error ? error : new Error('Unknown error'), index);
+        await onTaskComplete?.(task, result, index);
+      } finally {
+        // Clean up the worktree
+        if (worktreePath) {
+          try {
+            await removeWorktree(cwd, worktreePath, false);
+          } catch {
+            // Best effort cleanup
+          }
+        }
+      }
+
+      results[index] = result;
+    };
+
+    const promise = run().finally(() => executing.delete(promise));
+    executing.add(promise);
+
+    // Throttle to concurrency limit
+    if (executing.size >= concurrency) {
+      await Promise.race(executing);
+    }
+  }
+
+  // Wait for remaining tasks
+  await Promise.allSettled(executing);
 
   return results;
 }

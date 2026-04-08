@@ -11,6 +11,8 @@ import { fixCommand } from './commands/fix.js';
 import { githubCommand } from './commands/github.js';
 import { initCommand } from './commands/init.js';
 import { integrationsCommand } from './commands/integrations.js';
+import { linearCommand } from './commands/linear.js';
+import { notionCommand } from './commands/notion.js';
 import { pauseCommand } from './commands/pause.js';
 import { planCommand } from './commands/plan.js';
 import { resumeCommand } from './commands/resume.js';
@@ -64,8 +66,15 @@ program
   .option('--docker', 'Run in Docker sandbox (coming soon)')
   .option('--prd <file>', 'Read tasks from a PRD markdown file')
   .option('--max-iterations <n>', 'Maximum loop iterations (auto-calculated if not specified)')
-  .option('--agent <name>', 'Specify agent (claude-code, cursor, codex, opencode, openclaw)')
+  .option(
+    '--agent <name>',
+    'Specify agent (claude-code, cursor, codex, opencode, openclaw, amp, anthropic-sdk, opencode-sdk)'
+  )
   .option('--model <name>', 'Model to use (e.g., claude-sonnet-4-5-20250929, claude-opus-4-6)')
+  .option(
+    '--amp-mode <mode>',
+    'Amp agent mode: smart (frontier), rush (fast), deep (extended reasoning)'
+  )
   .option('--from <source>', 'Fetch spec from source (file, url, github, todoist, linear, notion)')
   .option('--project <name>', 'Project/repo name for --from integrations')
   .option('--label <name>', 'Label filter for --from integrations')
@@ -73,6 +82,8 @@ program
   .option('--limit <n>', 'Max items to fetch for --from integrations', '20')
   .option('--issue <n>', 'Specific issue number to fetch (for github)')
   .option('--output-dir <path>', 'Directory to run the task in (skips location prompt)')
+  .option('--headless', 'Suppress non-essential CLI output for embedding/automation')
+  .option('--no-auto-skills', 'Disable automatic skill installation from skills.sh')
   // New options
   .option(
     '--preset <name>',
@@ -110,12 +121,31 @@ program
   .option('--figma-preview', 'Show content changes without applying (content mode)')
   .option('--figma-mapping <file>', 'Custom content mapping file (content mode)')
   .option(
+    '--model-selector',
+    'Interactive model picker with live OpenRouter pricing and context info'
+  )
+  .option(
+    '--shift-left',
+    'Run lint/test/build before the loop starts to capture pre-existing failures as context'
+  )
+  .option(
+    '--acceptance-criteria',
+    'Extract or generate Given/When/Then acceptance criteria and inject into agent prompt'
+  )
+  .option(
     '--design-image <path>',
     'Design reference image (screenshot of the target design for pixel-perfect matching)'
   )
   .option(
     '--no-visual-check',
     'Disable visual comparison validation (auto-enabled when Figma screenshots exist)'
+  )
+  // Swarm mode options
+  .option('--swarm', 'Run with multiple agents in parallel (swarm mode)')
+  .option(
+    '--strategy <strategy>',
+    'Swarm strategy: race (first wins), consensus (best wins), pipeline (sequential chain)',
+    'race'
   )
   .action(runCommand);
 
@@ -173,6 +203,50 @@ program
   .option('--agent <name>', 'Agent to use')
   .action(async (options) => {
     await githubCommand({
+      commit: options.commit,
+      push: options.push,
+      pr: options.pr,
+      validate: options.validate,
+      maxIterations: options.maxIterations ? parseInt(options.maxIterations, 10) : undefined,
+      agent: options.agent,
+    });
+  });
+
+// ralph-starter linear - Linear issues wizard
+program
+  .command('linear')
+  .description('Build from Linear issues with an interactive wizard')
+  .option('--commit', 'Auto-commit after tasks')
+  .option('--push', 'Push to remote')
+  .option('--pr', 'Create PR when done')
+  .option('--validate', 'Run validation', true)
+  .option('--no-validate', 'Skip validation')
+  .option('--max-iterations <n>', 'Max loop iterations')
+  .option('--agent <name>', 'Agent to use')
+  .action(async (options) => {
+    await linearCommand({
+      commit: options.commit,
+      push: options.push,
+      pr: options.pr,
+      validate: options.validate,
+      maxIterations: options.maxIterations ? parseInt(options.maxIterations, 10) : undefined,
+      agent: options.agent,
+    });
+  });
+
+// ralph-starter notion - Notion pages wizard
+program
+  .command('notion')
+  .description('Build from Notion pages with an interactive wizard')
+  .option('--commit', 'Auto-commit after tasks')
+  .option('--push', 'Push to remote')
+  .option('--pr', 'Create PR when done')
+  .option('--validate', 'Run validation', true)
+  .option('--no-validate', 'Skip validation')
+  .option('--max-iterations <n>', 'Max loop iterations')
+  .option('--agent <name>', 'Agent to use')
+  .action(async (options) => {
+    await notionCommand({
       commit: options.commit,
       push: options.push,
       pr: options.pr,
@@ -319,11 +393,17 @@ program
   .option('--dry-run', 'Preview mode - show tasks without executing')
   .option('--skip-pr', 'Skip PR creation (commit only)')
   .option('--agent <name>', 'Specify agent to use')
+  .option(
+    '--amp-mode <mode>',
+    'Amp agent mode: smart (frontier), rush (fast), deep (extended reasoning)'
+  )
   .option('--validate', 'Run validation after each task', true)
   .option('--no-validate', 'Skip validation')
   .option('--max-iterations <n>', 'Max iterations per task (default: 15)')
   .option('--batch', 'Use Anthropic Batch API for 50% cost reduction (no tool use)')
   .option('--model <name>', 'Model to use in batch mode')
+  .option('--parallel', 'Run tasks in parallel using git worktrees')
+  .option('--concurrency <n>', 'Max concurrent parallel tasks (default: 3)', '3')
   .action(async (options) => {
     await autoCommand({
       source: options.source,
@@ -337,6 +417,8 @@ program
       maxIterations: options.maxIterations ? parseInt(options.maxIterations, 10) : undefined,
       batch: options.batch,
       model: options.model,
+      parallel: options.parallel,
+      concurrency: options.concurrency ? parseInt(options.concurrency, 10) : undefined,
     });
   });
 
@@ -407,7 +489,14 @@ program
   .option('--pr', 'Create a pull request when done')
   .option('--validate', 'Run tests/lint/build after each iteration')
   .option('--max-iterations <n>', 'Maximum loop iterations')
-  .option('--agent <name>', 'Specify agent (claude-code, cursor, codex, opencode, openclaw)')
+  .option(
+    '--agent <name>',
+    'Specify agent (claude-code, cursor, codex, opencode, openclaw, amp, anthropic-sdk, opencode-sdk)'
+  )
+  .option(
+    '--amp-mode <mode>',
+    'Amp agent mode: smart (frontier), rush (fast), deep (extended reasoning)'
+  )
   .action(async (action: string | undefined, args: string[], options) => {
     await templateCommand(action, args, options);
   });
