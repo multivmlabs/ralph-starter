@@ -15,9 +15,9 @@ const MAX_MEMORY_BYTES = 8 * 1024; // 8KB max — keeps context window usage rea
  * Read the project memory file.
  * Returns undefined if no memory exists yet.
  */
-export function readProjectMemory(cwd: string): string | undefined {
+export function readProjectMemory(cwd: string, dotDir = '.ralph'): string | undefined {
   try {
-    const memoryPath = join(cwd, '.ralph', MEMORY_FILE);
+    const memoryPath = join(cwd, dotDir, MEMORY_FILE);
     if (!existsSync(memoryPath)) return undefined;
 
     const content = readFileSync(memoryPath, 'utf-8').trim();
@@ -45,12 +45,12 @@ export function readProjectMemory(cwd: string): string | undefined {
 /**
  * Append an entry to the project memory file.
  */
-export function appendProjectMemory(cwd: string, entry: string): void {
+export function appendProjectMemory(cwd: string, entry: string, dotDir = '.ralph'): void {
   try {
-    const ralphDir = join(cwd, '.ralph');
-    if (!existsSync(ralphDir)) mkdirSync(ralphDir, { recursive: true });
+    const stateDir = join(cwd, dotDir);
+    if (!existsSync(stateDir)) mkdirSync(stateDir, { recursive: true });
 
-    const memoryPath = join(ralphDir, MEMORY_FILE);
+    const memoryPath = join(stateDir, MEMORY_FILE);
     const timestamp = new Date().toISOString().split('T')[0];
     const formatted = `## ${timestamp}\n${entry.trim()}\n\n`;
 
@@ -63,13 +63,13 @@ export function appendProjectMemory(cwd: string, entry: string): void {
 /**
  * Format memory content as a prompt section for injection into agent context.
  */
-export function formatMemoryPrompt(memory: string): string {
+export function formatMemoryPrompt(memory: string, dotDir = '.ralph'): string {
   return `## Project Memory (from previous runs)
-The following notes were saved from previous ralph-starter runs on this project.
+The following notes were saved from previous runs on this project.
 Use them to understand project conventions and avoid repeating mistakes.
 
 ${memory}
 
-If you discover new project conventions or important patterns, append them to \`.ralph/memory.md\`.
+If you discover new project conventions or important patterns, append them to \`${dotDir}/memory.md\`.
 `;
 }
