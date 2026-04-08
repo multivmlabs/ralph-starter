@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-04-08
+
+### Added
+- OpenSpec as builtin source: `--from openspec:my-feature` (#320)
+- Spec validator with completeness scoring (0-100) and `--spec-validate` flag (#321)
+- `ralph-starter spec` command: validate, list, summary subcommands (#321)
+- Figma CLI docs page (`docs/docs/cli/figma.md`) (#321)
+- SDD blog post, LinkedIn article (PT-BR), Twitter thread (EN) (#321)
+
+### Fixed
+- Broken `/docs/cli/figma` link in HeroSection that caused all docs CI failures (#321)
+- Removed `content/` directory from git tracking (#322)
+
 ## [0.5.0] - 2026-04-08
 
 ### Added
