@@ -35,6 +35,7 @@ import {
   type PlanBudget,
 } from './cost-tracker.js';
 import { estimateLoop, formatEstimateDetailed } from './estimator.js';
+import { createLinearSync } from './linear-sync.js';
 import { appendProjectMemory, formatMemoryPrompt, readProjectMemory } from './memory.js';
 import { checkFileBasedCompletion, createProgressTracker, type ProgressEntry } from './progress.js';
 import { RateLimiter } from './rate-limiter.js';
@@ -269,6 +270,8 @@ export type LoopOptions = {
   headless?: boolean;
   onIterationComplete?: (update: IterationUpdate) => void;
   env?: Record<string, string>;
+  /** Linear issue ID to sync status to (e.g., "ENG-42"). Requires LINEAR_API_KEY. */
+  linearSync?: string;
   /** Amp agent mode: smart, rush, deep */
   ampMode?: import('./agents.js').AmpMode;
   /** Run LLM-powered diff review after validation passes (before commit) */
@@ -554,6 +557,11 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
         maxCost: options.maxCost,
         planBudget: options.planBudget,
       })
+    : null;
+
+  // Initialize Linear status sync (non-blocking — skipped if no API key or issue not found)
+  const linearSyncHandler = options.linearSync
+    ? await createLinearSync({ issueId: options.linearSync, headless })
     : null;
 
   // Detect validation commands if validation is enabled
@@ -1169,6 +1177,17 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
 
       finalIteration = i;
       exitReason = 'blocked';
+
+      // Sync blocked status to Linear
+      if (linearSyncHandler) {
+        const reason = isRateLimit
+          ? 'Rate limit reached'
+          : isPermission
+            ? 'Permission denied'
+            : 'Task blocked';
+        await linearSyncHandler({ type: 'failed', error: reason, iterations: i });
+      }
+
       return {
         success: false,
         iterations: i,
@@ -1774,17 +1793,42 @@ export async function runLoop(options: LoopOptions): Promise<LoopResult> {
     log(chalk.dim(costTracker.formatStats()));
   }
 
-  // Save a run summary to project memory for future runs
-  const isSuccess = exitReason === 'completed' || exitReason === 'file_signal';
-  const memorySummary = [
-    `Task: ${options.taskTitle || options.task.slice(0, 100)}`,
-    `Result: ${isSuccess ? 'success' : exitReason}`,
-    `Iterations: ${finalIteration}, Commits: ${commits.length}`,
-  ];
-  if (costTracker) {
-    memorySummary.push(`Cost: ${formatCost(costTracker.getStats().totalCost.totalCost)}`);
+  // Sync final status to Linear
+  if (linearSyncHandler) {
+    const isSuccess = exitReason === 'completed' || exitReason === 'file_signal';
+    const costLabel = costTracker
+      ? formatCost(costTracker.getStats().totalCost.totalCost)
+      : undefined;
+    if (isSuccess) {
+      await linearSyncHandler({
+        type: 'complete',
+        summary: lastAgentOutput?.slice(-200) || '',
+        commits: commits.length,
+        iterations: finalIteration,
+        cost: costLabel,
+      });
+    } else {
+      await linearSyncHandler({
+        type: 'failed',
+        error: exitReason || 'unknown',
+        iterations: finalIteration,
+      });
+    }
   }
-  appendProjectMemory(options.cwd, memorySummary.join('\n'), dotDir);
+
+  // Save a run summary to project memory for future runs
+  {
+    const isSuccess = exitReason === 'completed' || exitReason === 'file_signal';
+    const memorySummary = [
+      `Task: ${options.taskTitle || options.task.slice(0, 100)}`,
+      `Result: ${isSuccess ? 'success' : exitReason}`,
+      `Iterations: ${finalIteration}, Commits: ${commits.length}`,
+    ];
+    if (costTracker) {
+      memorySummary.push(`Cost: ${formatCost(costTracker.getStats().totalCost.totalCost)}`);
+    }
+    appendProjectMemory(options.cwd, memorySummary.join('\n'), dotDir);
+  }
 
   return {
     success: exitReason === 'completed' || exitReason === 'file_signal',

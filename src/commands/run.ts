@@ -310,6 +310,8 @@ export interface RunCommandOptions {
   designImage?: string;
   // Visual comparison
   visualCheck?: boolean;
+  // Linear status sync
+  linearSync?: string;
   // Swarm mode
   swarm?: boolean;
   strategy?: 'race' | 'consensus' | 'pipeline';
@@ -1491,6 +1493,7 @@ Focus on one task at a time. After completing a task, update IMPLEMENTATION_PLAN
     designImagePath,
     visualValidation,
     figmaScreenshotPaths,
+    linearSync: options.linearSync,
     ampMode: options.ampMode,
     review: options.review,
     headless,
