@@ -37,8 +37,8 @@ importers:
         specifier: 3.9.2
         version: 3.9.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@docusaurus/tsconfig':
-        specifier: 3.9.2
-        version: 3.9.2
+        specifier: 3.10.0
+        version: 3.10.0
       '@docusaurus/types':
         specifier: 3.9.2
         version: 3.9.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -1196,8 +1196,8 @@ packages:
     resolution: {integrity: sha512-vIryvpP18ON9T9rjgMRFLr2xJVDpw1rtagEGf8Ccce4CkTrvM/fRB8N2nyWYOW5u3DdjkwKw5fBa+3tbn9P4PA==}
     engines: {node: '>=20.0'}
 
-  '@docusaurus/tsconfig@3.9.2':
-    resolution: {integrity: sha512-j6/Fp4Rlpxsc632cnRnl5HpOWeb6ZKssDj6/XzzAzVGXXfm9Eptx3rxCC+fDzySn9fHTS+CWJjPineCR1bB5WQ==}
+  '@docusaurus/tsconfig@3.10.0':
+    resolution: {integrity: sha512-TXdC3WXuPrdQAexLvjUJfnYf3YKEgEqAs5nK0Q88pRBCW7t7oN4ILvWYb3A5Z1wlSXyXGWW/mCUmLEhdWsjnDQ==}
 
   '@docusaurus/types@3.9.2':
     resolution: {integrity: sha512-Ux1JUNswg+EfUEmajJjyhIohKceitY/yzjRUpu04WXgvVz+fbhVC0p+R0JhvEu4ytw8zIAys2hrdpQPBHRIa8Q==}
@@ -2269,8 +2269,8 @@ packages:
     resolution: {integrity: sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==}
     engines: {node: 18 || 20 || >=22}
 
-  baseline-browser-mapping@2.10.16:
-    resolution: {integrity: sha512-Lyf3aK28zpsD1yQMiiHD4RvVb6UdMoo8xzG2XzFIfR9luPzOpcBlAsT/qfB1XWS1bxWT+UtE4WmQgsp297FYOA==}
+  baseline-browser-mapping@2.10.18:
+    resolution: {integrity: sha512-VSnGQAOLtP5mib/DPyg2/t+Tlv65NTBz83BJBJvmLVHHuKJVaDOBvJJykiT5TR++em5nfAySPccDZDa4oSrn8A==}
     engines: {node: '>=6.0.0'}
     hasBin: true
 
@@ -7806,7 +7806,7 @@ snapshots:
       fs-extra: 11.3.3
       tslib: 2.8.1
 
-  '@docusaurus/tsconfig@3.9.2': {}
+  '@docusaurus/tsconfig@3.10.0': {}
 
   '@docusaurus/types@3.9.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
@@ -9118,7 +9118,7 @@ snapshots:
 
   balanced-match@4.0.4: {}
 
-  baseline-browser-mapping@2.10.16: {}
+  baseline-browser-mapping@2.10.18: {}
 
   baseline-browser-mapping@2.9.17: {}
 
@@ -11620,7 +11620,7 @@ snapshots:
     dependencies:
       '@next/env': 16.1.6
       '@swc/helpers': 0.5.15
-      baseline-browser-mapping: 2.10.16
+      baseline-browser-mapping: 2.10.18
       caniuse-lite: 1.0.30001787
       postcss: 8.4.31
       react: 19.2.4
