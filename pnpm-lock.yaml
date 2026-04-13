@@ -104,8 +104,8 @@ importers:
         version: 4.1.3(@types/node@25.5.2)(@vitest/coverage-v8@4.1.3)(vite@7.3.1(@types/node@25.5.2)(jiti@2.6.1)(yaml@2.8.3))
     optionalDependencies:
       '@sourcegraph/amp-sdk':
-        specifier: 0.1.0-20260408083535-gb6b0a7c
-        version: 0.1.0-20260408083535-gb6b0a7c
+        specifier: 0.1.0-20260413085309-g44b7c3f
+        version: 0.1.0-20260413085309-g44b7c3f
 
 packages:
 
@@ -1124,8 +1124,8 @@ packages:
     resolution: {integrity: sha512-tlqY9xq5ukxTUZBmoOp+m61cqwQD5pHJtFY3Mn8CA8ps6yghLH/Hw8UPdqg4OLmFW3IFlcXnQNmo/dh8HzXYIQ==}
     engines: {node: '>=18'}
 
-  '@sourcegraph/amp-sdk@0.1.0-20260408083535-gb6b0a7c':
-    resolution: {integrity: sha512-6DVvtFY78KFMRo2hjnSxz01k/z7O7UXifsyc4qrhMdzoaOz7lUVvyiSHI0AH2F8BCrkbpyyj8K5fCkZn1xdsFg==}
+  '@sourcegraph/amp-sdk@0.1.0-20260413085309-g44b7c3f':
+    resolution: {integrity: sha512-UJrml3iDC3q5pSpOcVdRKnSx5Jx0W2ALMyhWrvhOjGXRU3hJRzC/hTJR3N1Qxn0tLGlIX2GdpHxltE6TsnVgKQ==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -3555,7 +3555,7 @@ snapshots:
 
   '@sindresorhus/merge-streams@4.0.0': {}
 
-  '@sourcegraph/amp-sdk@0.1.0-20260408083535-gb6b0a7c':
+  '@sourcegraph/amp-sdk@0.1.0-20260413085309-g44b7c3f':
     dependencies:
       zod: 3.25.76
     optional: true
